@@ -17,6 +17,11 @@ approved_changes:
   - "ACR-2026-0005"
   - "ACR-2026-0006"
   - "ACR-2026-0007"
+pending_changes:
+  - id: "ACR-2026-0008"
+    status: "DRAFT"
+    candidate_baseline: "AKB-2026-09-03-09"
+    review_gate: "1/5"
 constraints:
   - "UP-AGT-001"
   - "UP-AGT-002"
