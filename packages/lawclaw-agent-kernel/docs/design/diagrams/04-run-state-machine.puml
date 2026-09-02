@@ -1,11 +1,10 @@
 @startuml 04-run-state-machine
 !include theme.puml
-title AgentRun 首版状态机：Agent Loop、技术等待与中断边界
+title AgentRun 首版状态机：Agent Loop、子 Run 等待与中断边界
 
 state ACCEPTED as "ACCEPTED\n已接受"
 state STARTING as "STARTING\n准备上下文与工具"
 state RUNNING as "RUNNING\nAgent Loop 执行中"
-state WAITING_DECISION as "WAITING_DECISION\n等待技术决定"
 state WAITING_CHILD as "WAITING_CHILD\n等待单层子 Run"
 state CANCELLING as "CANCELLING\n取消中"
 state SUCCEEDED as "SUCCEEDED\n成功" LC_SUCCESS
@@ -17,9 +16,6 @@ state INTERRUPTED as "INTERRUPTED\n执行中断" LC_DANGER
 ACCEPTED --> STARTING : 分配执行预算
 STARTING --> RUNNING : ContextFrame 与 ToolSet 就绪
 RUNNING --> RUNNING : 模型输出 / 工具结果 / 下一轮上下文
-RUNNING --> WAITING_DECISION : 技术 ApprovalRequired
-WAITING_DECISION --> RUNNING : decision.submit = 允许
-WAITING_DECISION --> CANCELLING : 拒绝 / 超时
 RUNNING --> WAITING_CHILD : 创建受限子 AgentRun
 WAITING_CHILD --> RUNNING : 子 Run 摘要 / ArtifactRef 返回
 RUNNING --> CANCELLING : cancel_run

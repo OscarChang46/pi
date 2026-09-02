@@ -18,7 +18,7 @@ cloud "模型服务\n受控模型调用" as MODEL LC_EXTERNAL
 USER -down-> BACKEND : V2 API
 BACKEND -down-> ORCH : OrchestrationPort\n可信 TenantContext + OperationContext + TimeContext
 ORCH -down-> KERNEL : AgentGateway\nContextSpec / ToolPolicyRef / DelegationPolicy\n启动 / 查询 / 取消
-KERNEL ..up.> ORCH : AgentEvent\n候选结果 / 子 Run 摘要 / 技术审批信号
+KERNEL ..up.> ORCH : AgentEvent\n候选结果 / 子 Run 摘要 / 工具技术状态
 KERNEL -down-> PI_ADAPTER : AgentAdapter\n执行配置与规范化运行事件
 PI_ADAPTER -down-> PI : Pi 私有 API
 PI -right-> MODEL : ModelProviderPort

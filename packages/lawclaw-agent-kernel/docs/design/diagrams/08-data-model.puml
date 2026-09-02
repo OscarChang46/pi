@@ -87,9 +87,12 @@ package "Agent Kernel 首版核心" as DOMAIN LC_KERNEL {
     context_mode: fresh|selected
     result_schema_ref: ArtifactRef?
   }
-  class TechnicalApprovalRequest <<实体>> {
-    request_id: TechnicalApprovalRequestId
-    status: TechnicalDecisionStatus
+  class PermissionDecision <<值对象>> {
+    decision_id: PermissionDecisionId
+    decision: allow|deny
+    grant_digest: string?
+    policy_snapshot_id: PolicySnapshotId
+    authorization_epoch: integer
   }
   class AgentDescriptor <<实体>> {
     agent_id: AgentId
@@ -138,7 +141,7 @@ ContextSnapshot "1" --> "1" ContextFrame
 ContextSnapshot "1" *-- "0..*" ContextReductionTrace
 AgentRun "1" *-- "0..*" ToolCallState
 ToolCallState "1" --> "1" ToolDescriptor
-ToolCallState "1" o-- "0..1" TechnicalApprovalRequest
+ToolCallState "1" o-- "0..1" PermissionDecision
 AgentRun "0..*" --> "1" DelegationPolicy
 AgentRun "0..*" --> "0..1" DelegationSpec
 AgentDescriptor "1" *-- "1" CapabilityDescriptor

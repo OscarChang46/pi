@@ -1,7 +1,7 @@
 # 基于 Pi 的 LawClaw Agent Kernel 完整设计
 
 > 文档状态：正式实现基线；当前代码范围由 ACR-2026-0006 固化
-> 版本：0.4.1
+> 版本：0.4.2
 > 日期：2026-09-02
 > 首版目标：macOS ARM64、本地 Bun Sidecar、JSONL stdin/stdout
 > 本文中的 TypeScript、Python、JSON Schema 和 SQLite DDL 均为契约草案，不是实现、迁移或可运行代码。
@@ -35,7 +35,7 @@ ACR-2026-0005 将已经验证的能力固化为正式工程代码；ACR-2026-000
 - 用 `AgentAdapter` 隔离 Pi Session、Event、Message 和 Provider 类型，并显式区分“Kernel 管循环”和“Runtime 托管循环”两种执行档案。
 - 以 `AgentLoopEngine` 统一模型调用、工具调用、上下文更新、技术委派、取消和预算控制。
 - 以 `ContextEngine` 拥有规范化 `ContextItem`、`ContextFrame`、`ContextSnapshot`、裁剪和摘要轨迹；Pi 原生消息仍不得越过 Adapter。
-- 以 `ToolRuntime` 和 `ToolProviderPort` 建立工具发现、版本、Schema、策略、审批、执行和结果归一化的稳定扩展点。
+- 以 `ToolRuntime`、内部 `PermissionApprovalPort` 和 `ToolProviderPort` 建立工具发现、版本、Schema、权限判定、隔离执行和结果归一化的稳定扩展点。
 - 首版交付受限单层子 Agent：子 Agent 是带 `parent_run_id` 的技术 `AgentRun`，不是 `WorkflowStep`。
 - 建立 AgentRun、Session、ToolCall、Delegation 技术状态和规范化 AgentEvent 的统一语义。
 - 在可信 `TenantContext` 下执行强制租户隔离，同时传播 `OperationContext`。
@@ -68,14 +68,14 @@ ACR-2026-0005 将已经验证的能力固化为正式工程代码；ACR-2026-000
 | AgentAdapter | Kernel 调用具体 Runtime 的稳定下行端口族；按能力声明嵌入循环或托管循环执行档案。 |
 | AgentLoopEngine | 执行模型—工具/委派—上下文更新循环，并强制轮次、Token、时间与并发预算。 |
 | ContextEngine | Kernel 内部规范化上下文的组装、预算、选择、裁剪、摘要和可观测轨迹组件；不拥有业务 Conversation。 |
-| ToolRuntime | 工具描述、发现、策略、审批、执行守卫、Provider 调用与结果归一化组件。 |
+| ToolRuntime | 工具描述、发现、内部权限判定、执行守卫、Provider 调用与结果归一化组件。 |
 | DelegationEngine | 创建和监督受限父子 AgentRun 的技术委派组件；不创建 WorkflowStep。 |
 | AgentRun | 一次逻辑 Agent 执行的聚合根；可通过 `parent_run_id` 表达技术子 Run。 |
 | AgentRunAttempt | 后续可选恢复档案中的物理执行尝试；不是首版主路径模型。 |
 | AgentSession | Kernel 管理的逻辑会话；具体 Pi Session 不得外泄。 |
 | AgentCheckpoint | 后续可选恢复档案中的安全恢复点；首版只保留兼容性预留。 |
 | AgentEvent | Kernel 规范化、不可变、可补拉的技术事件。 |
-| TechnicalApprovalRequest | Kernel 对工具技术风险产生的等待状态，不是业务 ApprovalCase。 |
+| PermissionDecision / PermissionGrant | Kernel 内部对单次 ToolCall 的终态权限判定及最小能力集合；不是外部审批请求。 |
 | TenantContext | Backend 产生的可信租户与主体上下文；Kernel 只消费和校验。 |
 | OperationContext | Trace、Correlation、Deadline 等运维上下文。 |
 | Port | 由稳定契约定义、由外部 Adapter 实现的机制接口。 |
@@ -100,7 +100,7 @@ ACR-2026-0005 将已经验证的能力固化为正式工程代码；ACR-2026-000
 | <a id="up-agt-003"></a>UP-AGT-003 | 具体 Runtime 差异由 Adapter 屏蔽 | `AgentAdapter` 与 Pi 私有映射 | 01、02 | 公共 Schema 原生类型扫描 |
 | <a id="up-agt-004"></a>UP-AGT-004 | Kernel 不导入 Pi、Bun、SQLite、HTTP | 纯契约和纯领域模块 | 03 | import 边界测试 |
 | <a id="up-agt-005"></a>UP-AGT-005 | Kernel 负责执行、取消、技术重试和安全恢复边界 | Agent Loop、取消、中断标记；复杂同 Run 恢复为可选档案 | 04、07 | 循环/取消/中断测试 |
-| <a id="up-agt-006"></a>UP-AGT-006 | 技术审批与业务审批分离 | 技术请求只产生信号；业务编排创建 ApprovalCase | 06 | 禁止 ApprovalCase 类型扫描 |
+| <a id="up-agt-006"></a>UP-AGT-006 | 权限审批仅在 Kernel 内部调用 | ToolRuntime 调用 PermissionApprovalPort；无外部决定接口或等待状态 | 06 | 公共协议无审批方法；依赖边界测试 |
 | <a id="up-agt-007"></a>UP-AGT-007 | 路由启动后冻结，非安全边界不切换 Adapter | RouteSnapshot；首版中断后新 Run，不复活旧 Run | 04、07 | 中断与重新启动策略测试 |
 | <a id="up-agt-008"></a>UP-AGT-008 | 原生 Session/Event/Tool 不越过 Adapter | 规范化 DTO、ArtifactRef 和事件目录 | 01、08 | Schema/类型测试 |
 | <a id="up-agt-009"></a>UP-AGT-009 | 首版只读工具最小化 | `list_files`、`read_text`、`search_text` | 10 | 工具白名单测试 |
@@ -170,7 +170,7 @@ ACR-2026-0005 将已经验证的能力固化为正式工程代码；ACR-2026-000
 | ToolRuntime | ToolRegistry、ToolPolicyEngine、ToolExecutionGuard、Provider 调用和结果归一化 | 未注册/未知风险默认拒绝；Provider 不定义策略 | [UP-TOOL-001](#up-tool-001)、[UP-SEC-001](#up-sec-001) |
 | DelegationEngine | 验证 DelegationSpec，创建子 AgentRun，分配独立上下文/工具/预算并汇总结果 | 最大深度 1；子 Run 不继承高风险工具；父取消级联 | [UP-DEL-001](#up-del-001)、[UP-AGT-002](#up-agt-002) |
 | CancellationCoordinator | 停止新动作、协作取消、级联子 Run、进程终止和审计 | 取消有时限且终态幂等 | [UP-AGT-005](#up-agt-005)、[UP-RES-001](#up-res-001) |
-| TechnicalApprovalCoordinator | 持有工具技术等待状态并关联外部决定 | 不创建/裁决 ApprovalCase | [UP-AGT-006](#up-agt-006) |
+| PermissionApprovalService | 对单次 ToolCall 求权限交集并返回 `ALLOW(grant)` 或 `DENY(reason)` | 不对外暴露；不创建沙箱或执行 Provider | [UP-AGT-006](#up-agt-006) |
 
 ### 7.3 支撑数据面
 
@@ -304,7 +304,7 @@ AgentEvent 是不可变实体。Envelope 至少包含：schema_version、tenant_
 
 ### 10.5 Tool 与 Provider 模型
 
-`ToolDescriptor` 至少包含：稳定名称、语义版本、输入/输出 JSON Schema、只读性、幂等性、并行安全性、破坏风险、网络需求、数据范围、审批策略和输出上限。Kernel 只跟踪 ToolCall 的发现、验证、等待技术决定、执行、结果、失败和副作用已知性，不解释工具结果的业务含义。首版工具 Provider 只允许：
+`ToolDescriptor` 至少包含：稳定名称、语义版本、输入/输出 JSON Schema、只读性、幂等性、并行安全性、破坏风险、网络需求、数据范围、内部权限政策引用、沙箱要求和输出上限。Kernel 只跟踪 ToolCall 的发现、验证、权限判定、执行、结果、失败和副作用已知性，不解释工具结果的业务含义。首版工具 Provider 只允许：
 
 - `list_files`：列出授权工作区内目录项；
 - `read_text`：读取授权工作区内受大小限制的文本；
@@ -373,7 +373,6 @@ CommandReceipt 负责传输命令去重，以 `(tenant_id, command_id)` 唯一�
 | `cancel_run` | 请求协作取消，必要时进程终止 | 重复取消返回当前状态 | RUN_TERMINAL、CANCEL_TIMEOUT | UP-AGT-005、UP-RES-001 |
 | `read_events` | 从 after_sequence 有界补拉事件 | 只读；严格顺序 | EVENT_GAP_UNAVAILABLE | UP-DAT-001 |
 | `subscribe_events` | 订阅提交后的事件，支持 after_sequence | 队列 256 条或 2MiB | SUBSCRIBER_SLOW | UP-RES-001 |
-| `decision_submit` | 提交对技术审批请求的外部决定 | command_id/decision_id 幂等；校验租户、Run 与当前状态 | DECISION_STALE、APPROVAL_NOT_PENDING | UP-AGT-006 |
 
 `resume_run` 不属于首版必需 AgentGateway。后续只有 CapabilityDescriptor 明确声明 `checkpoint_resume=true` 时才可通过可选扩展提供；首版调用统一返回 `RECOVERY_UNSUPPORTED`。业务编排使用新的 `command_id + idempotency_key` 调用 `start_run`，并设置 `retry_of_run_id` 保留重试谱系。
 
@@ -435,7 +434,6 @@ CommandReceipt 负责传输命令去重，以 `(tenant_id, command_id)` 唯一�
 | `run.cancel` | AgentGateway.cancel_run | 是 | UP-RES-001 |
 | `run.events.read` | 有界事件补拉 | 否 | UP-DAT-001 |
 | `run.events.subscribe` | 实时事件订阅 | 建立临时订阅 | UP-RES-001 |
-| `decision.submit` | 技术审批外部决定 | 是 | UP-AGT-006 |
 | `health.get` | 健康快照 | 否 | UP-OBS-001 |
 | `metrics.snapshot` | 本地指标快照 | 否 | UP-OBS-001 |
 | `shutdown` | 优雅停止 Sidecar | 是 | UP-RES-001 |
@@ -469,7 +467,7 @@ Pi 在本架构中的定位是 `PiAgentAdapter` 下方的 Runtime 实现，不�
 | Agent Loop | Pi 可提供循环参考与事件原语 | Kernel 首版拥有循环状态、预算、工具和委派控制 | UP-AGT-005 |
 | 流式输出 | Pi streaming lifecycle | 归一化 RuntimeEventCandidate，再转 AgentEvent 并追加后发布 | UP-DAT-001 |
 | Context | Pi message/context primitives 与压缩能力可借鉴 | Kernel ContextEngine 拥有规范化模型、选择、预算、摘要轨迹；Adapter 私有映射 | UP-CTX-003、UP-AGT-008 |
-| 工具调用 | Tool schema、tool call 事件、abort 原语 | Kernel ToolRuntime 负责注册、白名单、路径隔离、技术状态和审批 | UP-TOOL-001、UP-SEC-001 |
+| 工具调用 | Tool schema、tool call 事件、abort 原语 | Kernel ToolRuntime 负责注册、白名单、内部权限判定、路径隔离和技术状态 | UP-TOOL-001、UP-SEC-001 |
 | 单层子 Agent | 不直接依赖 Pi 原生委派 | Kernel DelegationEngine 创建父子 AgentRun；Pi 只执行各 Run 的 turn | UP-DEL-001 |
 | Session | Pi context/session primitives | Kernel Session ID、上下文策略和私有映射 | UP-AGT-008 |
 | 取消 | Abort 机制 | deadline、进程监督、取消审计 | UP-RES-001 |
@@ -478,7 +476,7 @@ Pi 在本架构中的定位是 `PiAgentAdapter` 下方的 Runtime 实现，不�
 | 测试 | Faux Provider | Kernel 契约、故障注入和确定性事件 | UP-AGT-003 |
 | 多租户 | 无平台级能力 | ContextGuard、tenant keys、workspace/secret 隔离 | UP-CTX-001 |
 | 持久 Run | 无平台级聚合 | 首版最小 AgentRun/Event Journal/Receipt；复杂 Attempt/fence 后置 | UP-DAT-001 |
-| 业务审批 | 不复用 | 保持在业务编排，Kernel 只发技术信号 | UP-AGT-006 |
+| 权限审批 | 不复用 Runtime 能力 | 仅由 Kernel 内部 PermissionApprovalPort 同步判定 | UP-AGT-006 |
 
 ## 14. 数据流与控制流
 
@@ -497,13 +495,15 @@ Pi 在本架构中的定位是 `PiAgentAdapter` 下方的 Runtime 实现，不�
 7. AgentLoopEngine 调用 Pi `embedded_loop` Adapter 执行一个 turn；工具或委派结果再进入下一轮 ContextFrame。
 8. 对外 AgentEvent 分配严格递增序号，追加成功后再发布。复杂 Attempt/fence/Checkpoint 不阻塞这条首版主路径。
 
-### 14.2 工具调用与审批
+### 14.2 工具调用、权限判定与沙箱
 
-![图 6：工具技术审批与业务审批边界](diagrams/rendered/06-tool-approval-sequence.svg)
+![图 6：工具权限判定与沙箱执行边界](diagrams/rendered/06-tool-approval-sequence.svg)
 
-*图 6：TechnicalApprovalRequest 与业务 ApprovalCase 的数据和控制权边界。*
+*图 6：Permission Approval 控制平面与 Sandbox 执行强制平面的职责边界。*
 
-ToolRequested 先经 ToolRegistry 解析版本化描述符，再进入 ToolPolicyEngine 和 ToolExecutionGuard。直接安全的只读工具可通过 ToolProviderPort 执行；需要外部决定时，Kernel 记录 TechnicalApprovalRequest 和 ApprovalRequired 事件。业务编排据此创建业务 ApprovalCase。业务裁决通过 `decision.submit` 回到 Kernel，Kernel 只验证关联、租户和当前状态，并继续或拒绝工具调用。
+ToolRequested 先经 ToolRegistry 解析版本化描述符和 Schema，再由 `ToolRuntime` 调用 Kernel 内部 `PermissionApprovalPort`。审批服务只返回 `ALLOW(grant)` 或 `DENY(reason)`，不与业务系统、Runtime 或 Provider 直接交互。允许的调用进入 `ToolExecutionGuard`：先再校验 Grant 与 kill switch，再由 `SandboxPlanner` 将逻辑权限映射成沙箱限制；无法完整落实时失败关闭。沙箱创建成功后，Kernel 才通过 `ToolProviderPort` 执行。
+
+沙箱归属 Tool Execution Security：Kernel 内只保留执行守卫、Sandbox 规划和 `SandboxPort` 契约，具体进程、文件、网络和资源隔离由 Infrastructure/Adapter 实现并在 Composition Root 注入。它不属于 Permission Approval 子组件。
 
 ### 14.3 单层子 Agent 控制流
 
@@ -619,7 +619,8 @@ Adapter 使用 bulkhead 和 circuit breaker。进入执行前可以在无副作�
 - `model.request`
 - `model.first_token`
 - `tool.guard`
-- `approval.wait`
+- `permission.evaluate`
+- `permission.revalidate`
 - `tool.execute`
 - `delegation.start`
 - `delegation.wait`
@@ -635,7 +636,7 @@ Adapter 使用 bulkhead 和 circuit breaker。进入执行前可以在无副作�
 - Run 接受、成功、失败、取消、中断计数；
 - 接受延迟、首 token、总耗时、Agent Loop turn 数与空转拒绝；
 - Context 候选/选中/裁剪/摘要数量、估算 Token、预算拒绝和组装耗时；
-- 工具发现/策略/执行耗时、审批等待和 Provider 错误；
+- 工具发现、权限判定、沙箱创建、执行耗时和 Provider 错误；
 - 子 Run 创建、并发、深度拒绝、等待、级联取消和结果汇总耗时；
 - Adapter 并发、排队、熔断、重试和健康；
 - 订阅队列深度、丢弃/断开、事件补拉量；
@@ -769,7 +770,7 @@ Adapter 使用 bulkhead 和 circuit breaker。进入执行前可以在无副作�
 
 - 本文的职责边界和全部待建模默认是否接受；
 - 10 张 PlantUML 的控制流、数据流和禁止依赖是否正确；
-- Context Engine、Tool Runtime、单层子 Agent、JSONL 方法集、Run 状态机和审批边界是否符合总体架构；
+- Context Engine、Tool Runtime、单层子 Agent、JSONL 方法集、Run 状态机和内部权限边界是否符合总体架构；
 - `run.resume`、Attempt、fence、Checkpoint 降为后续可选档案是否接受；
 - 先做 Pi 能力探针，再做 Agent Loop/Context/Tool/Delegation，最后补最小持久化的顺序是否接受；
 - 后续模块和质量门禁是否可以作为实现约束。
@@ -864,7 +865,6 @@ export interface AgentGateway {
   cancelRun(context: RequestContext, command: CancelRunCommand): Promise<AgentRunSnapshot>;
   readEvents(context: RequestContext, query: ReadEventsQuery): Promise<AgentEventPage>;
   subscribeEvents(context: RequestContext, query: SubscribeEventsQuery): AsyncIterable<AgentEvent>;
-  submitDecision(context: RequestContext, command: SubmitTechnicalDecisionCommand): Promise<TechnicalApprovalSnapshot>;
 }
 
 /**
@@ -994,9 +994,6 @@ class AgentKernelClient:
 
     def subscribe_events(self, context: RequestContext, query: SubscribeEventsQuery) -> AsyncIterator[AgentEvent]:
         """订阅提交后的事件；客户端必须处理慢订阅断开并执行补拉。"""
-
-    async def submit_decision(self, context: RequestContext, command: SubmitTechnicalDecisionCommand) -> TechnicalApprovalSnapshot:
-        """提交业务编排对技术请求的外部决定；不创建或裁决业务 ApprovalCase。"""
 
     async def close_session(self, context: RequestContext, command: CloseSessionCommand) -> AgentSessionSnapshot:
         """幂等关闭逻辑 AgentSession；不改变业务会话。"""
@@ -1174,15 +1171,18 @@ CREATE TABLE delegations (
   FOREIGN KEY (tenant_id, child_run_id) REFERENCES agent_runs(tenant_id, run_id)
 );
 
-CREATE TABLE technical_approval_requests (
+CREATE TABLE permission_decisions (
   tenant_id TEXT NOT NULL,
   run_id TEXT NOT NULL,
-  request_id TEXT NOT NULL,
+  decision_id TEXT NOT NULL,
   tool_call_id TEXT NOT NULL,
-  status TEXT NOT NULL,
-  external_decision_ref TEXT,
-  version INTEGER NOT NULL,
-  PRIMARY KEY (tenant_id, run_id, request_id)
+  decision TEXT NOT NULL CHECK (decision IN ('allow', 'deny')),
+  reason_code TEXT NOT NULL,
+  grant_digest TEXT,
+  policy_snapshot_id TEXT NOT NULL,
+  authorization_epoch INTEGER NOT NULL,
+  created_at TEXT NOT NULL,
+  PRIMARY KEY (tenant_id, run_id, decision_id)
 );
 
 CREATE TABLE artifacts (
@@ -1208,8 +1208,8 @@ CREATE TABLE artifacts (
 | ContextReduced | 发生裁剪或摘要 | snapshot_id、reason_codes、before/after token estimate | 否 | UP-CTX-003 |
 | OutputDelta | 规范化流式增量 | delta_ref/小型 delta、channel | 否 | UP-AGT-008 |
 | ToolRequested | Adapter 请求工具 | tool_call_id、tool_name、args_ref | 否 | UP-AGT-009 |
-| ApprovalRequired | 技术守卫需要外部决定 | request_id、tool_call_id、risk_code | 否 | UP-AGT-006 |
-| ApprovalDecisionRecorded | 外部决定被 Kernel 接受 | request_id、decision、external_ref | 否 | UP-AGT-006 |
+| PermissionAllowed | Kernel 内部权限判定允许 | decision_id、tool_call_id、grant_digest、policy_snapshot_id | 否 | UP-AGT-006 |
+| PermissionDenied | Kernel 内部权限判定拒绝 | decision_id、tool_call_id、reason_code、policy_snapshot_id | 否 | UP-AGT-006 |
 | ToolStarted | 工具开始 | tool_call_id | 否 | UP-AGT-009 |
 | ToolCompleted | 工具成功 | tool_call_id、result_ref | 否 | UP-AGT-009 |
 | ToolFailed | 工具技术失败 | tool_call_id、error_code | 否 | UP-AGT-009 |
@@ -1240,8 +1240,8 @@ CREATE TABLE artifacts (
 | CANCEL_TIMEOUT | 取消未在预算内完成 | 否 | Run 转中断/审计流程 |
 | SUBSCRIBER_SLOW | 订阅队列超限 | 是 | 指示最后已提交 sequence |
 | EVENT_GAP_UNAVAILABLE | 所需历史已不可补拉 | 否 | 返回最早可用 sequence/快照引用 |
-| APPROVAL_NOT_PENDING | 技术请求不在等待状态 | 否 | 返回当前规范化状态 |
-| DECISION_STALE | 决定对应已处理或非当前请求 | 否 | 不覆盖已有决定 |
+| PERMISSION_DENIED | Kernel 内部权限判定拒绝 | 否 | 返回稳定原因码，不泄漏资源存在性 |
+| PERMISSION_GRANT_STALE | Grant 的政策、授权 epoch 或调用绑定已变化 | 否 | 不允许重新解释旧 Grant |
 | RECOVERY_UNSUPPORTED | 首版或所选 Adapter 不提供同 Run 恢复 | 否 | 建议业务评估后启动新 Run |
 | TOOL_NOT_ALLOWED | 工具不在白名单 | 否 | 记录安全审计，不回显参数 |
 | TOOL_PATH_VIOLATION | 文件路径越出授权工作区 | 否 | 不回显物理路径 |
@@ -1261,16 +1261,13 @@ CREATE TABLE artifacts (
 | STARTING | Context/Tool 就绪 | RUNNING | ContextFrame 和 ToolSet 已验证 | RunStarted、ContextAssembled |
 | STARTING | cancel | CANCELLING | 非终态 | CancelRequested |
 | RUNNING | 模型/工具完成一轮 | RUNNING | 未超预算且形成下一轮 ContextFrame | OutputDelta / ToolCompleted / ContextAssembled |
-| RUNNING | approval required | WAITING_DECISION | 技术请求已持久化 | ApprovalRequired |
-| WAITING_DECISION | allow | RUNNING | request/decision 当前且有效 | ApprovalDecisionRecorded |
-| WAITING_DECISION | deny/timeout | CANCELLING | 决定已持久化 | ApprovalDecisionRecorded |
 | RUNNING | delegation allowed | WAITING_CHILD | 深度/数量/预算/工具政策有效 | ChildRunRequested、ChildRunStarted |
 | WAITING_CHILD | child terminal | RUNNING | 摘要或错误已规范化进入 Context | ChildRunCompleted |
 | RUNNING | completed | SUCCEEDED | output_ref 已就绪 | RunCompleted |
 | RUNNING | failed/loop limit | FAILED | 技术失败或预算耗尽 | RunFailed |
 | 非终态 | cancel | CANCELLING | 幂等 | CancelRequested |
 | CANCELLING | stopped | CANCELLED | 进程停止已确认 | RunCancelled |
-| STARTING/RUNNING/WAITING_DECISION/WAITING_CHILD/CANCELLING | crash | INTERRUPTED | 执行环境失联 | RunInterrupted |
+| STARTING/RUNNING/WAITING_CHILD/CANCELLING | crash | INTERRUPTED | 执行环境失联 | RunInterrupted |
 | INTERRUPTED | resume（首版） | 不变 | 不支持同 Run 恢复 | RECOVERY_UNSUPPORTED（响应） |
 | SUCCEEDED/FAILED/CANCELLED/INTERRUPTED | 任意改变命令 | 不变 | 首版终态不可逆 | 无或返回原结果 |
 
@@ -1302,7 +1299,7 @@ CREATE TABLE artifacts (
 | 模型 Provider 抽象 | 是 | 模型目录、SecretHandle、Egress | Faux + 显式真实密钥 Smoke |
 | Agent loop | 有循环与事件原语可复用 | Kernel AgentLoopEngine 负责 turn/Token/时间/空转预算 | Faux 多轮与终止条件测试 |
 | 流式事件 | 是 | RuntimeEventCandidate、稳定事件目录、序号、Journal | 断线补拉测试 |
-| Tool schema/call | 是 | Kernel ToolRegistry/Policy/Guard、租户/路径/审批/技术状态 | 三个只读工具与假 Provider 测试 |
+| Tool schema/call | 是 | Kernel ToolRegistry/PermissionApproval/Guard、租户/路径/沙箱/技术状态 | 三个只读工具与假 Provider 测试 |
 | Abort | 是 | 3s/5s 取消预算、进程审计 | 取消故障注入 |
 | Session/context | 部分 | Kernel 逻辑 Session、ContextSpec/Frame/Snapshot、私有映射 | 原生类型泄漏扫描 |
 | 上下文压缩 | 是，可借鉴 | Kernel ContextReducer、摘要产物与 ReductionTrace | 长会话、预算和质量回归测试 |
@@ -1311,7 +1308,7 @@ CREATE TABLE artifacts (
 | 幂等命令 | 否 | CommandReceipt | 崩溃窗口测试 |
 | 持久 Run/Event Journal | 否 | 里程碑四补最小 SQLite Adapter | 幂等/迁移/补拉测试 |
 | Attempt/fence/Checkpoint 恢复 | 可提取部分原语 | 后续可选档案，不阻塞首版 | `checkpoint_resume=false` 契约测试 |
-| 技术审批持久态 | 否 | TechnicalApprovalRequest | 审批边界测试 |
+| 内部权限判定 | 否 | PermissionDecision / PermissionGrant | 权限单调性与边界测试 |
 | 业务 Workflow/Approval | 不应复用 | 保持在业务编排 | 禁止类型门禁 |
 
 # 附录 J：总体架构一致性矩阵
