@@ -1,0 +1,2 @@
+LawClaw Agent Kernel 提供规范化上下文、只读工具扩展和受限单层子 Agent 能力。
+Pi 位于 AgentAdapter 边界之下，业务编排和业务状态不进入 Kernel。

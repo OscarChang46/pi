@@ -1,0 +1,51 @@
+@startuml 04-run-state-machine
+!include theme.puml
+title AgentRun 首版状态机：Agent Loop、技术等待与中断边界
+
+state ACCEPTED as "ACCEPTED\n已接受"
+state STARTING as "STARTING\n准备上下文与工具"
+state RUNNING as "RUNNING\nAgent Loop 执行中"
+state WAITING_DECISION as "WAITING_DECISION\n等待技术决定"
+state WAITING_CHILD as "WAITING_CHILD\n等待单层子 Run"
+state CANCELLING as "CANCELLING\n取消中"
+state SUCCEEDED as "SUCCEEDED\n成功" LC_SUCCESS
+state FAILED as "FAILED\n失败" LC_DANGER
+state CANCELLED as "CANCELLED\n已取消" LC_INFRASTRUCTURE
+state INTERRUPTED as "INTERRUPTED\n执行中断" LC_DANGER
+
+[*] --> ACCEPTED : start_run\n保存最小 Run + RunAccepted
+ACCEPTED --> STARTING : 分配执行预算
+STARTING --> RUNNING : ContextFrame 与 ToolSet 就绪
+RUNNING --> RUNNING : 模型输出 / 工具结果 / 下一轮上下文
+RUNNING --> WAITING_DECISION : 技术 ApprovalRequired
+WAITING_DECISION --> RUNNING : decision.submit = 允许
+WAITING_DECISION --> CANCELLING : 拒绝 / 超时
+RUNNING --> WAITING_CHILD : 创建受限子 AgentRun
+WAITING_CHILD --> RUNNING : 子 Run 摘要 / ArtifactRef 返回
+RUNNING --> CANCELLING : cancel_run
+WAITING_CHILD --> CANCELLING : 父 Run 取消并级联子 Run
+CANCELLING --> CANCELLED : 协作取消 / 强制终止完成
+CANCELLED --> [*]
+RUNNING --> SUCCEEDED : RunCompleted
+SUCCEEDED --> [*]
+RUNNING --> FAILED : RunFailed
+FAILED --> [*]
+STARTING --> INTERRUPTED : Sidecar / Adapter 崩溃
+RUNNING --> INTERRUPTED : Sidecar / Adapter 崩溃
+WAITING_CHILD --> INTERRUPTED : 执行环境失联
+INTERRUPTED --> [*]
+
+note right of RUNNING
+  首版核心不变量：
+  1. tenant_id、deadline 与预算持续生效；
+  2. Context / Tool / Delegation 均受有界策略约束；
+  3. 规范化事件先追加后发布。
+end note
+note right of INTERRUPTED
+  首版不在同 Run 内自动恢复；
+  业务编排如需重试，使用新幂等键启动新 Run，
+  并以 retry_of_run_id 关联原 Run。
+  Attempt / fence / Checkpoint 保留为后续可选恢复档案。
+  约束：UP-AGT-005、UP-DAT-001、UP-RES-001
+end note
+@enduml

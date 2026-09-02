@@ -1,0 +1,54 @@
+@startuml 06-tool-approval-sequence
+!include theme.puml
+title Tool Runtime：扩展、技术审批与业务 ApprovalCase 的职责边界
+
+autonumber
+box "Agent Kernel" LC_KERNEL
+participant "Agent Loop Engine" as LOOP
+participant "Tool Registry" as REGISTRY
+participant "Tool Policy Engine" as POLICY
+participant "Tool Execution Guard" as GUARD
+participant "技术审批协调器" as TECH_APPROVAL
+participant "AgentGateway / Event Journal" as GW
+end box
+
+participant "业务编排\nApprovalCase" as BUSINESS LC_ORCHESTRATION
+participant "ToolProviderPort" as TOOL_PORT LC_KERNEL
+participant "只读 Tool Provider" as TOOL_PROVIDER LC_ADAPTER
+
+LOOP -> REGISTRY : resolve(tool_name, version)
+REGISTRY --> LOOP : ToolDescriptor + JSON Schema + 风险元数据
+LOOP -> POLICY : evaluate(RequestContext, descriptor, args_ref, policy_ref)
+POLICY -> GUARD : 路径 / 租户 / 出口 / 大小 / deadline 校验
+
+alt 静态策略允许
+  GUARD --> LOOP : ALLOW
+else 需要外部技术决定
+  GUARD -> TECH_APPROVAL : 创建 TechnicalApprovalRequest
+  TECH_APPROVAL -> GW : 追加 ApprovalRequired 后发布
+  GW -->> BUSINESS : AgentEvent 技术审批信号
+  BUSINESS -> BUSINESS : 创建并裁决业务 ApprovalCase
+  BUSINESS -> GW : decision.submit(technical_request_id, decision)
+  GW -> TECH_APPROVAL : 校验 tenant / run / 状态 / decision_id
+  TECH_APPROVAL --> LOOP : ALLOW / DENY
+end
+
+alt ALLOW
+  LOOP -> TOOL_PORT : execute(RequestContext, bounded request)
+  TOOL_PORT -> TOOL_PROVIDER : Provider 私有调用
+  TOOL_PROVIDER --> TOOL_PORT : ToolResult / 稳定技术错误
+  TOOL_PORT --> LOOP : 规范化 ToolResult
+else DENY
+  LOOP --> LOOP : ToolDenied 进入下一轮上下文
+end
+
+note right of BUSINESS
+  ApprovalCase 的审批人、策略和业务结果
+  全部属于业务编排，不属于 Kernel。
+end note
+note over LOOP,TOOL_PORT
+  Tool Runtime 拥有技术扩展协议与执行安全，Provider 只提供机制。
+  首版仅注册 list_files / read_text / search_text。
+  约束：UP-AGT-002、UP-AGT-006、UP-AGT-009、UP-SEC-001
+end note
+@enduml

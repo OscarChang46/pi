@@ -1,0 +1,124 @@
+schemaVersion: "1"
+
+model:
+  source: faux
+  providerId: lawclaw-faux
+  modelId: lawclaw-faux-model
+
+prompts:
+  catalogFile: ./prompts.zh-CN.yaml
+  agentSystemPromptId: agent.kernel.system
+  cliSafetyAppendixId: agent.cli.safety-appendix
+  childAgentSystemPromptId: agent.child.readonly-system
+
+kernel:
+  context:
+    estimatedCharactersPerToken: 4
+    fixedPromptOverheadTokens: 16
+    messageOverheadTokens: 12
+    contextItemOverheadTokens: 12
+  toolRuntime:
+    maxRegisteredTools: 64
+  delegation:
+    maxTrackedParents: 1024
+    delegationToolMaxResultBytes: 32768
+  runLimits:
+    maxTurns: 64
+    maxToolCalls: 256
+    maxDurationMs: 900000
+    maxInputTokens: 256000
+    outputReserveTokens: 128000
+    maxOutputChars: 1000000
+  piAdapter:
+    maxPrivateMessages: 1024
+    maxRetries: 0
+
+tools:
+  readOnly:
+    maxFileBytes: 131072
+    maxListEntries: 200
+    maxSearchFiles: 300
+    maxSearchEntries: 2000
+    maxSearchMatches: 50
+    maxResultBytes: 32768
+    maxMatchedLineChars: 240
+    excludedDirectoryNames: [.git, node_modules, dist]
+
+cli:
+  offline: true
+  sessionDirectory: ../.lawclaw-runtime/pi-sessions
+  requestContext:
+    tenantId: runtime-tenant
+    subjectId: pi-cli-user
+    authorizationSnapshot: runtime-readonly-policy-v1
+    timeZone: Asia/Shanghai
+    locale: zh-CN
+    issuedAtSkewMs: 1000
+    tenantTtlMs: 3600000
+    operationDeadlineMs: 600000
+  toolPolicy:
+    allowedToolNames: [lawclaw_list_files, lawclaw_read_text, lawclaw_search_text]
+    allowedRisks: [read_only]
+    maxCalls: 24
+    perCallTimeoutMs: 10000
+    maxArgumentsBytes: 8192
+  delegationPolicy:
+    enabled: true
+    maxDepth: 1
+    maxChildren: 1
+    timeoutMs: 60000
+    maxTaskChars: 4000
+    maxResultBytes: 32768
+  childProcess:
+    maxRpcStdoutBytes: 1048576
+    killGraceMs: 2000
+
+runtime:
+  workspaceRoot: ../sample-workspace
+  requestContext:
+    tenantId: runtime-tenant
+    subjectId: runtime-user
+    authorizationSnapshot: runtime-readonly-policy-v1
+    timeZone: Asia/Shanghai
+    locale: zh-CN
+    issuedAtSkewMs: 1000
+    tenantTtlMs: 3600000
+    operationDeadlineMs: 60000
+  goal: 读取 input.txt，再把内容校验委派给一个只读子 Agent，最后总结结果。
+  contextItem:
+    itemId: context-safety-1
+    sourceRef: runtime:policy/read-only
+    kind: instruction
+    content: 不得修改文件，不得访问工作区之外的路径，不得递归委派。
+    priority: 100
+    required: true
+    classification: internal
+  toolPolicy:
+    allowedToolNames: [lawclaw_list_files, lawclaw_read_text, lawclaw_search_text, lawclaw_delegate]
+    allowedRisks: [read_only]
+    maxCalls: 4
+    perCallTimeoutMs: 5000
+    maxArgumentsBytes: 4096
+  delegationPolicy:
+    enabled: true
+    maxDepth: 1
+    maxChildren: 1
+    timeoutMs: 5000
+    maxTaskChars: 1000
+    maxResultBytes: 8192
+  budget:
+    maxTurns: 4
+    maxToolCalls: 4
+    maxDurationMs: 15000
+    maxInputTokens: 8000
+    outputReserveTokens: 1000
+    maxOutputChars: 16000
+  fauxScenario:
+    tokenSizeMin: 2
+    tokenSizeMax: 2
+    readPath: input.txt
+    beforeReadText: 先读取受控输入。
+    beforeDelegationText: 再执行一次受限技术委派。
+    delegationTask: 检查父 Agent 读取到的内容是否体现了上下文、只读工具和单层委派边界。
+    fakeDelegationSummaryPrefix: 子 Agent 已完成技术分析
+    finalResponse: Agent Run 完成：Pi 单轮流式调用、Kernel 上下文、只读工具和单层子 Agent 控制流均已贯通。

@@ -1,0 +1,54 @@
+@startuml 07-cancel-recovery-sequence
+!include theme.puml
+title 首版取消、中断与重新启动边界（恢复能力降级）
+
+autonumber
+participant "业务编排" as ORCH LC_ORCHESTRATION
+participant "AgentGateway" as GW LC_KERNEL
+participant "Run Supervisor" as SUPERVISOR LC_KERNEL
+participant "Delegation Engine" as DELEGATION LC_KERNEL
+participant "Agent Loop Engine" as LOOP LC_KERNEL
+participant "AgentAdapter" as ADAPTER_PORT LC_KERNEL
+participant "进程监督 Port" as PROCESS LC_INFRASTRUCTURE
+database "最小 Run / Event Store" as DB
+
+group 主动取消
+  ORCH -> GW : cancel_run(RequestContext, run_id)
+  GW -> SUPERVISOR : cancel(deadline)
+  SUPERVISOR -> DB : 写 CANCELLING + CancelRequested
+  SUPERVISOR -> DELEGATION : 级联取消所有活动子 Run
+  SUPERVISOR -> LOOP : 停止创建新模型 / 工具 / 子 Run 动作
+  LOOP -> ADAPTER_PORT : cancel（协作取消，3 秒）
+  alt Adapter 确认停止
+    ADAPTER_PORT --> SUPERVISOR : Cancelled
+  else 超时
+    SUPERVISOR -> PROCESS : terminate（再等 5 秒）/ kill + audit
+    PROCESS --> SUPERVISOR : terminated
+  end
+  SUPERVISOR -> DB : 写 CANCELLED + RunCancelled
+  DB -->> ORCH : 提交后发布事件
+end
+
+group Sidecar 或 Adapter 崩溃
+  PROCESS -->> SUPERVISOR : 进程退出 / 心跳失联
+  SUPERVISOR -> DB : 写 INTERRUPTED + RunInterrupted
+  SUPERVISOR -> DELEGATION : 标记未知子 Run 已中断
+  SUPERVISOR -->> ORCH : 中断事实 + 可安全重试提示
+end
+
+group 业务显式重新启动
+  ORCH -> GW : start_run(新 command_id + 新 idempotency_key,\nretry_of_run_id=原 Run, restart_reason)
+  GW -> DB : 创建新的 AgentRun
+  note over ORCH,DB
+    首版不复活原 Run，也不承诺同 Run Exactly Once 恢复。
+    AgentRunAttempt、fence、Checkpoint 和 run.resume
+    进入后续可选恢复档案，需单独能力协商。
+  end note
+end
+
+note over ORCH,DB
+  取消安全、租户隔离和未知副作用默认拒绝仍是硬约束；
+  下调的是复杂恢复机制优先级，不是降低工具安全。
+  约束：UP-AGT-005、UP-AGT-007、UP-RES-001、UP-DAT-001
+end note
+@enduml

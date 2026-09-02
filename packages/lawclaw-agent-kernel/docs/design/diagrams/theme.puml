@@ -1,0 +1,100 @@
+' LawClaw Agent Kernel PlantUML 统一主题
+' 颜色语义继承总体架构：业务编排=橙、Kernel=蓝、Adapter=青、运维=紫、基础设施=灰。
+' 本文件只定义视觉语义，不包含任何图形或架构职责。
+
+!define LC_ORCHESTRATION #FCE8D5
+!define LC_ORCHESTRATION_BORDER #D97706
+!define LC_KERNEL #DCEBFA
+!define LC_KERNEL_BORDER #2563EB
+!define LC_ADAPTER #D9F3F0
+!define LC_ADAPTER_BORDER #0F766E
+!define LC_OPERATIONS #EEE5FA
+!define LC_OPERATIONS_BORDER #7C3AED
+!define LC_INFRASTRUCTURE #ECEFF3
+!define LC_INFRASTRUCTURE_BORDER #64748B
+!define LC_EXTERNAL #F8FAFC
+!define LC_EXTERNAL_BORDER #94A3B8
+!define LC_DATA #FFF7CC
+!define LC_DATA_BORDER #A16207
+!define LC_DANGER #FEE2E2
+!define LC_DANGER_BORDER #DC2626
+!define LC_SUCCESS #DCFCE7
+!define LC_SUCCESS_BORDER #15803D
+!define LC_TEXT #172033
+!define LC_MUTED #475569
+
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 12
+skinparam dpi 160
+' SVG 查看器按 Hiragino Sans GB → Noto Sans CJK SC → Microsoft YaHei → sans-serif 回退；
+' Docker 渲染工具会把本机可用的中文字体挂载到固定官方镜像，避免中文测量为方框。
+skinparam defaultFontName "Hiragino Sans GB"
+skinparam defaultFontSize 14
+skinparam defaultFontColor LC_TEXT
+skinparam ArrowColor #334155
+skinparam ArrowFontColor LC_TEXT
+skinparam ArrowFontName "Hiragino Sans GB"
+skinparam ArrowFontSize 12
+skinparam packageStyle rectangle
+skinparam componentStyle rectangle
+skinparam linetype ortho
+skinparam nodesep 45
+skinparam ranksep 55
+skinparam BoxPadding 8
+skinparam SequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+skinparam sequenceGroupBodyBackgroundColor #FFFFFF
+skinparam sequenceGroupBorderColor #CBD5E1
+skinparam sequenceLifeLineBorderColor #64748B
+skinparam sequenceLifeLineBackgroundColor #F8FAFC
+skinparam state {
+  BackgroundColor LC_KERNEL
+  BorderColor LC_KERNEL_BORDER
+  FontColor LC_TEXT
+  StartColor LC_KERNEL_BORDER
+  EndColor LC_KERNEL_BORDER
+}
+skinparam database {
+  BackgroundColor LC_DATA
+  BorderColor LC_DATA_BORDER
+  FontColor LC_TEXT
+}
+skinparam note {
+  BackgroundColor #FFFBEB
+  BorderColor #D97706
+  FontColor LC_TEXT
+}
+skinparam legend {
+  BackgroundColor #F8FAFC
+  BorderColor #CBD5E1
+  FontColor LC_TEXT
+}
+
+!procedure $orch($alias, $label)
+rectangle $label as $alias LC_ORCHESTRATION;line:LC_ORCHESTRATION_BORDER
+!endprocedure
+
+!procedure $kernel($alias, $label)
+rectangle $label as $alias LC_KERNEL;line:LC_KERNEL_BORDER
+!endprocedure
+
+!procedure $adapter($alias, $label)
+rectangle $label as $alias LC_ADAPTER;line:LC_ADAPTER_BORDER
+!endprocedure
+
+!procedure $ops($alias, $label)
+rectangle $label as $alias LC_OPERATIONS;line:LC_OPERATIONS_BORDER
+!endprocedure
+
+!procedure $infra($alias, $label)
+rectangle $label as $alias LC_INFRASTRUCTURE;line:LC_INFRASTRUCTURE_BORDER
+!endprocedure
+
+!procedure $external($alias, $label)
+rectangle $label as $alias LC_EXTERNAL;line:LC_EXTERNAL_BORDER
+!endprocedure
+
+!procedure $forbidden($from, $to, $label)
+$from -[#DC2626,dashed,bold]-> $to : <color:#B91C1C>$label</color>
+!endprocedure

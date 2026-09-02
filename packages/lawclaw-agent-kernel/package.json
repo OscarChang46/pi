@@ -1,0 +1,40 @@
+{
+  "name": "lawclaw-agent-kernel",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "基于 Pi Runtime、遵守 LawClaw 总体架构边界的 Agent Kernel",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "scripts": {
+    "build": "tsgo -p tsconfig.build.json",
+    "typecheck": "tsgo -p tsconfig.json",
+    "test": "node --import tsx --test test/*.test.ts",
+    "start": "tsx src/application/run-kernel.ts",
+    "pi": "bash scripts/run-pi-cli.sh",
+    "pi:smoke": "node scripts/pi-cli-smoke.mjs",
+    "check:comments": "node scripts/check-public-contract-comments.mjs",
+    "check:architecture": "bash scripts/check-architecture-governance.sh && bash scripts/check-architecture-conformance.sh && bash scripts/check-runtime-boundaries.sh && npm run check:comments",
+    "check": "npm run typecheck && npm test && npm start && npm run pi:smoke && npm run check:architecture && npm audit --audit-level=high"
+  },
+  "dependencies": {
+    "@earendil-works/pi-ai": "^0.84.4",
+    "@earendil-works/pi-coding-agent": "^0.84.4",
+    "yaml": "2.9.0"
+  },
+  "devDependencies": {
+    "@types/node": "22.19.19",
+    "@typescript/native-preview": "7.0.0-dev.20260120.1",
+    "tsx": "4.22.1",
+    "typescript": "5.9.3"
+  }
+}

@@ -1,0 +1,68 @@
+@startuml 03-dependency-boundaries
+!include theme.puml
+title 模块依赖边界、允许方向与禁止依赖
+
+left to right direction
+package "应用调用方" as CALLER LC_ORCHESTRATION {
+  component "业务编排" as ORCH
+  component "Python 参考客户端" as PY_CLIENT
+}
+package "稳定契约" as CONTRACTS LC_KERNEL {
+  component "agent-contracts\nGateway DTO / Schema / Port / 错误码" as C
+}
+package "纯领域内核" as CORE LC_KERNEL {
+  component "agent-kernel\nRun Supervisor" as K
+  component "context-engine\n规范化上下文" as CTX
+  component "tool-runtime\n工具扩展与安全" as TOOL
+  component "delegation-engine\n单层子 Agent" as DELEGATION
+}
+package "外部实现" as IMPL {
+  component "agent-adapter-pi" as PI_ADAPTER LC_ADAPTER
+  component "agent-adapter-fake" as FAKE LC_ADAPTER
+  component "tool/context-provider" as PROVIDERS LC_ADAPTER
+  component "agent-infra-sqlite" as SQLITE LC_INFRASTRUCTURE
+  component "system-time-adapter\nUTC / IANA" as TIME LC_INFRASTRUCTURE
+  component "agent-sidecar-transport" as SIDECAR LC_INFRASTRUCTURE
+}
+rectangle "Composition Root\n唯一具体实例化位置" as ROOT LC_EXTERNAL
+rectangle "Pi Runtime 私有类型" as PI_NATIVE LC_ADAPTER
+database "SQLite 私有类型" as SQLITE_NATIVE
+
+ORCH --> C : AgentGateway
+PY_CLIENT --> C : JSONL Schema
+K --> C : 稳定契约
+K --> CTX : ContextFrame
+K --> TOOL : ToolRuntime
+K --> DELEGATION : DelegationSpec
+CTX --> C : ContextSourcePort
+TOOL --> C : ToolProviderPort
+DELEGATION --> C : 父子 AgentRun 契约
+PI_ADAPTER --> C : 实现 AgentAdapter
+FAKE --> C : 实现 AgentAdapter
+PROVIDERS --> C : 实现 Provider Port
+SQLITE --> C : 实现 InfrastructurePort
+TIME --> C : 实现 TimePort
+SIDECAR --> C : 调用 AgentGateway
+ROOT --> K : 创建内核
+ROOT --> PI_ADAPTER : 实例化并注册
+ROOT --> PROVIDERS : 实例化并注册
+ROOT --> SQLITE : 实例化机制
+ROOT --> TIME : 实例化并注入
+ROOT --> SIDECAR : 绑定 JSONL 传输
+PI_ADAPTER -down-> PI_NATIVE : Pi 私有 API
+SQLITE --> SQLITE_NATIVE : bun:sqlite 私有 API
+
+K -[#DC2626,dashed,bold]-> PI_NATIVE : 禁止导入 Pi / Bun / SQLite / HTTP
+ORCH -[#DC2626,dashed,bold]-> PI_NATIVE : 禁止绕过 AgentGateway
+DELEGATION -[#DC2626,dashed,bold]-> ORCH : 禁止修改 Workflow / ApprovalCase
+PI_ADAPTER -[#DC2626,dashed,bold]-> K : 禁止反向定义领域规则
+SQLITE -[#DC2626,dashed,bold]-> K : 禁止基础设施反向控制领域
+K -[#DC2626,dashed,bold]-> TIME : 禁止直接依赖具体时间实现
+C -[#DC2626,dashed,bold]-> PI_NATIVE : 禁止公共 Schema 泄漏原生类型
+
+note bottom
+  Context / Tool / Delegation 是 Kernel 内部逻辑组件，不拥有业务状态。
+  允许依赖必须单向；循环依赖为 0。
+  约束：UP-DEP-001、UP-DEP-002、UP-DEP-003、UP-AGT-004、UP-INF-001、UP-INF-002
+end note
+@enduml
