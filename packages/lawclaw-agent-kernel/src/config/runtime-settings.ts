@@ -58,6 +58,14 @@ export interface ToolRuntimeConfig {
 	readonly maxRegisteredTools: number;
 }
 
+/** Runtime、Session、AgentRun、Loop 四对象模型的容量配置。 */
+export interface AgentObjectModelConfig {
+	/** 单个 Runtime 内存中最多管理的 Session 数。 */
+	readonly maxSessions: number;
+	/** 单个 Session 内存中最多保留的 AgentRun 数。 */
+	readonly maxRunsPerSession: number;
+}
+
 /** DelegationEngine 和委派工具配置。 */
 export interface DelegationEngineConfig {
 	/** 内存中允许跟踪的父 Run 数量。 */
@@ -76,6 +84,8 @@ export interface PiAdapterConfig {
 
 /** Kernel 内部组件的可调运行配置。 */
 export interface KernelRuntimeConfig {
+	/** 四对象聚合层级的容量上限。 */
+	readonly objectModel: AgentObjectModelConfig;
 	/** Context 估算参数。 */
 	readonly context: ContextEngineConfig;
 	/** 工具目录参数。 */
@@ -406,7 +416,15 @@ function parseRuntimeConfig(value: unknown): RuntimeConfig {
 		"cliSafetyAppendixId",
 		"childAgentSystemPromptId",
 	]);
-	const kernel = object(root.kernel, "kernel", ["context", "toolRuntime", "delegation", "runLimits", "piAdapter"]);
+	const kernel = object(root.kernel, "kernel", [
+		"objectModel",
+		"context",
+		"toolRuntime",
+		"delegation",
+		"runLimits",
+		"piAdapter",
+	]);
+	const objectModel = object(kernel.objectModel, "kernel.objectModel", ["maxSessions", "maxRunsPerSession"]);
 	const context = object(kernel.context, "kernel.context", [
 		"estimatedCharactersPerToken",
 		"fixedPromptOverheadTokens",
@@ -496,6 +514,16 @@ function parseRuntimeConfig(value: unknown): RuntimeConfig {
 			childAgentSystemPromptId: nonEmptyText(prompts.childAgentSystemPromptId, "prompts.childAgentSystemPromptId"),
 		}),
 		kernel: Object.freeze({
+			objectModel: Object.freeze({
+				maxSessions: safeInteger(objectModel.maxSessions, "kernel.objectModel.maxSessions", {
+					min: 1,
+					max: 65_536,
+				}),
+				maxRunsPerSession: safeInteger(objectModel.maxRunsPerSession, "kernel.objectModel.maxRunsPerSession", {
+					min: 1,
+					max: 65_536,
+				}),
+			}),
 			context: Object.freeze({
 				estimatedCharactersPerToken: safeInteger(
 					context.estimatedCharactersPerToken,

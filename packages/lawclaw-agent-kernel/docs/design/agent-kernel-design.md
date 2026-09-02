@@ -1,13 +1,15 @@
 # 基于 Pi 的 LawClaw Agent Kernel 完整设计
 
 > 文档状态：正式实现基线；当前代码范围由 ACR-2026-0006 固化
-> 版本：0.4.2
-> 日期：2026-09-02
+> 版本：0.5.0
+> 日期：2026-09-03
 > 首版目标：macOS ARM64、本地 Bun Sidecar、JSONL stdin/stdout
 > 本文中的 TypeScript、Python、JSON Schema 和 SQLite DDL 均为契约草案，不是实现、迁移或可运行代码。
 
 > [!IMPORTANT]
 > 本版正式记录三项范围变更：首版增加受限单层子 Agent；规范化执行上下文由 Kernel 的 Context Engine 所有；里程碑顺序改为先验证 Pi Agent Loop、Context Engine 与 Tool Runtime，再实现最小持久化。业务编排、多租户、安全、Adapter 和基础设施边界不变。
+>
+> ACR-2026-0007 进一步固化四对象模型：`Runtime` 是聚合根，`Session` 管理多次 `AgentRun`，每个 `AgentRun` 拥有一至多个 `AgentLoop`。ToolCall、PermissionGrant 和 SandboxHandle 都是该层级下的调用实体或值对象，不能替代四个核心对象。
 
 ## 1. 文档目的
 
@@ -37,7 +39,7 @@ ACR-2026-0005 将已经验证的能力固化为正式工程代码；ACR-2026-000
 - 以 `ContextEngine` 拥有规范化 `ContextItem`、`ContextFrame`、`ContextSnapshot`、裁剪和摘要轨迹；Pi 原生消息仍不得越过 Adapter。
 - 以 `ToolRuntime`、内部 `PermissionApprovalPort` 和 `ToolProviderPort` 建立工具发现、版本、Schema、权限判定、隔离执行和结果归一化的稳定扩展点。
 - 首版交付受限单层子 Agent：子 Agent 是带 `parent_run_id` 的技术 `AgentRun`，不是 `WorkflowStep`。
-- 建立 AgentRun、Session、ToolCall、Delegation 技术状态和规范化 AgentEvent 的统一语义。
+- 建立 Runtime、Session、AgentRun、AgentLoop、ToolCall、Delegation 技术状态和规范化 AgentEvent 的统一语义。
 - 在可信 `TenantContext` 下执行强制租户隔离，同时传播 `OperationContext`。
 - 保证最小命令幂等、事件先追加后发布、单 Run 序号严格递增和事件补拉。
 - 提供有界取消与中断标记；同 Run Attempt/fence/Checkpoint 恢复降为后续可选能力。
@@ -64,15 +66,17 @@ ACR-2026-0005 将已经验证的能力固化为正式工程代码；ACR-2026-000
 | 术语 | 定义 |
 |---|---|
 | Agent Kernel | 管理 Agent 技术运行语义的纯领域内核，不含业务编排和具体 Runtime。 |
+| Runtime | Agent System 的聚合根；拥有 Session 目录、系统级能力上限和安全基础设施引用。 |
+| AgentSession | Runtime 内的逻辑会话实体；管理同一会话的多次 AgentRun，具体 Pi Session 不得外泄。 |
+| AgentRun | Session 内一次用户请求对应的执行实体；冻结本次政策、预算和上下文，并拥有本次执行的全部 AgentLoop。 |
+| AgentLoop | AgentRun 内一次“模型 Turn—工具/委派—上下文更新”迭代实体；序号严格递增且终态不可逆。 |
 | AgentGateway | 业务编排调用 Kernel 的稳定上行端口。 |
 | AgentAdapter | Kernel 调用具体 Runtime 的稳定下行端口族；按能力声明嵌入循环或托管循环执行档案。 |
 | AgentLoopEngine | 执行模型—工具/委派—上下文更新循环，并强制轮次、Token、时间与并发预算。 |
 | ContextEngine | Kernel 内部规范化上下文的组装、预算、选择、裁剪、摘要和可观测轨迹组件；不拥有业务 Conversation。 |
 | ToolRuntime | 工具描述、发现、内部权限判定、执行守卫、Provider 调用与结果归一化组件。 |
 | DelegationEngine | 创建和监督受限父子 AgentRun 的技术委派组件；不创建 WorkflowStep。 |
-| AgentRun | 一次逻辑 Agent 执行的聚合根；可通过 `parent_run_id` 表达技术子 Run。 |
 | AgentRunAttempt | 后续可选恢复档案中的物理执行尝试；不是首版主路径模型。 |
-| AgentSession | Kernel 管理的逻辑会话；具体 Pi Session 不得外泄。 |
 | AgentCheckpoint | 后续可选恢复档案中的安全恢复点；首版只保留兼容性预留。 |
 | AgentEvent | Kernel 规范化、不可变、可补拉的技术事件。 |
 | PermissionDecision / PermissionGrant | Kernel 内部对单次 ToolCall 的终态权限判定及最小能力集合；不是外部审批请求。 |
@@ -95,7 +99,7 @@ ACR-2026-0005 将已经验证的能力固化为正式工程代码；ACR-2026-000
 
 | 约束编号 | 上层约束 | 本设计落实 | 图 | 后续门禁 |
 |---|---|---|---|---|
-| <a id="up-agt-001"></a>UP-AGT-001 | Kernel 只拥有 Agent 技术运行模型 | Run/Session/Event、Context、ToolCall、Delegation 技术模型；非目标清单 | 01、02、08 | 禁止业务类型扫描 |
+| <a id="up-agt-001"></a>UP-AGT-001 | Kernel 只拥有 Agent 技术运行模型 | Runtime 聚合根及 Session/AgentRun/AgentLoop 所有权层级；Context、ToolCall、Delegation 技术模型；非目标清单 | 01、02、08 | 四对象所有权与禁止业务类型测试 |
 | <a id="up-agt-002"></a>UP-AGT-002 | 业务编排位于 Kernel 外，决定调用与采纳 | `AgentGateway` 只返回候选输出和技术状态 | 01、06 | 模块依赖测试 |
 | <a id="up-agt-003"></a>UP-AGT-003 | 具体 Runtime 差异由 Adapter 屏蔽 | `AgentAdapter` 与 Pi 私有映射 | 01、02 | 公共 Schema 原生类型扫描 |
 | <a id="up-agt-004"></a>UP-AGT-004 | Kernel 不导入 Pi、Bun、SQLite、HTTP | 纯契约和纯领域模块 | 03 | import 边界测试 |
@@ -147,6 +151,22 @@ ACR-2026-0005 将已经验证的能力固化为正式工程代码；ACR-2026-000
 *图 2：控制面、智能执行面、支撑数据面、Adapter/Provider 面与运维横切能力。*
 >[!info] 控制面和执行面分离：拆分调度和执行。
 
+### 7.0 四对象模型与所有权
+
+```text
+Runtime（聚合根）
+  └─ Session（会话实体，0..*）
+      └─ AgentRun（一次用户请求，0..*，首版同 Session 串行）
+          └─ AgentLoop（一次模型—动作—上下文迭代，0..*）
+              └─ ToolCall / Delegation（Loop 内动作实体）
+```
+
+- Composition Root 只创建一个 Runtime；Runtime 绑定单一租户并限制 Session 总量。
+- Session 保存会话级权限上限并管理多次 Run；同一 `run_id` 不得重复创建。
+- AgentRun 冻结命令、预算和政策，执行期间拥有严格递增的 Loop；Run 终态由 Loop 执行结果收敛。
+- AgentLoop 不是 `while` 语法别名，而是有 `ordinal`、开始时间和不可逆终态的实体。
+- ToolCall、PermissionDecision、PermissionGrant、SandboxRequest 和 SandboxHandle 均位于具体 Loop/Run 之下，不构成第五个顶层聚合根。
+
 
 ### 7.1 控制面
 
@@ -164,8 +184,8 @@ ACR-2026-0005 将已经验证的能力固化为正式工程代码；ACR-2026-000
 
 | 组件 | 职责 | 关键不变量 | 约束 |
 |---|---|---|---|
-| RunSupervisor | 最小 Run 状态、预算、Adapter 生命周期、取消和中断标记 | 不拥有业务重试；中断后首版不复活原 Run | [UP-AGT-005](#up-agt-005)、[UP-RES-001](#up-res-001) |
-| AgentLoopEngine | 驱动“上下文 → Runtime turn → 工具/委派 → 新上下文”循环 | 轮次、Token、时间、输出、工具和委派均有界 | [UP-AGT-005](#up-agt-005)、[UP-CTX-003](#up-ctx-003) |
+| AgentRuntime / AgentSession / AgentRun | 维护四对象所有权、租户绑定、会话串行、Run 唯一性和容量 | Runtime 外不能直接创建游离 Run；Run 不能绕过 Session | [UP-AGT-001](#up-agt-001)、[UP-RES-001](#up-res-001) |
+| AgentLoopEngine / AgentLoop | 驱动并记录“上下文 → Runtime turn → 工具/委派 → 新上下文”迭代 | 每个模型 Turn 必须对应一个 Loop 实体；轮次、Token、时间、输出、工具和委派均有界 | [UP-AGT-005](#up-agt-005)、[UP-CTX-003](#up-ctx-003) |
 | ContextEngine | 从受控来源组装 ContextItem，按预算选择、裁剪、摘要并生成 ContextFrame/Snapshot/ReductionTrace | 不读取业务库；不把业务 Conversation 变成 Kernel 聚合 | [UP-CTX-003](#up-ctx-003)、[UP-SEC-001](#up-sec-001) |
 | ToolRuntime | ToolRegistry、ToolPolicyEngine、ToolExecutionGuard、Provider 调用和结果归一化 | 未注册/未知风险默认拒绝；Provider 不定义策略 | [UP-TOOL-001](#up-tool-001)、[UP-SEC-001](#up-sec-001) |
 | DelegationEngine | 验证 DelegationSpec，创建子 AgentRun，分配独立上下文/工具/预算并汇总结果 | 最大深度 1；子 Run 不继承高风险工具；父取消级联 | [UP-DEL-001](#up-del-001)、[UP-AGT-002](#up-agt-002) |
@@ -257,11 +277,11 @@ ObservabilityPort 是横切端口，不改变领域决策。它接收脱敏属�
 
 ![图 8：Agent Runtime 领域数据模型](diagrams/rendered/08-data-model.svg)
 
-*图 8：AgentRun、父子 Run、Context、ToolCall、Delegation 与后续可选恢复档案的关系。*
+*图 8：Runtime、Session、AgentRun、AgentLoop、ToolCall 与后续可选恢复档案的关系。*
 
-### 10.1 AgentRun 聚合
+### 10.1 Runtime 聚合根与 AgentRun 实体
 
-AgentRun 是一次技术执行的聚合根，拥有状态、路由快照、父 Run/Delegation 引用、可选 `retry_of_run_id`、事件序号、预算消耗、取消原因和终态结果引用。`parent_run_id` 表示子 Agent 委派，`retry_of_run_id` 表示业务编排显式发起的新 Run，两者语义不得混用。AgentRun 不是强恢复事务的容器。约束：UP-AGT-001、UP-AGT-005、UP-DAT-001、UP-DEL-001。
+Runtime 是 Agent System 的唯一聚合根，拥有 Session 目录、系统级权限上限和容量。AgentRun 是 Session 内一次技术执行实体，拥有状态、父 Run/Delegation 引用、可选 `retry_of_run_id`、事件序号、预算消耗、取消原因、终态结果引用和严格递增的 AgentLoop。`parent_run_id` 表示子 Agent 委派，`retry_of_run_id` 表示业务编排显式发起的新 Run，两者语义不得混用。AgentRun 不能脱离 Runtime/Session 创建，也不是强恢复事务的独立聚合。约束：UP-AGT-001、UP-AGT-005、UP-DAT-001、UP-DEL-001。
 
 ![图 4：AgentRun 状态机](diagrams/rendered/04-run-state-machine.svg)
 
@@ -277,10 +297,11 @@ AgentRun 是一次技术执行的聚合根，拥有状态、路由快照、父 R
 - 父 Run 取消必须级联活动子 Run，子 Run 只能返回摘要和 ArtifactRef；
 - 进程崩溃把非终态 Run 标记为 `INTERRUPTED`；首版不在原 Run 内自动恢复；
 - 输出正文保存为 ArtifactRef，Run 只保存引用和摘要。
+- 每次 Runtime Turn 开始前必须创建一个 AgentLoop；工具/委派和上下文更新完成后才能关闭该 Loop；Loop 终态不可逆。
 
-### 10.2 AgentSession 聚合
+### 10.2 AgentSession 实体
 
-AgentSession 是逻辑技术会话聚合根，拥有 agent_id、adapter mapping reference、上下文策略引用和生命周期。Pi 原生 Session 只存在于 Pi Adapter 私有映射。首版不要求 lease/fence 成为所有 Session 写入的前置条件。约束：UP-AGT-008、UP-RES-001。
+AgentSession 是 Runtime 内的逻辑技术会话实体，拥有 agent_id、会话级权限上限、adapter mapping reference、上下文策略引用和多次 AgentRun 生命周期。Pi 原生 Session 只存在于 Pi Adapter 私有映射。首版同一 Session 只允许一个活动 Run，并通过配置限制保留 Run 数；不要求 lease/fence 成为所有 Session 写入的前置条件。约束：UP-AGT-008、UP-RES-001。
 
 默认并发策略：同一 tenant、逻辑 agent 和业务会话引用下串行执行；共享策略未显式建模前不允许跨 Run 并发修改同一规范化上下文。子 Run 默认使用独立 ContextSnapshot，不共享父 Run 的可变原生 Session。
 

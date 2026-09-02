@@ -1,13 +1,18 @@
 import { fileURLToPath } from "node:url";
 import { type Static, Type } from "@earendil-works/pi-ai";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { InMemoryPermissionSnapshots } from "../adapters/in-memory-permission-snapshots.ts";
+import { InProcessReadOnlySandbox } from "../adapters/in-process-read-only-sandbox.ts";
 import { PiCliDelegationProvider } from "../adapters/pi-cli-delegation-provider.ts";
 import { ReadOnlyToolProvider } from "../adapters/read-only-tool-provider.ts";
 import { SystemTimeAdapter } from "../adapters/system-time-adapter.ts";
 import { loadRuntimeSettings, type RequestContextConfig, type RuntimeSettings } from "../config/index.ts";
 import type { RequestContext, TimePort, ToolInvocation } from "../contracts/index.ts";
 import { DelegationEngine } from "../kernel/delegation-engine.ts";
-import { ToolRuntime } from "../kernel/tool-runtime.ts";
+import { InMemoryKillSwitch } from "../kernel/kill-switch.ts";
+import { PermissionApprovalService } from "../kernel/permission-approval.ts";
+import { SandboxPlanner } from "../kernel/sandbox-planner.ts";
+import { computeWorkspaceResourceId, createReadOnlyPermissionCeiling, ToolRuntime } from "../kernel/tool-runtime.ts";
 
 function requestContext(config: RequestContextConfig, timePort: TimePort): RequestContext {
 	const now = timePort.now();
@@ -31,10 +36,37 @@ function requestContext(config: RequestContextConfig, timePort: TimePort): Reque
 	};
 }
 
-async function runtimeFor(cwd: string, settings: RuntimeSettings, timePort: TimePort): Promise<ToolRuntime> {
+async function runtimeFor(
+	cwd: string,
+	settings: RuntimeSettings,
+	timePort: TimePort,
+	context: RequestContext,
+): Promise<ToolRuntime> {
 	const provider = await ReadOnlyToolProvider.create(cwd, settings.config.tools.readOnly, timePort);
-	const runtime = new ToolRuntime([provider], settings.config.kernel.toolRuntime.maxRegisteredTools, timePort);
-	await runtime.initialize(requestContext(settings.config.cli.requestContext, timePort));
+	const ceiling = createReadOnlyPermissionCeiling(
+		settings.config.cli.toolPolicy,
+		computeWorkspaceResourceId(cwd),
+		settings.config.tools.readOnly.maxResultBytes,
+	);
+	const snapshots = new InMemoryPermissionSnapshots({
+		policySnapshotId: context.tenant.authorizationSnapshot,
+		authorizationSnapshotId: context.tenant.authorizationSnapshot,
+		tenantId: context.tenant.tenantId,
+		subjectId: context.tenant.subjectId,
+		ceiling,
+	});
+	const runtime = new ToolRuntime([provider], settings.config.kernel.toolRuntime.maxRegisteredTools, timePort, {
+		permissionApproval: new PermissionApprovalService(
+			snapshots,
+			snapshots,
+			timePort,
+			settings.config.cli.toolPolicy.perCallTimeoutMs,
+		),
+		killSwitch: new InMemoryKillSwitch(timePort),
+		sandboxPlanner: new SandboxPlanner(timePort),
+		sandboxPort: new InProcessReadOnlySandbox(timePort),
+	});
+	await runtime.initialize(context);
 	return runtime;
 }
 
@@ -45,9 +77,28 @@ async function runReadOnlyTool(
 	signal: AbortSignal | undefined,
 	timePort: TimePort,
 ) {
-	const runtime = await runtimeFor(extensionContext.cwd, settings, timePort);
+	const context = requestContext(settings.config.cli.requestContext, timePort);
+	const runtime = await runtimeFor(extensionContext.cwd, settings, timePort, context);
+	const ceiling = createReadOnlyPermissionCeiling(
+		settings.config.cli.toolPolicy,
+		computeWorkspaceResourceId(extensionContext.cwd),
+		settings.config.tools.readOnly.maxResultBytes,
+	);
 	return runtime.execute(
-		requestContext(settings.config.cli.requestContext, timePort),
+		context,
+		{
+			runtimeId: `runtime:${context.tenant.tenantId}`,
+			agentId: "agent:pi-cli",
+			sessionId: context.operation.correlationId,
+			runId: context.operation.correlationId,
+			policySnapshotId: context.tenant.authorizationSnapshot,
+			runtimeCeiling: ceiling,
+			sessionCeiling: ceiling,
+			runCeiling: ceiling,
+			resourceClaims: ceiling.resources,
+			requestedEgress: [],
+			requestedSecrets: [],
+		},
 		invocation,
 		settings.config.cli.toolPolicy,
 		signal ?? new AbortController().signal,

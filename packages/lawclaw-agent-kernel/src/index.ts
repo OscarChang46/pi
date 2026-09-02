@@ -2,6 +2,8 @@
 
 export {
 	FakeDelegationProvider,
+	InMemoryPermissionSnapshots,
+	InProcessReadOnlySandbox,
 	PiAgentAdapter,
 	ReadOnlyToolProvider,
 	SystemTimeAdapter,

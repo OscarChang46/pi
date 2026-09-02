@@ -107,6 +107,8 @@ RuntimePolicy
 
 `Runtime` 提供系统级权限上限和权威端口；`Session` 提供会话权限上限；`AgentRun` 冻结本次执行范围和政策版本；每个 `ToolCall` 只能继续缩小这些权限。
 
+`AgentLoop` 是 AgentRun 拥有的迭代实体，负责提供当前调用所在的严格顺序边界；Permission Approval 不创建 Runtime、Session、Run 或 Loop，也不能让 ToolCall 脱离当前 Loop 独立执行。
+
 ## 4. 设计目标与非目标
 
 ### 4.1 目标

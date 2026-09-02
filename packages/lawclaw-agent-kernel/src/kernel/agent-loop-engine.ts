@@ -13,10 +13,11 @@ import {
 	type ToolDescriptor,
 	type ToolInvocation,
 } from "../contracts/index.ts";
+import type { AgentLoopLifecyclePort } from "./agent-loop.ts";
 import type { ContextEngine } from "./context-engine.ts";
 import type { DelegationEngine } from "./delegation-engine.ts";
 import { assertRequestContext } from "./request-context-guard.ts";
-import type { ToolRuntime } from "./tool-runtime.ts";
+import type { ToolExecutionScope, ToolRuntime } from "./tool-runtime.ts";
 
 const delegationToolDescriptorBase = {
 	name: "lawclaw_delegate",
@@ -73,7 +74,9 @@ export class AgentLoopEngine {
 	public async run(
 		context: RequestContext,
 		command: StartAgentRunCommand,
-		externalSignal: AbortSignal = new AbortController().signal,
+		externalSignal: AbortSignal,
+		lifecycle: AgentLoopLifecyclePort,
+		toolExecutionScope: ToolExecutionScope,
 	): Promise<AgentRunResult> {
 		assertRequestContext(context, this.#timePort);
 		if (
@@ -106,6 +109,7 @@ export class AgentLoopEngine {
 		let turns = 0;
 		let toolCalls = 0;
 		let streamedOutputChars = 0;
+		let activeLoopOrdinal: number | undefined;
 
 		const appendEvent = (type: AgentEvent["type"], data: Readonly<Record<string, JsonValue>> = {}): void => {
 			events.push({
@@ -134,9 +138,15 @@ export class AgentLoopEngine {
 			Math.max(1, Math.min(command.budget.maxDurationMs, remainingOperationMs)),
 		);
 		const signal = AbortSignal.any([externalSignal, deadlineSignal]);
+		const finishActiveLoop = (status: "COMPLETED" | "FAILED" | "CANCELLED"): void => {
+			if (activeLoopOrdinal === undefined) return;
+			lifecycle?.loopFinished(activeLoopOrdinal, status, this.#timePort.now().isoUtc);
+			activeLoopOrdinal = undefined;
+		};
 
 		try {
 			while (true) {
+				this.#toolRuntime.assertActive(context, toolExecutionScope);
 				if (signal.aborted) {
 					appendEvent("RunCancelled", { reason: "deadline_or_cancellation" });
 					return {
@@ -156,9 +166,11 @@ export class AgentLoopEngine {
 				}
 
 				turns += 1;
+				activeLoopOrdinal = turns;
+				lifecycle?.loopStarted(turns, this.#timePort.now().isoUtc);
 				let assistant: KernelAssistantMessage | undefined;
 				const availableTools = [
-					...this.#toolRuntime.listAllowed(command.toolPolicy),
+					...this.#toolRuntime.listAllowed(context, command.toolPolicy, toolExecutionScope),
 					...(command.delegationPolicy.enabled &&
 					command.toolPolicy.allowedToolNames.includes(this.#delegationToolDescriptor.name) &&
 					command.toolPolicy.allowedRisks.includes(this.#delegationToolDescriptor.risk)
@@ -212,6 +224,7 @@ export class AgentLoopEngine {
 						});
 					}
 					appendEvent("RunCompleted", { turns, toolCalls, outputChars: output.length });
+					finishActiveLoop("COMPLETED");
 					return { runId: command.runId, status: "completed", output, turns, toolCalls, events, lastFrame: frame };
 				}
 
@@ -226,6 +239,7 @@ export class AgentLoopEngine {
 
 					appendEvent("ToolStarted", { toolCallId: toolCall.toolCallId, toolName: toolCall.toolName });
 					if (toolCall.toolName === "lawclaw_delegate") {
+						this.#toolRuntime.assertActive(context, toolExecutionScope);
 						const task = toolCall.arguments.task;
 						if (typeof task !== "string") {
 							throw new KernelError("DELEGATION_NOT_ALLOWED", "委派任务参数必须为字符串。");
@@ -256,7 +270,13 @@ export class AgentLoopEngine {
 							toolName: toolCall.toolName,
 							arguments: toolCall.arguments,
 						};
-						const result = await this.#toolRuntime.execute(context, invocation, command.toolPolicy, signal);
+						const result = await this.#toolRuntime.execute(
+							context,
+							toolExecutionScope,
+							invocation,
+							command.toolPolicy,
+							signal,
+						);
 						toolMessages.push({
 							role: "tool",
 							toolCallId: invocation.toolCallId,
@@ -275,8 +295,23 @@ export class AgentLoopEngine {
 					command.budget.outputReserveTokens,
 				);
 				appendEvent("ContextAssembled", { frameId: frame.frameId, estimatedTokens: frame.estimatedTokens });
+				finishActiveLoop("COMPLETED");
 			}
 		} catch (error) {
+			if (signal.aborted) {
+				finishActiveLoop("CANCELLED");
+				appendEvent("RunCancelled", { reason: "deadline_or_cancellation" });
+				return {
+					runId: command.runId,
+					status: "cancelled",
+					output: "",
+					turns,
+					toolCalls,
+					events,
+					lastFrame: frame,
+				};
+			}
+			finishActiveLoop("FAILED");
 			const normalized =
 				error instanceof KernelError ? error : new KernelError("ADAPTER_PROTOCOL_ERROR", "Run 执行失败。", true);
 			appendEvent("RunFailed", { errorCode: normalized.code, retryable: normalized.retryable });

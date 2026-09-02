@@ -1,4 +1,4 @@
-import { SystemTimeAdapter } from "../src/adapters/index.ts";
+import { SystemTimeAdapter } from "../src/adapters/system-time-adapter.ts";
 import type { RequestContext } from "../src/contracts/index.ts";
 
 /** 测试共用的真实时间适配器；需要确定时钟的用例应自行注入 Fake TimePort。 */

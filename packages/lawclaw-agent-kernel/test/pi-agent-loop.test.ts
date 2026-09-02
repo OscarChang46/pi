@@ -20,4 +20,19 @@ test("Pi Adapter、Kernel Loop、只读工具和单层委派形成完整纵切",
 		result.events.map((event) => event.seq),
 		result.events.map((_, index) => index + 1),
 	);
+	assert.equal(kernel.sessions.length, 1);
+	const session = kernel.sessions[0];
+	assert.equal(session?.sessionId, result.events[0]?.data.sessionId);
+	assert.equal(session?.runs.length, 1);
+	const run = session?.getRun(result.runId);
+	assert.equal(run?.status, "COMPLETED");
+	assert.equal(run?.loops.length, result.turns);
+	assert.deepEqual(
+		run?.loops.map((loop) => [loop.ordinal, loop.status]),
+		[
+			[1, "COMPLETED"],
+			[2, "COMPLETED"],
+			[3, "COMPLETED"],
+		],
+	);
 });

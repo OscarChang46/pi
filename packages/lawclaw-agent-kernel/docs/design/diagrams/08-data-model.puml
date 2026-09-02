@@ -1,6 +1,6 @@
 @startuml 08-data-model
 !include theme.puml
-title Agent Kernel 首版领域模型：Context、Tool 与父子 Run
+title Agent Kernel 四对象模型：Runtime、Session、AgentRun 与 AgentLoop
 
 hide methods
 hide circle
@@ -26,7 +26,18 @@ package "请求上下文值对象" as REQUEST_CONTEXT LC_EXTERNAL {
 }
 
 package "Agent Kernel 首版核心" as DOMAIN LC_KERNEL {
-  class AgentRun <<聚合根>> {
+  class AgentRuntime <<聚合根>> {
+    runtime_id: RuntimeId
+    tenant_id: TenantId
+    agent_id: AgentId
+    max_sessions: integer
+  }
+  class AgentSession <<实体>> {
+    session_id: AgentSessionId
+    tenant_id: TenantId
+    max_runs: integer
+  }
+  class AgentRun <<实体>> {
     run_id: AgentRunId
     tenant_id: TenantId
     parent_run_id: AgentRunId?
@@ -36,9 +47,11 @@ package "Agent Kernel 首版核心" as DOMAIN LC_KERNEL {
     route_snapshot: RouteSnapshot
     next_sequence: integer
   }
-  class AgentSession <<聚合根>> {
-    session_id: AgentSessionId
-    agent_id: AgentId
+  class AgentLoop <<实体>> {
+    ordinal: integer
+    status: RUNNING|COMPLETED|FAILED|CANCELLED
+    started_at: Instant
+    finished_at: Instant?
   }
   class AgentEvent <<不可变实体>> {
     event_id: AgentEventId
@@ -131,7 +144,9 @@ RequestContext *-- OperationContext
 RequestContext *-- TimeContext
 OperationContext --> TimePoint : deadline / request_started
 AgentEvent --> TimePoint : occurred_at
-AgentSession "1" o-- "0..*" AgentRun
+AgentRuntime "1" *-- "0..*" AgentSession
+AgentSession "1" *-- "0..*" AgentRun
+AgentRun "1" *-- "0..*" AgentLoop
 AgentRun "0..1 父" --> "0..* 子" AgentRun : 技术委派
 AgentRun "0..1 旧 Run" ..> "0..* 新 Run" AgentRun : 显式重试谱系
 AgentRun "1" *-- "1..*" AgentEvent
@@ -139,7 +154,7 @@ AgentRun "1" *-- "0..*" ContextSnapshot
 ContextSnapshot "1" *-- "1..*" ContextItem
 ContextSnapshot "1" --> "1" ContextFrame
 ContextSnapshot "1" *-- "0..*" ContextReductionTrace
-AgentRun "1" *-- "0..*" ToolCallState
+AgentLoop "1" *-- "0..*" ToolCallState
 ToolCallState "1" --> "1" ToolDescriptor
 ToolCallState "1" o-- "0..1" PermissionDecision
 AgentRun "0..*" --> "1" DelegationPolicy
@@ -155,5 +170,11 @@ note right of AgentRun
   parent_run_id 只表达技术委派，不是 WorkflowStep。
   不包含业务会话、业务审批或业务结果采纳规则。
   约束：UP-AGT-001、UP-AGT-008、UP-DAT-001、UP-CTX-001、UP-INF-002
+end note
+
+note right of AgentRuntime
+  Runtime 是唯一聚合根；Session、AgentRun 和 AgentLoop
+  只能通过上层所有者创建，不能成为游离顶层对象。
+  约束：UP-AGT-001、UP-RES-001、UP-CTX-001
 end note
 @enduml

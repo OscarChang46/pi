@@ -12,6 +12,9 @@ prompts:
   childAgentSystemPromptId: agent.child.readonly-system
 
 kernel:
+  objectModel:
+    maxSessions: 1024
+    maxRunsPerSession: 1024
   context:
     estimatedCharactersPerToken: 4
     fixedPromptOverheadTokens: 16

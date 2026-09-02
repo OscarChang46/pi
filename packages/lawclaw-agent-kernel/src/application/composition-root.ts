@@ -1,9 +1,27 @@
 import { createModels, fauxAssistantMessage, fauxProvider, fauxText, fauxToolCall } from "@earendil-works/pi-ai";
 import { builtinModels } from "@earendil-works/pi-ai/providers/all";
-import { FakeDelegationProvider, PiAgentAdapter, ReadOnlyToolProvider, SystemTimeAdapter } from "../adapters/index.ts";
+import {
+	FakeDelegationProvider,
+	InMemoryPermissionSnapshots,
+	InProcessReadOnlySandbox,
+	PiAgentAdapter,
+	ReadOnlyToolProvider,
+	SystemTimeAdapter,
+} from "../adapters/index.ts";
 import { loadRuntimeSettings, RuntimeConfigurationError, type RuntimeSettings } from "../config/index.ts";
 import type { RequestContext, StartAgentRunCommand, TimePort } from "../contracts/index.ts";
-import { AgentLoopEngine, ContextEngine, DelegationEngine, ToolRuntime } from "../kernel/index.ts";
+import {
+	AgentLoopEngine,
+	AgentRuntime,
+	ContextEngine,
+	computeWorkspaceResourceId,
+	createReadOnlyPermissionCeiling,
+	DelegationEngine,
+	InMemoryKillSwitch,
+	PermissionApprovalService,
+	SandboxPlanner,
+	ToolRuntime,
+} from "../kernel/index.ts";
 
 /** 创建配置化的本地调用上下文；服务接入时必须改由 Backend 签发可信上下文。 */
 export function createRequestContext(
@@ -58,7 +76,7 @@ export function createRunCommand(
 export async function createAgentKernel(
 	workspaceRoot: string,
 	settings: RuntimeSettings = loadRuntimeSettings(),
-): Promise<AgentLoopEngine> {
+): Promise<AgentRuntime> {
 	const timePort = new SystemTimeAdapter();
 	let adapter: PiAgentAdapter;
 	const selection = settings.config.model;
@@ -106,17 +124,42 @@ export async function createAgentKernel(
 	}
 
 	const readOnlyProvider = await ReadOnlyToolProvider.create(workspaceRoot, settings.config.tools.readOnly, timePort);
+	const workspaceResourceId = computeWorkspaceResourceId(workspaceRoot);
+	const permissionCeiling = createReadOnlyPermissionCeiling(
+		settings.config.runtime.toolPolicy,
+		workspaceResourceId,
+		settings.config.tools.readOnly.maxResultBytes,
+	);
+	const configuredContext = settings.config.runtime.requestContext;
+	const permissionSnapshots = new InMemoryPermissionSnapshots({
+		policySnapshotId: configuredContext.authorizationSnapshot,
+		authorizationSnapshotId: configuredContext.authorizationSnapshot,
+		tenantId: configuredContext.tenantId,
+		subjectId: configuredContext.subjectId,
+		ceiling: permissionCeiling,
+	});
 	const toolRuntime = new ToolRuntime(
 		[readOnlyProvider],
 		settings.config.kernel.toolRuntime.maxRegisteredTools,
 		timePort,
+		{
+			permissionApproval: new PermissionApprovalService(
+				permissionSnapshots,
+				permissionSnapshots,
+				timePort,
+				settings.config.runtime.toolPolicy.perCallTimeoutMs,
+			),
+			killSwitch: new InMemoryKillSwitch(timePort),
+			sandboxPlanner: new SandboxPlanner(timePort),
+			sandboxPort: new InProcessReadOnlySandbox(timePort),
+		},
 	);
 	const delegationEngine = new DelegationEngine(
 		new FakeDelegationProvider(scenario.fakeDelegationSummaryPrefix),
 		settings.config.kernel.delegation.maxTrackedParents,
 		timePort,
 	);
-	return new AgentLoopEngine(
+	const loopEngine = new AgentLoopEngine(
 		adapter,
 		new ContextEngine(settings.config.kernel.context),
 		toolRuntime,
@@ -124,5 +167,12 @@ export async function createAgentKernel(
 		settings.config.kernel.runLimits,
 		settings.config.kernel.delegation.delegationToolMaxResultBytes,
 		timePort,
+	);
+	return new AgentRuntime(
+		`runtime:${configuredContext.tenantId}`,
+		"agent:kernel-default",
+		loopEngine,
+		settings.config.kernel.objectModel,
+		permissionCeiling,
 	);
 }

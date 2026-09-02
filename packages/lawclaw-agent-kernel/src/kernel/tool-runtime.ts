@@ -1,7 +1,10 @@
 import { Buffer } from "node:buffer";
+import { createHash } from "node:crypto";
 import {
 	KernelError,
 	type RequestContext,
+	type SandboxHandle,
+	type SandboxPort,
 	type TimePort,
 	type ToolDescriptor,
 	type ToolInvocation,
@@ -9,33 +12,93 @@ import {
 	type ToolProviderPort,
 	type ToolResult,
 } from "../contracts/index.ts";
+import type { InMemoryKillSwitch, KillSwitchTarget } from "./kill-switch.ts";
+import {
+	computeArgumentsDigest,
+	computeToolDescriptorDigest,
+	type EgressClaim,
+	type PermissionApprovalPort,
+	type PermissionCeiling,
+	type ResourceClaim,
+	type SecretClaim,
+} from "./permission-approval.ts";
 import { assertRequestContext } from "./request-context-guard.ts";
+import type { SandboxPlanner } from "./sandbox-planner.ts";
 
 interface RegisteredTool {
 	readonly descriptor: ToolDescriptor;
 	readonly provider: ToolProviderPort;
 }
 
+/** ToolRuntime 执行一次调用所需的冻结 Run 身份与权限范围。 */
+export interface ToolExecutionScope {
+	readonly runtimeId: string;
+	readonly agentId: string;
+	readonly sessionId: string;
+	readonly runId: string;
+	readonly policySnapshotId: string;
+	readonly runtimeCeiling: PermissionCeiling;
+	readonly sessionCeiling: PermissionCeiling;
+	readonly runCeiling: PermissionCeiling;
+	readonly resourceClaims: readonly ResourceClaim[];
+	readonly requestedEgress: readonly EgressClaim[];
+	readonly requestedSecrets: readonly SecretClaim[];
+}
+
+/** ToolRuntime 的安全控制面与执行强制平面依赖。 */
+export interface ToolRuntimeSecurity {
+	readonly permissionApproval: PermissionApprovalPort;
+	readonly killSwitch: InMemoryKillSwitch;
+	readonly sandboxPlanner: SandboxPlanner;
+	readonly sandboxPort: SandboxPort;
+}
+
+/** 从当前只读工具政策构造不可扩权的权限上限。 */
+export function createReadOnlyPermissionCeiling(
+	policy: ToolPolicy,
+	workspaceResourceId: string,
+	maxResultBytes: number,
+): PermissionCeiling {
+	return Object.freeze({
+		toolPolicy: policy,
+		resources: Object.freeze([{ resourceId: workspaceResourceId, access: "read" as const }]),
+		egress: Object.freeze([]),
+		secrets: Object.freeze([]),
+		budget: Object.freeze({ timeoutMs: policy.perCallTimeoutMs, maxResultBytes }),
+	});
+}
+
+/** 把工作区路径转换为不泄漏裸路径的稳定资源引用。 */
+export function computeWorkspaceResourceId(workspaceRoot: string): string {
+	return `workspace:sha256:${createHash("sha256").update(workspaceRoot).digest("hex")}`;
+}
+
 /**
- * Kernel 的工具政策与执行协调器。
+ * Kernel 的工具政策与执行安全协调器。
  *
- * 注册：Provider 只提供描述与执行机制，重复工具名拒绝注册。
- * 授权：名称和风险类型必须同时命中冻结政策，未知工具默认拒绝。
- * 韧性：参数、结果和单次耗时都有上限，取消信号传播到底层 Provider。
+ * 调用链固定为目录/参数校验、内部权限审批、Grant 再校验、Kill Switch、
+ * Sandbox 计划与创建，最后才把绑定沙箱的请求交给 Provider。
  */
 export class ToolRuntime {
 	readonly #providers: readonly ToolProviderPort[];
 	readonly #tools = new Map<string, RegisteredTool>();
 	readonly #maxRegisteredTools: number;
 	readonly #timePort: TimePort;
+	readonly #security: ToolRuntimeSecurity;
 	#initialized = false;
 	#tenantId: string | undefined;
 
-	/** 创建具有配置化目录容量的 Runtime；Provider 列表在实例生命周期内冻结。 */
-	public constructor(providers: readonly ToolProviderPort[], maxRegisteredTools: number, timePort: TimePort) {
+	/** 创建具有固定 Provider 列表和显式安全依赖的 Runtime。 */
+	public constructor(
+		providers: readonly ToolProviderPort[],
+		maxRegisteredTools: number,
+		timePort: TimePort,
+		security: ToolRuntimeSecurity,
+	) {
 		this.#providers = providers;
 		this.#maxRegisteredTools = maxRegisteredTools;
 		this.#timePort = timePort;
+		this.#security = security;
 	}
 
 	/** 读取 Provider 描述并建立不可歧义的工具目录；同名工具直接失败。 */
@@ -66,11 +129,14 @@ export class ToolRuntime {
 		this.#initialized = true;
 	}
 
-	/** 返回当前政策允许、可安全暴露给模型的工具描述快照。 */
-	public listAllowed(policy: ToolPolicy): readonly ToolDescriptor[] {
-		if (!this.#initialized) {
-			throw new KernelError("TOOL_NOT_ALLOWED", "工具目录尚未初始化。");
-		}
+	/** 返回当前政策允许且未被紧急停止的模型可见工具描述快照。 */
+	public listAllowed(
+		context: RequestContext,
+		policy: ToolPolicy,
+		scope: ToolExecutionScope,
+	): readonly ToolDescriptor[] {
+		if (!this.#initialized) throw new KernelError("TOOL_NOT_ALLOWED", "工具目录尚未初始化。");
+		if (this.#killSnapshot(context, scope).active) return [];
 		return [...this.#tools.values()]
 			.map((entry) => entry.descriptor)
 			.filter(
@@ -80,9 +146,15 @@ export class ToolRuntime {
 			.sort((left, right) => left.name.localeCompare(right.name));
 	}
 
-	/** 校验冻结政策后执行单个工具；所有失败都归一化为稳定 KernelError。 */
+	/** 在创建模型、工具或子 Run 动作前检查当前分层 Kill Switch。 */
+	public assertActive(context: RequestContext, scope: ToolExecutionScope): void {
+		this.#assertNotKilled(context, scope);
+	}
+
+	/** 经审批、再校验和沙箱强制后执行单个工具。 */
 	public async execute(
 		context: RequestContext,
+		scope: ToolExecutionScope,
 		invocation: ToolInvocation,
 		policy: ToolPolicy,
 		signal: AbortSignal,
@@ -109,27 +181,154 @@ export class ToolRuntime {
 				maxArgumentsBytes: policy.maxArgumentsBytes,
 			});
 		}
+		this.#assertNotKilled(context, scope, invocation);
 
-		const timeoutSignal = AbortSignal.timeout(policy.perCallTimeoutMs);
-		const combinedSignal = AbortSignal.any([signal, timeoutSignal]);
-		let result: ToolResult;
-		try {
-			result = await registered.provider.execute(context, invocation, combinedSignal);
-		} catch (error) {
-			if (error instanceof KernelError) throw error;
-			if (combinedSignal.aborted) {
-				throw new KernelError("TOOL_EXECUTION_FAILED", "工具执行已取消或超时。", true);
-			}
-			throw new KernelError("TOOL_EXECUTION_FAILED", "工具 Provider 执行失败。", true);
-		}
-
-		const resultBytes = Buffer.byteLength(result.text, "utf8");
-		if (resultBytes > registered.descriptor.maxResultBytes) {
-			throw new KernelError("TOOL_RESULT_TOO_LARGE", "工具结果超过描述符声明的上限。", false, {
-				resultBytes,
-				maxResultBytes: registered.descriptor.maxResultBytes,
+		const decision = await this.#security.permissionApproval.evaluate(
+			context,
+			{
+				tenantId: context.tenant.tenantId,
+				subjectId: context.tenant.subjectId,
+				agentId: scope.agentId,
+				sessionId: scope.sessionId,
+				runId: scope.runId,
+				policySnapshotId: scope.policySnapshotId,
+				deadlineAt: context.operation.deadlineAt,
+				descriptor: registered.descriptor,
+				runtimeCeiling: scope.runtimeCeiling,
+				sessionCeiling: scope.sessionCeiling,
+				runCeiling: scope.runCeiling,
+			},
+			{
+				toolCallId: invocation.toolCallId,
+				toolName: invocation.toolName,
+				toolVersion: registered.descriptor.version,
+				toolDescriptorHash: computeToolDescriptorDigest(registered.descriptor),
+				argumentsHash: computeArgumentsDigest(invocation.arguments),
+				resourceClaims: scope.resourceClaims,
+				requestedEgress: scope.requestedEgress,
+				requestedSecrets: scope.requestedSecrets,
+				requestedBudget: {
+					timeoutMs: policy.perCallTimeoutMs,
+					maxResultBytes: registered.descriptor.maxResultBytes,
+				},
+			},
+			signal,
+		);
+		if (decision.kind === "DENY") {
+			throw new KernelError("TOOL_NOT_ALLOWED", "内部权限审批拒绝了工具调用。", false, {
+				reasonCode: decision.reasonCode,
 			});
 		}
-		return result;
+		this.#assertNotKilled(context, scope, invocation);
+		const revalidation = await this.#security.permissionApproval.revalidate(context, decision.grant, signal);
+		if (revalidation.kind !== "VALID" || revalidation.grantDigest !== decision.grant.grantDigest) {
+			throw new KernelError("TOOL_NOT_ALLOWED", "工具权限 Grant 已失效。", false, {
+				reasonCode: revalidation.kind === "INVALID" ? revalidation.reasonCode : "PERMISSION_GRANT_STALE",
+			});
+		}
+		this.#assertNotKilled(context, scope, invocation);
+
+		const sandboxRequest = this.#security.sandboxPlanner.plan(context, decision.grant, {
+			profileRef: "in-process-read-only/v1",
+			resources: decision.grant.resourceGrants,
+			egress: decision.grant.egressGrants.map((grant) => ({ ...grant, protocol: "tcp" as const })),
+			secrets: decision.grant.secretGrants,
+			budget: {
+				wallClockMs: decision.grant.budget.timeoutMs,
+				maxOutputBytes: decision.grant.budget.maxResultBytes,
+				maxOpenFiles: 32,
+				maxProcesses: 1,
+				writableScratchQuotaBytes: 0,
+			},
+			allowChildProcesses: false,
+			requiresOsProcessIsolation: registered.descriptor.risk !== "read_only",
+		});
+		const timeoutSignal = AbortSignal.timeout(decision.grant.budget.timeoutMs);
+		const executionAbort = new AbortController();
+		const combinedSignal = AbortSignal.any([signal, timeoutSignal, executionAbort.signal]);
+		let sandbox: SandboxHandle | undefined;
+		let terminationReason: "completed" | "provider_failed" | "kill_switch" | "deadline_exceeded" | "cancelled" =
+			"completed";
+		try {
+			sandbox = await this.#security.sandboxPort.create(context, sandboxRequest, combinedSignal);
+			this.#assertNotKilled(context, scope, invocation);
+			const watchAbort = new AbortController();
+			const watchTask = this.#watchKillSwitch(context, scope, invocation, executionAbort, watchAbort.signal);
+			try {
+				const result = await registered.provider.execute(
+					context,
+					invocation,
+					sandbox,
+					AbortSignal.any([combinedSignal, sandbox.executionSignal]),
+				);
+				const resultBytes = Buffer.byteLength(result.text, "utf8");
+				if (resultBytes > registered.descriptor.maxResultBytes) {
+					throw new KernelError("TOOL_RESULT_TOO_LARGE", "工具结果超过描述符声明的上限。", false, {
+						resultBytes,
+						maxResultBytes: registered.descriptor.maxResultBytes,
+					});
+				}
+				return result;
+			} finally {
+				watchAbort.abort();
+				await watchTask;
+			}
+		} catch (error) {
+			terminationReason = executionAbort.signal.aborted
+				? "kill_switch"
+				: timeoutSignal.aborted
+					? "deadline_exceeded"
+					: signal.aborted
+						? "cancelled"
+						: "provider_failed";
+			if (error instanceof KernelError) throw error;
+			throw new KernelError("TOOL_EXECUTION_FAILED", "工具 Provider 或安全执行链失败。", true);
+		} finally {
+			if (sandbox) await this.#security.sandboxPort.terminate(context, sandbox, terminationReason);
+		}
+	}
+
+	#killTarget(context: RequestContext, scope: ToolExecutionScope, invocation?: ToolInvocation): KillSwitchTarget {
+		return {
+			runtimeId: scope.runtimeId,
+			tenantId: context.tenant.tenantId,
+			agentId: scope.agentId,
+			sessionId: scope.sessionId,
+			runId: scope.runId,
+			toolName: invocation?.toolName,
+			toolCallId: invocation?.toolCallId,
+		};
+	}
+
+	#killSnapshot(context: RequestContext, scope: ToolExecutionScope, invocation?: ToolInvocation) {
+		return this.#security.killSwitch.check(context, this.#killTarget(context, scope, invocation));
+	}
+
+	#assertNotKilled(context: RequestContext, scope: ToolExecutionScope, invocation?: ToolInvocation): void {
+		const snapshot = this.#killSnapshot(context, scope, invocation);
+		if (snapshot.active) {
+			throw new KernelError("TOOL_NOT_ALLOWED", "Kill Switch 已阻断工具动作。", false, {
+				killSwitchEpoch: snapshot.epoch,
+			});
+		}
+	}
+
+	async #watchKillSwitch(
+		context: RequestContext,
+		scope: ToolExecutionScope,
+		invocation: ToolInvocation,
+		executionAbort: AbortController,
+		signal: AbortSignal,
+	): Promise<void> {
+		for await (const snapshot of this.#security.killSwitch.watch(
+			context,
+			this.#killTarget(context, scope, invocation),
+			signal,
+		)) {
+			if (snapshot.active) {
+				executionAbort.abort("kill_switch");
+				return;
+			}
+		}
 	}
 }

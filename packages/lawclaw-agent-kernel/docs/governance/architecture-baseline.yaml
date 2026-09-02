@@ -1,7 +1,7 @@
 schema_version: "1.0"
-baseline_id: "AKB-2026-09-02-07"
+baseline_id: "AKB-2026-09-03-08"
 status: "active"
-effective_at: "2026-09-02"
+effective_at: "2026-09-03"
 owner: "LawClaw 总体架构"
 governance_process: "ACP-001@1.0.0"
 upper_architecture:
@@ -16,6 +16,7 @@ approved_changes:
   - "ACR-2026-0004"
   - "ACR-2026-0005"
   - "ACR-2026-0006"
+  - "ACR-2026-0007"
 constraints:
   - "UP-AGT-001"
   - "UP-AGT-002"
@@ -34,8 +35,9 @@ notes:
   - "全部可调运行参数进入严格 YAML；契约判别值和绝对安全上限保持不可配置。"
   - "时间点统一为 UTC；IANA 时区和 locale 随 RequestContext 显式传播，系统时钟只经 TimePort 使用。"
   - "公共契约、配置、源码目录、脚本和文档统一使用正式 Kernel/Runtime/Application 命名。"
+  - "Runtime 是聚合根；Session 管理多次 AgentRun；AgentRun 拥有严格递增的 AgentLoop。"
 verification:
-  automated_tests: "19/19"
+  automated_tests: "38/38"
   plantuml: "10/10"
   cli_rpc_smoke: "passed"
   pi_monorepo_check: "passed"

@@ -1,3 +1,5 @@
+import type { SandboxHandle } from "./tool-security.ts";
+
 /**
  * 允许出现在 Agent Kernel 公开契约里的 JSON 值。
  *
@@ -324,11 +326,17 @@ export interface ToolProviderPort {
 	 *
 	 * @param context 资源访问必须遵守的租户和运维上下文。
 	 * @param invocation 已通过名称、风险和参数大小校验的调用。
-	 * @param signal 取消与超时信号；收到后必须尽快停止且不得继续副作用。
+	 * @param sandbox 与当前授权和 ToolCall 绑定的沙箱句柄；Provider 必须验证绑定关系。
+	 * @param signal 取消、超时和 Kill Switch 信号；收到后必须尽快停止且不得继续副作用。
 	 * @returns 经过大小限制和脱敏处理的规范化结果。
 	 * @throws KernelError 当执行机制失败、路径越界或安全约束不满足时抛出。
 	 */
-	execute(context: RequestContext, invocation: ToolInvocation, signal: AbortSignal): Promise<ToolResult>;
+	execute(
+		context: RequestContext,
+		invocation: ToolInvocation,
+		sandbox: SandboxHandle,
+		signal: AbortSignal,
+	): Promise<ToolResult>;
 }
 
 /** 单层子 Agent 的冻结政策；最大深度只能为 1。 */

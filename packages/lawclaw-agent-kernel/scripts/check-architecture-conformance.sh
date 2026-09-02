@@ -56,6 +56,23 @@ if ! rg -q 'run.resume.*不属于首版' "${DESIGN_DOC}"; then
   exit 1
 fi
 
+for object_file in agent-runtime.ts agent-session.ts agent-run.ts agent-loop.ts; do
+  if [[ ! -s "${PROJECT_ROOT}/src/kernel/${object_file}" ]]; then
+    echo "错误：四对象模型缺少实现文件 ${object_file}。" >&2
+    exit 1
+  fi
+done
+
+if ! rg -q 'Runtime 是 Agent System 的唯一聚合根' "${DESIGN_DOC}"; then
+  echo "错误：设计未固化 Runtime 唯一聚合根语义。" >&2
+  exit 1
+fi
+
+if ! rg -q 'new AgentRuntime' "${PROJECT_ROOT}/src/application/composition-root.ts"; then
+  echo "错误：Composition Root 未装配 Runtime 聚合根。" >&2
+  exit 1
+fi
+
 if ! rg -q '@earendil-works/pi-ai@0\.84\.4' "${DESIGN_DOC}" || \
    ! rg -q '@earendil-works/pi-coding-agent@0\.84\.4' "${DESIGN_DOC}"; then
   echo "错误：Pi workspace 依赖未对齐 0.84.4 基线。" >&2

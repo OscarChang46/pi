@@ -5,7 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 PROCESS_DOC="${PROJECT_ROOT}/docs/governance/architecture-change-process.md"
 BASELINE="${PROJECT_ROOT}/docs/governance/architecture-baseline.yaml"
-CHANGE="${PROJECT_ROOT}/docs/governance/changes/ACR-2026-0006-pi-monorepo-integration.md"
+CHANGE="${PROJECT_ROOT}/docs/governance/changes/ACR-2026-0007-four-object-runtime-model.md"
 
 for required_file in "${PROCESS_DOC}" "${BASELINE}" "${CHANGE}"; do
   if [[ ! -s "${required_file}" ]]; then
@@ -41,8 +41,8 @@ if ! rg -q '总体 Draw.io：对外职责不变，无需修改' "${CHANGE}"; the
   exit 1
 fi
 
-if ! rg -q 'ACR-2026-0006' "${BASELINE}"; then
-  echo "错误：Pi monorepo 集成变更尚未写入当前架构基线。" >&2
+if ! rg -q 'ACR-2026-0007' "${BASELINE}"; then
+  echo "错误：四对象模型变更尚未写入当前架构基线。" >&2
   exit 1
 fi
 

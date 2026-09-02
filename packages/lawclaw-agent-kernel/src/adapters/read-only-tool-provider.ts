@@ -4,6 +4,7 @@ import type { ReadOnlyToolConfig } from "../config/index.ts";
 import {
 	KernelError,
 	type RequestContext,
+	type SandboxHandle,
 	type TimePort,
 	type ToolDescriptor,
 	type ToolInvocation,
@@ -103,8 +104,22 @@ export class ReadOnlyToolProvider implements ToolProviderPort {
 	}
 
 	/** 执行已经授权的只读调用；未知工具和越界路径默认拒绝。 */
-	public async execute(context: RequestContext, invocation: ToolInvocation, signal: AbortSignal): Promise<ToolResult> {
+	public async execute(
+		context: RequestContext,
+		invocation: ToolInvocation,
+		sandbox: SandboxHandle,
+		signal: AbortSignal,
+	): Promise<ToolResult> {
 		assertRequestContext(context, this.#timePort);
+		if (
+			sandbox.tenantId !== context.tenant.tenantId ||
+			sandbox.toolCallId !== invocation.toolCallId ||
+			sandbox.capabilities.profileRef !== "in-process-read-only/v1" ||
+			sandbox.capabilities.supportsWrite ||
+			sandbox.capabilities.networkEnforcement !== "none"
+		) {
+			throw new KernelError("TOOL_EXECUTION_FAILED", "只读 Provider 收到不匹配的沙箱句柄。", false);
+		}
 		signal.throwIfAborted();
 		switch (invocation.toolName) {
 			case "lawclaw_list_files":

@@ -22,12 +22,12 @@
 
 ## 2. 与四对象模型的关系
 
-ToolCall 不是第五个顶层聚合根。它是 `AgentRun` 聚合内的有界实体，由一次 Runtime Turn 产生，并通过事件与所在 Session、Run 和 Turn 关联。
+ToolCall 不是第五个顶层聚合根。它是 `AgentRun` 所拥有 `AgentLoop` 内的有界实体，由一次 Runtime Turn 产生，并通过事件与所在 Session、Run 和 Loop 关联。
 
 ```text
 Runtime
   └─ Session
-      └─ AgentRun（聚合根）
+      └─ AgentRun（一次用户请求实体）
           └─ Agent Loop
               └─ Turn
                   └─ ToolCall（Run 内实体）
@@ -35,6 +35,8 @@ Runtime
 ```
 
 Runtime 负责能力目录和基础设施装配；Session 负责会话级权限上限；AgentRun 冻结本次执行政策；ToolCall 只能在三者权限交集内继续收敛，不能向上扩权。
+
+对应实现中，`AgentRuntime` 是聚合根，`AgentSession.startRun()` 是创建 Run 的唯一入口，`AgentRun` 通过 `AgentLoopLifecyclePort` 拥有每次迭代实体。`ToolRuntime` 只能由 `AgentLoopEngine` 在当前 Loop 内调用，不能替代或绕过这四层生命周期。
 
 ### 2.1 系统边界与调用方向
 
