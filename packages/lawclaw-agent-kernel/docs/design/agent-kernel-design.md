@@ -11,11 +11,34 @@
 >
 > ACR-2026-0007 进一步固化四对象模型：`Runtime` 是聚合根，`Session` 管理多次 `AgentRun`，每个 `AgentRun` 拥有一至多个 `AgentLoop`。ToolCall、PermissionGrant 和 SandboxHandle 都是该层级下的调用实体或值对象，不能替代四个核心对象。
 
+> [!WARNING]
+> `ACR-2026-0008` 正在进行五步评审，提出新的系统级对象模型：Agent Kernel System 是限界上下文，`AgentRun` 是核心执行聚合根，`AgentRuntime` 是受 `RunScheduler` 管理的可重建执行服务，Session 降为可选 `AgentContextThread`。候选方案还恢复 `Allow / Ask / Deny` 和外部 `ApprovalPort`。在步骤五批准前，本文件的 ACR-2026-0007 正文和当前代码仍是活动基线；候选定义以 [Agent Kernel System V3 评审文档](agent-kernel-v2-architecture-review.md) 和 [同一份五页 Draw.io](agent-kernel-v2-review.drawio) 为准。
+
 ## 1. 文档目的
 
 本文定义 LawClaw Agent Kernel 的职责、领域边界、稳定契约、数据模型、数据流、控制流、安全与韧性策略，并给出基于 Pi monorepo `0.84.4` 基线的实现约束。本文是后续契约、代码和测试的直接设计依据，但不能改变上层总体架构授予 Agent Kernel 的职责。本次基线变更把设计中心从“同 Run 强恢复”调整为“高质量 Agent Loop、上下文治理、工具扩展和受限技术委派”。
 
 ACR-2026-0005 将已经验证的能力固化为正式工程代码；ACR-2026-0006 将该工程纳入 Pi monorepo workspace，并把 Adapter 与 CLI 对齐到仓库 `0.84.4` 基线。正式代码基线不等于所有生产里程碑均已完成：持久化 Journal、Sidecar、Backend 接入和部署仍须按里程碑逐项确认。
+
+### 1.1 待评审的系统级建模修正
+
+ACR-2026-0008 不把一次用户交互视为整个 Agent System。它把用户请求、业务编排、定时任务、系统事件和 Agent 委派统一建模为 `AgentRunTrigger`，由 `AgentControlPlane` 创建 Run，再由 `RunScheduler` 派发到 Runtime Worker。候选对象关系为：
+
+```text
+Agent Kernel System（限界上下文）
+├── AgentDefinition（聚合根）
+├── AgentRun（核心聚合根）
+│   └── AgentRunAttempt（实体）
+│       └── AgentLoopStep（实体/事件投影）
+├── AgentExecutionScope（聚合根）
+├── MultiAgentRun（聚合根）
+├── PermissionRequest（聚合根）
+├── MemorySpace（聚合根）
+├── RunScheduler（领域服务）
+└── AgentRuntime（执行领域服务）
+```
+
+该候选方案保持业务编排、Backend、Infrastructure 和 Pi Adapter 的上层边界不变，但会替代 ACR-2026-0007 的 Runtime/Session/Run 所有权，并影响公共接口和当前实现。其 UML 对象关系、服务协作、差距和五步确认条件全部集中在候选评审文档，避免活动基线正文与未批准设计混写。
 
 ## 2. 架构优先级与冲突处理
 
