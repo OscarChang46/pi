@@ -1,0 +1,147 @@
+@startuml PermissionIdentityAuthority
+!include drawio-theme.puml
+title 权限、身份与执行授权模块
+left to right direction
+
+class "ToolRuntime / MemoryManager /\nSubagentCoordinator / ArtifactExporter / SecretResolver" as Callers <<external_subdomain>>
+class "Backend / 业务审批边界" as Backend <<external_subdomain>>
+class "KernelHost" as Host <<external_subdomain>>
+class "Permission Persistence" as PermissionPersistence <<infrastructure>>
+
+package "Agent Kernel System" as Kernel <<bounded_context>> {
+  package "Permission" as PermissionModule <<domain_module>> {
+    interface PermissionDecisionPort <<inbound_port>> {
+      +authorize(proposal, envelopeRef): PermissionDecision
+    }
+    interface PermitValidationPort <<inbound_port>> {
+      +validateAndConsume(permitId, actionDigest, envelopeRef): ConsumeResult
+      +revoke(scopeRef, reason, envelopeRef)
+    }
+    interface ApprovalDecisionPort <<inbound_port>> {
+      +submitDecision(requestId, decision, envelopeRef): PermissionDecision
+    }
+    interface PermissionQueryPort <<inbound_port>> {
+      +getRequest(requestId, envelopeRef): PermissionRequestSnapshot
+      +getPermit(permitId, envelopeRef): ExecutionPermitSnapshot
+    }
+    interface ApprovalRequestPort <<outbound_port>> {
+      +requestDecision(permissionRequest): ApprovalRequestRef
+    }
+    interface PolicySnapshotPort <<outbound_port>> {
+      +load(policyDecisionRef)
+      +currentAuthorizationEpoch(principalRef)
+    }
+    interface ExecutionEnvelopePort <<outbound_port>> {
+      +load(envelopeRef): AgentExecutionEnvelope
+    }
+    interface PermissionRepositoryPort <<outbound_port>> {
+      +loadRequest(requestId)
+      +saveRequest(request, expectedVersion)
+      +loadPermit(permitId)
+      +savePermit(permit, expectedVersion)
+    }
+    class PermissionSystem <<domain_service>>
+    class AgentExecutionEnvelope <<value_object>> {
+      +identity: AgentExecutionIdentity
+      +authority: ExecutionAuthoritySnapshot
+      +bindings: ResourceBindingSet
+      +operationContext: OperationContext
+    }
+    class AgentExecutionIdentity <<value_object>> {
+      +agentId: AgentId
+      +runId: RunId
+      +rootRunId: RunId
+      +parentRunId: RunId?
+      +externalPrincipalRef: PrincipalRef
+    }
+    class ExecutionAuthoritySnapshot <<value_object>> {
+      +capabilityGrants: CapabilityGrant[]
+      +toolGrants: ToolGrant[]
+      +memoryGrants: MemoryGrant[]
+      +delegationGrant: DelegationGrant?
+      +policyDecisionRef: PolicyDecisionRef
+      +authorizationEpoch: long
+      +expiresAt: Instant
+    }
+    class ResourceBindingSet <<value_object>> {
+      +workspaceHandle: WorkspaceHandle?
+      +memorySpaceHandles: MemorySpaceHandle[]
+      +artifactStoreHandle: ArtifactStoreHandle
+      +secretHandles: SecretHandle[]
+    }
+    class ActionProposal <<value_object>> {
+      +actionKind: ActionKind
+      +actionDigest: Hash
+      +resourceClaims: ResourceClaim[]
+      +requestedBudget: ExecutionBudget
+    }
+    class PermissionDecision <<value_object>> {
+      +kind: ALLOW|ASK|DENY
+      +reasonCode: PermissionReasonCode
+      +requestRef: PermissionRequestRef?
+      +permitRef: ExecutionPermitRef?
+      +decisionDigest: Hash
+    }
+    class PermissionRequest <<aggregate_root>> {
+      +requestId: PermissionRequestId
+      +runId: RunId
+      +actionDigest: Hash
+      +authorizationEpoch: long
+      +status: REQUESTED|APPROVED|DENIED|EXPIRED
+      +deadlineAt: Instant
+    }
+    class ApprovalDecision <<value_object>> {
+      +kind: APPROVE|DENY
+      +decisionRef: ApprovalDecisionRef
+      +decidedAt: Instant
+    }
+    class ExecutionPermit <<aggregate_root>> {
+      +permitId: ExecutionPermitId
+      +runId: RunId
+      +agentId: AgentId
+      +actionDigest: Hash
+      +resourceGrants: ResourceGrant[]
+      +authorizationEpoch: long
+      +expiresAt: Instant
+      +status: ACTIVE|CONSUMED|REVOKED|EXPIRED
+      +consumedAt: Instant?
+    }
+    class OperationContext <<reference>>
+    class AgentExecutionEnvelopeRef <<reference>>
+
+    PermissionDecisionPort <|.. PermissionSystem
+    PermitValidationPort <|.. PermissionSystem
+    ApprovalDecisionPort <|.. PermissionSystem
+    PermissionQueryPort <|.. PermissionSystem
+    PermissionSystem --> PolicySnapshotPort
+    PermissionSystem --> ExecutionEnvelopePort
+    PermissionSystem --> ApprovalRequestPort
+    PermissionSystem --> PermissionRepositoryPort
+    PermissionSystem --> AgentExecutionEnvelope
+    AgentExecutionEnvelope *-- AgentExecutionIdentity
+    AgentExecutionEnvelope *-- ExecutionAuthoritySnapshot
+    AgentExecutionEnvelope *-- ResourceBindingSet
+    PermissionSystem --> ActionProposal
+    PermissionSystem --> PermissionDecision
+    PermissionRequest *-- ActionProposal
+    PermissionRequest o-- ApprovalDecision
+    ExecutionPermit *-- ActionProposal
+    AgentExecutionEnvelope --> OperationContext
+  }
+}
+
+Callers --> PermissionDecisionPort : authorize
+Callers --> PermitValidationPort : validateAndConsume / revoke
+Callers --> PermissionQueryPort : request / permit 状态
+ApprovalRequestPort --> Backend : 异步创建业务审批
+Backend --> ApprovalDecisionPort : decision.submit
+PolicySnapshotPort --> Host : frozen policy / epoch
+ExecutionEnvelopePort --> Host : load trusted envelope by Ref
+PermissionRepositoryPort --> PermissionPersistence : CAS request / permit
+
+note bottom of ExecutionPermit
+  ExecutionPermit 是可持久化、一次性消费的唯一执行授权制品。
+  首版本机进程内完成决策和 CAS，不降低单次消费约束。
+  ApprovalDecision 只能缩小或拒绝原 ActionProposal，不能扩权。
+end note
+@enduml

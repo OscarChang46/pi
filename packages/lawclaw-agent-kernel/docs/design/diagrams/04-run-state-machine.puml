@@ -1,47 +1,31 @@
-@startuml 04-run-state-machine
+@startuml
 !include theme.puml
-title AgentRun 首版状态机：Agent Loop、子 Run 等待与中断边界
+title AgentRun 状态机（V3）
 
-state ACCEPTED as "ACCEPTED\n已接受"
-state STARTING as "STARTING\n准备上下文与工具"
-state RUNNING as "RUNNING\nAgent Loop 执行中"
-state WAITING_CHILD as "WAITING_CHILD\n等待单层子 Run"
-state CANCELLING as "CANCELLING\n取消中"
-state SUCCEEDED as "SUCCEEDED\n成功" LC_SUCCESS
-state FAILED as "FAILED\n失败" LC_DANGER
-state CANCELLED as "CANCELLED\n已取消" LC_INFRASTRUCTURE
-state INTERRUPTED as "INTERRUPTED\n执行中断" LC_DANGER
+[*] --> ACCEPTED : RunCommandPort.submit\n持久化 RunAccepted
+ACCEPTED --> QUEUED : RunScheduler.enqueue
+QUEUED --> RUNNING : 签发 RuntimeLease\n创建 AgentRunAttempt
+RUNNING --> WAITING_PERMISSION : PermissionDecision.ASK
+WAITING_PERMISSION --> RUNNING : 审批通过且 Permit 有效
+WAITING_PERMISSION --> FAILED : 拒绝 / 超时 / 执行约束失效
+RUNNING --> WAITING_CHILDREN : 结构化委派
+WAITING_CHILDREN --> RUNNING : Join / 受控移交完成
+RUNNING --> COMPLETED : 最终输出已提交
+RUNNING --> FAILED : 不可恢复故障
+RUNNING --> CANCELING : cancel
+WAITING_PERMISSION --> CANCELING : cancel
+WAITING_CHILDREN --> CANCELING : cancel
+CANCELING --> CANCELED : 子 Run 收敛 + Runtime 中断
+RUNNING --> RECOVERING : Lease 丢失 / Worker 崩溃
+RECOVERING --> QUEUED : 安全恢复检查通过\n新 Attempt
+RECOVERING --> FAILED : 未知副作用或无安全恢复点
 
-[*] --> ACCEPTED : start_run\n保存最小 Run + RunAccepted
-ACCEPTED --> STARTING : 分配执行预算
-STARTING --> RUNNING : ContextFrame 与 ToolSet 就绪
-RUNNING --> RUNNING : 模型输出 / 工具结果 / 下一轮上下文
-RUNNING --> WAITING_CHILD : 创建受限子 AgentRun
-WAITING_CHILD --> RUNNING : 子 Run 摘要 / ArtifactRef 返回
-RUNNING --> CANCELLING : cancel_run
-WAITING_CHILD --> CANCELLING : 父 Run 取消并级联子 Run
-CANCELLING --> CANCELLED : 协作取消 / 强制终止完成
-CANCELLED --> [*]
-RUNNING --> SUCCEEDED : RunCompleted
-SUCCEEDED --> [*]
-RUNNING --> FAILED : RunFailed
+COMPLETED --> [*]
 FAILED --> [*]
-STARTING --> INTERRUPTED : Sidecar / Adapter 崩溃
-RUNNING --> INTERRUPTED : Sidecar / Adapter 崩溃
-WAITING_CHILD --> INTERRUPTED : 执行环境失联
-INTERRUPTED --> [*]
+CANCELED --> [*]
 
-note right of RUNNING
-  首版核心不变量：
-  1. tenant_id、deadline 与预算持续生效；
-  2. Context / Tool / Delegation 均受有界策略约束；
-  3. 规范化事件先追加后发布。
-end note
-note right of INTERRUPTED
-  首版不在同 Run 内自动恢复；
-  业务编排如需重试，使用新幂等键启动新 Run，
-  并以 retry_of_run_id 关联原 Run。
-  Attempt / fence / Checkpoint 保留为后续可选恢复档案。
-  约束：UP-AGT-005、UP-DAT-001、UP-RES-001
+note right of WAITING_CHILDREN
+  父 Run 终态前，所有 Child Run 必须
+  Join、Cancel 或完成受控移交，不允许孤儿 Run。
 end note
 @enduml

@@ -8,6 +8,8 @@
 - 创建时间：2026-09-03
 - 目标基线：AKB-2026-09-03-08
 
+> 后继设计说明：本记录保留 `AKB-2026-09-03-08` 的历史决策与当前代码事实。自 `ACR-2026-0008` 登记后，后续设计文档统一使用 Agent Kernel System V3 候选模型，不再把本记录的 Runtime/Session 所有权作为目标设计；代码迁移仍须等待 `ACR-2026-0008` 完成五步评审并获批。
+
 ## 1. 触发原因与目标
 
 现有实现由 Composition Root 直接返回 `AgentLoopEngine`，Session 和 AgentRun 只有标识，Loop 只是控制流语法；这与 Runtime 聚合拥有 Session、Session 管理多次 AgentRun、AgentRun 拥有多个 AgentLoop 的正式模型不一致。本变更把四层做成真实生命周期对象，并让工具安全链在该层级内执行。
@@ -88,3 +90,9 @@
 ## 14. 基线与关闭记录
 
 2026-09-03：并入 `AKB-2026-09-03-08`。
+
+## 15. 后继变更
+
+- 后继变更：[ACR-2026-0008：Agent Kernel System Boundary V3](ACR-2026-0008-agent-system-boundary-v3.md)。
+- 本记录继续解释当前实现为何采用四对象模型，但不再定义后续设计目标。
+- 后续设计评审中的聚合、调度、权限、记忆、工具和 Multi-agent 口径以 ACR-2026-0008 为唯一来源。

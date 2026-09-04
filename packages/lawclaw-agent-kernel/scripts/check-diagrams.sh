@@ -5,7 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 DIAGRAM_DIR="${PROJECT_ROOT}/docs/design/diagrams"
 source "${SCRIPT_DIR}/diagram-runtime.sh"
-EXPECTED_COUNT=10
+EXPECTED_COUNT=9
 
 mapfile_compat() {
   local target_name="$1"

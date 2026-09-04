@@ -1,50 +1,28 @@
-@startuml 01-agent-kernel-context
+@startuml
 !include theme.puml
-title LawClaw Agent Kernel 系统上下文与上层边界
+title Agent Kernel System 上下文与职责边界（V3）
+left to right direction
 
-top to bottom direction
+rectangle "业务编排子域\n决定何时调用及是否采纳结果" as ORCH LC_ORCHESTRATION
+rectangle "KernelHost\n编译可信执行约束" as HOST LC_EXTERNAL
+rectangle "Agent Kernel System\nAgent Registry / Session / Run / Context & Memory\nPermission / Tool / Structured Subagent" as KERNEL LC_KERNEL
+rectangle "AgentAdapterPort\nPi / ACP Adapter" as ADAPTER LC_ADAPTER
+rectangle "Infrastructure Ports\nStorage / Sandbox / Artifact / Secret / Clock" as INFRA LC_INFRASTRUCTURE
+rectangle "ObservabilityPort\n日志 / Trace / 指标 / 健康" as OPS LC_OPERATIONS
 
-actor "终端用户" as USER
-rectangle "Backend 接入层\n认证 / RBAC / Tenant Resolver\n（可信上下文来源）" as BACKEND LC_EXTERNAL
-rectangle "业务编排子系统\n工作流 / 业务状态机 / ApprovalCase\n结果采纳 / 业务补偿\n（Agent Kernel 外部）" as ORCH LC_ORCHESTRATION
-rectangle "Agent Kernel\nAgentGateway\nAgent Loop / Context Engine\nTool Runtime / 单层子 Agent\nRun / Session / AgentEvent" as KERNEL LC_KERNEL
-rectangle "运维组件\n日志 / Trace / 指标\n健康检查 / 安全审计" as OPS LC_OPERATIONS
-rectangle "PiAgentAdapter\nPi 类型 / Session / Event 私有映射\n（Kernel 边界外）" as PI_ADAPTER LC_ADAPTER
-rectangle "Pi Runtime 0.84.4" as PI LC_ADAPTER
-rectangle "工具与上下文 Provider Adapter\n只读工具 / 受控上下文来源" as PROVIDERS LC_ADAPTER
-rectangle "Infrastructure Adapter\n进程 / 传输 / 最小存储\n出口 / 密钥 / 时钟 / Artifact" as INFRA LC_INFRASTRUCTURE
-cloud "模型服务\n受控模型调用" as MODEL LC_EXTERNAL
+ORCH --> HOST : AgentSystemGateway\n业务命令 + 外部身份上下文
+HOST --> KERNEL : RunCommandPort\nAgentExecutionEnvelopeRef
+KERNEL --> ADAPTER : AgentAdapterPort\n规范化 Turn
+KERNEL --> INFRA : Infrastructure Ports\n不透明资源句柄
+KERNEL ..> OPS : OperationContext\nAgentEvent / 指标
 
-USER -down-> BACKEND : V2 API
-BACKEND -down-> ORCH : OrchestrationPort\n可信 TenantContext + OperationContext + TimeContext
-ORCH -down-> KERNEL : AgentGateway\nContextSpec / ToolPolicyRef / DelegationPolicy\n启动 / 查询 / 取消
-KERNEL ..up.> ORCH : AgentEvent\n候选结果 / 子 Run 摘要 / 工具技术状态
-KERNEL -down-> PI_ADAPTER : AgentAdapter\n执行配置与规范化运行事件
-PI_ADAPTER -down-> PI : Pi 私有 API
-PI -right-> MODEL : ModelProviderPort
-KERNEL -right-> PROVIDERS : ToolProviderPort\nContextSourcePort
-INFRA -up-> KERNEL : InfrastructurePort / TimePort\nUTC 时钟 + IANA 时区投影
-OPS ..> KERNEL : ObservabilityPort\nOperationContext
+ORCH -[#DC2626,dashed,bold]-> ADAPTER : <color:#B91C1C>禁止绕过 Kernel</color>
+KERNEL -[#DC2626,dashed,bold]-> ORCH : <color:#B91C1C>禁止修改 Workflow/业务审批</color>
 
-note as FORBIDDEN LC_DANGER
-  禁止依赖：
-  - 业务编排绕过 AgentGateway 引用具体 Agent SDK；
-  - 子 Agent 修改 Workflow 或创建业务 ApprovalCase；
-  - Pi / Tool Provider 回调 Backend HTTP；
-  - Infrastructure 承载业务、路由或上下文裁剪规则。
+note bottom of KERNEL
+  Kernel 管理多个 Agent、Session、Run、工具、权限、上下文、记忆和受限 Child Run。
+  AgentRuntime 是长期执行服务；AgentRun 是核心生命周期聚合。
+  Multi-agent 团队组建与角色协调属于上层业务编排。
+  Kernel 不解释用户、组织或租户业务语义。
 end note
-FORBIDDEN -[hidden]left-> PI
-
-note right of KERNEL
-  约束：UP-AGT-001、UP-AGT-002、UP-AGT-003、UP-CTX-001
-  Kernel 拥有规范化执行上下文与技术父子 Run；
-  业务编排仍决定为何调用以及结果是否生效。
-end note
-
-legend bottom
-  |= 线型 |= 含义 |
-  | 实线箭头 | 允许的命令 / 调用 |
-  | 虚线箭头 | 事件或运维上下文传播 |
-  | 红色标记 | 禁止依赖 |
-endlegend
 @enduml

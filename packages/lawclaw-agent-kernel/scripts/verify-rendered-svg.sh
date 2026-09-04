@@ -5,18 +5,16 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 DIAGRAM_DIR="${PROJECT_ROOT}/docs/design/diagrams"
 RENDERED_DIR="${DIAGRAM_DIR}/rendered"
-EXPECTED_COUNT=10
+EXPECTED_COUNT=9
 source "${SCRIPT_DIR}/diagram-runtime.sh"
 
-prepare_plantuml_cjk_font "${PROJECT_ROOT}"
-temporary_dir=""
+temporary_dir="$(mktemp -d)"
 
 cleanup_verification_artifacts() {
   if [[ -n "${temporary_dir}" && -d "${temporary_dir}" ]]; then
     find "${temporary_dir}" -type f -delete
     find "${temporary_dir}" -depth -type d -empty -delete
   fi
-  cleanup_plantuml_cjk_font
 }
 
 trap cleanup_verification_artifacts EXIT
@@ -55,22 +53,20 @@ for svg_file in "${svg_files[@]}"; do
     echo "错误：${svg_name} 未使用约定的中文字体族。" >&2
     exit 1
   fi
-done
 
-temporary_dir="$(mktemp -d)"
-mkdir -p "${temporary_dir}/rendered"
-cp "${DIAGRAM_DIR}"/*.puml "${temporary_dir}/"
-docker run --rm \
-  "${PLANTUML_FONT_MOUNT[@]}" \
-  --volume "${temporary_dir}:/workspace" \
-  --workdir /workspace \
-  "${PLANTUML_IMAGE}" \
-  -charset UTF-8 -tsvg -o rendered '[0-9][0-9]-*.puml'
-
-for svg_file in "${svg_files[@]}"; do
-  svg_name="$(basename "${svg_file}")"
-  if ! cmp -s "${svg_file}" "${temporary_dir}/rendered/${svg_name}"; then
-    echo "错误：${svg_name} 与当前 PlantUML 源文件不一致，请重新渲染。" >&2
+  source_name="${svg_name%.svg}.puml"
+  docker run --rm \
+    --volume "${DIAGRAM_DIR}:/workspace:ro" \
+    --workdir /workspace \
+    "${PLANTUML_IMAGE}" \
+    -metadata "rendered/${svg_name}" \
+    | awk '/^@startuml/{capture=1; print "@startuml"; next} capture {print; if ($0=="@enduml") exit}' \
+    > "${temporary_dir}/${source_name}.embedded"
+  awk 'NR==1 && /^@startuml/{print "@startuml"; next} {print}' \
+    "${DIAGRAM_DIR}/${source_name}" \
+    > "${temporary_dir}/${source_name}.source"
+  if ! cmp -s "${temporary_dir}/${source_name}.embedded" "${temporary_dir}/${source_name}.source"; then
+    echo "错误：${svg_name} 内嵌的 PlantUML 源与当前源文件不一致，请重新渲染。" >&2
     exit 1
   fi
 done

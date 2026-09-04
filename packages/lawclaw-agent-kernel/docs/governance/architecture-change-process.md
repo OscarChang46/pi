@@ -182,6 +182,6 @@ DRAFT → IMPACT_ANALYZED → REVIEWED → APPROVED → IMPLEMENTING
 - [架构决策记录模板](templates/architecture-decision-record-template.md)
 - [架构评审清单](templates/architecture-review-checklist.md)
 - [当前架构基线登记](architecture-baseline.yaml)
-- [本次 Pi 能力探针 变更记录](changes/ACR-2026-0001-pi-kernel-capability-probe.md)
+- [架构变更索引](changes/README.md)
 
 执行 `npm run check:architecture` 可检查治理文件、依赖方向和关键禁止项。流程本身的语义变更也必须创建 ACR。

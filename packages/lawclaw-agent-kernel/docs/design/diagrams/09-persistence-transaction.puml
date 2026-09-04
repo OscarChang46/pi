@@ -1,45 +1,43 @@
-@startuml 09-persistence-transaction
+@startuml
 !include theme.puml
-title 首版最小持久化：接受、Context 快照、事件补拉与 Artifact
+title Run、事件、工具与授权的事务边界（V3）
 
-autonumber
-participant "Run Supervisor / Agent Loop" as KERNEL LC_KERNEL
-participant "StoragePort" as STORAGE_PORT LC_KERNEL
-participant "ArtifactPort" as ARTIFACT_PORT LC_KERNEL
-participant "ObservabilityPort" as OBS_PORT LC_OPERATIONS
-database "SQLite WAL" as SQLITE
-collections "租户 Artifact 存储" as ARTIFACT_STORE LC_INFRASTRUCTURE
-participant "事件发布器" as PUBLISHER LC_KERNEL
+participant "Application Service" as App
+participant "RunScheduler" as Scheduler
+database "Run Store" as RunStore
+database "Event Journal" as Journal
+database "Tool / Permission Store" as ToolStore
+participant "Event Publisher" as Publisher
+participant "Observability / Event Bus" as EventBus
+participant "AgentRuntime" as Runtime
+participant "L1 Action Coordinator / PEP" as Control
+participant "ToolRuntime / PermissionSystem" as SecurityServices
 
-group start_run 最小原子接受
-  KERNEL -> STORAGE_PORT : accept_run(tenant, command, route)
-  STORAGE_PORT -> SQLITE : BEGIN IMMEDIATE
-  STORAGE_PORT -> SQLITE : INSERT CommandReceipt + AgentRun(ACCEPTED)
-  STORAGE_PORT -> SQLITE : INSERT AgentEvent(sequence=1, RunAccepted)
-  STORAGE_PORT -> SQLITE : COMMIT
-  STORAGE_PORT --> KERNEL : 已提交 RunSnapshot
-end
+App -> RunStore : BEGIN + command receipt 幂等校验
+App -> RunStore : INSERT AgentRun(status=ACCEPTED, envelopeRef)
+App -> Journal : INSERT RunAccepted(sequence=1)
+App -> RunStore : COMMIT
+App -> Publisher : 发布已提交事件
+App -> Scheduler : enqueue(runId)，仅在提交后调度
+Scheduler -> Runtime : RuntimeDispatchPort.dispatch(runId, lease)
 
-group 每轮 Context 与事件
-  KERNEL -> ARTIFACT_PORT : put(tenant, bounded sensitive payload)
-  ARTIFACT_PORT -> ARTIFACT_STORE : hash + AES-256-GCM + 配额
-  ARTIFACT_STORE --> ARTIFACT_PORT : ArtifactRef
-  KERNEL -> STORAGE_PORT : append ContextSnapshot / ReductionTrace / AgentEvent
-  STORAGE_PORT -> SQLITE : 事务内分配 run sequence 并提交
-  STORAGE_PORT --> KERNEL : committed sequence=n
-  KERNEL -->> PUBLISHER : 发布已提交 AgentEvent
-  KERNEL -->> OBS_PORT : context.assemble / event.persist Span
-end
+Runtime -> App : appendStep / normalizedEvent
+App -> RunStore : BEGIN + CAS(runVersion, fenceToken)
+App -> Journal : INSERT AgentEvent(nextSequence)
+App -> RunStore : UPDATE Run / Attempt
+App -> RunStore : COMMIT
+App -> Publisher : 发布已提交事件
 
-group 进程重启
-  KERNEL -> STORAGE_PORT : 扫描非终态 Run
-  STORAGE_PORT -> SQLITE : tenant-scoped scan
-  KERNEL -> STORAGE_PORT : 标记 INTERRUPTED + RunInterrupted
-end
+Runtime -> Control : RuntimeEventPort.publish(ToolCallCandidate)
+Control -> SecurityServices : ToolRuntimePort.executeTool(candidate)
+SecurityServices -> ToolStore : Repository Ports：各聚合独立 CAS
+SecurityServices -> Publisher : 提交后发布 Tool / Permission 领域事件
+SecurityServices --> Control : ToolResultRef
+Control -> Runtime : RuntimeControlPort.resumeAttempt(ToolResultRef)
+Publisher --> EventBus : Event 仅用稳定引用关联 Run
 
-note over KERNEL,PUBLISHER
-  首版保留租户复合键、幂等接受、严格事件序号和可补拉；
-  不要求普遍 CAS、两阶段 Artifact finalize、同 Run Attempt/fence 恢复或 Exactly Once 输出。
-  约束：UP-DAT-001、UP-SEC-001、UP-RES-001、UP-INF-001
+note over RunStore,ToolStore
+  每个存储操作都使用 Host 预绑定的不透明分区句柄；
+  Kernel 领域模型不携带外部身份或租户业务字段。
 end note
 @enduml
