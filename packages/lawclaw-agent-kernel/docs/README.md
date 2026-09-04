@@ -70,7 +70,7 @@
 | Subagent 生命周期与上层 Multi-agent 边界 | [11-subagent-multiagent.puml](design/diagrams/domain/11-subagent-multiagent.puml) | PlantUML 源内维护 |
 | C4 层间边界协议 | [12-c4-boundary-protocols.puml](design/diagrams/domain/12-c4-boundary-protocols.puml) | [边界协议 SVG](design/agent-kernel-v3-boundary-protocols.svg) |
 
-[01–10 基础架构图目录](design/diagrams/)保留 Context、组件、依赖、状态机、序列、数据、事务和部署视图；[Draw.io 评审文件](design/agent-kernel-v2-review.drawio)用于历史评审与人工调整，不取代对应 PlantUML 的内容权威性。
+[基础架构图目录](design/diagrams/)保留 Context、组件、依赖、状态机、关键序列、事务和部署视图；原 `08-data-model` 已由更完整的[领域对象全集](design/diagrams/domain/04-agent-system-domain-universe.puml)取代。[Draw.io 评审文件](design/agent-kernel-v2-review.drawio)用于历史评审与人工调整，不取代对应 PlantUML 的内容权威性。
 
 ### 3.4 治理与历史
 

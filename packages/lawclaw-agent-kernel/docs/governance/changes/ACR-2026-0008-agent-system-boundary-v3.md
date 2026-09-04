@@ -98,9 +98,6 @@ ACR-2026-0007 继续解释当前代码基线，但不再作为后续设计文档
 ## 8. 当前候选图
 
 - [可编辑 Draw.io](../../design/agent-kernel-v2-review.drawio)
-- [Agent Kernel System 组件预览](../../design/agent-kernel-v2-components.svg)
-- [工具权限预览](../../design/agent-kernel-v2-tool-security.svg)
-- [生命周期与共享记忆预览](../../design/agent-kernel-v2-multiagent-memory.svg)
 - [核心领域对象 UML 预览](../../design/agent-kernel-v3-domain-classes.svg)
 - [系统服务 C4 组件协作预览](../../design/agent-kernel-v3-service-collaboration.svg)
 - [C4 层间边界协议预览](../../design/agent-kernel-v3-boundary-protocols.svg)
@@ -114,7 +111,7 @@ ACR-2026-0007 继续解释当前代码基线，但不再作为后续设计文档
 
 已完成的步骤一文档门禁：
 
-- 十张 PlantUML 源文件语法检查通过，正式 UML 与 C4 内容均由 `.puml` 维护；
+- 九张基础架构源图与九张领域/C4 源图语法检查通过，正式 UML 与 C4 内容均由 `.puml` 维护；
 - Draw.io 评审画布未作为本轮正式领域图内容源，也未据此声明与 PlantUML 的页面级一致性；
 - 领域对象全集、六张分领域类图、系统服务 C4 组件协作图和领域对象目录之间的所有权映射检查通过；
 - Markdown 本地引用与架构职责门禁通过。

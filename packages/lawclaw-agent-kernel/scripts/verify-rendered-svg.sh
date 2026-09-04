@@ -5,7 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 DIAGRAM_DIR="${PROJECT_ROOT}/docs/design/diagrams"
 RENDERED_DIR="${DIAGRAM_DIR}/rendered"
-EXPECTED_COUNT=10
+EXPECTED_COUNT=9
 source "${SCRIPT_DIR}/diagram-runtime.sh"
 
 temporary_dir="$(mktemp -d)"
