@@ -1,0 +1,29 @@
+@startuml
+!include ../theme.puml
+title Operations Plane 组件图
+left to right direction
+
+rectangle "Agent Kernel 各层" as KERNEL LC_EXTERNAL
+package "Operations Plane" LC_OPERATIONS {
+  component "TelemetryPipeline" as PIPELINE
+  component "Logging / Tracing / Metrics" as TELEMETRY
+  component "Health / Diagnostics" as HEALTH
+  component "SecurityAudit" as AUDIT
+}
+rectangle "本地日志 / 审计 / Artifact Adapter" as INFRA LC_INFRASTRUCTURE
+rectangle "运维调用方" as OPERATOR LC_EXTERNAL
+
+KERNEL ..> PIPELINE : BND-OPS-001\n脱敏 OperationContext / 遥测
+PIPELINE --> TELEMETRY : 有界异步分发
+PIPELINE --> AUDIT : 安全事实
+TELEMETRY --> HEALTH : 指标与依赖状态
+HEALTH --> OPERATOR : OperationsQueryPort
+TELEMETRY --> INFRA : Log/Trace/Metric Sink Port
+AUDIT --> INFRA : SecurityAuditPort
+HEALTH --> INFRA : DiagnosticArtifactPort
+
+note bottom of PIPELINE
+  普通遥测允许有界降级；安全审计失败时，
+  受保护副作用必须失败关闭。运维不得推进领域状态。
+end note
+@enduml

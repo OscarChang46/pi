@@ -1,3 +1,17 @@
+---
+doc_id: SYS-DES-001
+level: system
+layer: Agent Kernel System
+component: null
+status: candidate
+baseline: AKB-2026-09-03-09
+authoritative_for: 系统职责、C4 层边界、全局依赖与安全不变量
+parent: null
+interfaces: [BND-EXT-001, BND-L12-001, BND-SEC-001, BND-L13-001, BND-L34-001, BND-MOD-001, BND-OPS-001, BND-INF-001]
+diagrams: [VIEW-SYS-CONTEXT, VIEW-SYS-CONTAINER, VIEW-SYS-DOMAIN]
+supersedes: []
+---
+
 # 基于 Pi 的 LawClaw Agent Kernel System 完整设计
 
 > 文档状态：V3.1 候选架构，五步评审步骤 1/5 重新评审
@@ -17,10 +31,10 @@ LawClaw Agent Kernel System 长期管理多个 Agent 定义、Session、Run、�
 
 本设计服从上层总体架构，不拥有业务编排、Backend 身份系统、前端投影或基础设施机制。当前对象全集和接口方向以以下资料共同为准：
 
-- [V3 架构与五步评审](agent-kernel-v2-architecture-review.md)
-- [领域对象目录](agent-kernel-domain-object-catalog.md)
+- [V3.1 架构与五步评审](../governance/reviews/agent-kernel-v3.1-step1-review.md)
+- [领域对象目录](reference/domain-object-catalog.md)
 - [ACR-2026-0008](../governance/changes/ACR-2026-0008-agent-system-boundary-v3.md)
-- [领域 UML 与 C4 PlantUML 权威源](diagrams/domain/)
+- [系统、层、组件与场景 PlantUML 权威源](diagrams/)
 - [可编辑 Draw.io](agent-kernel-v2-review.drawio)
 
 设计优先级为：上层总体架构 → V3 ACR 与评审结论 → 本文和正式 PlantUML → 后续契约、Schema、代码和测试。下层需要上层未授予的职责时，必须停止评审，记录冲突、影响和不扩权替代方案，等待上层决定。
@@ -42,7 +56,7 @@ LawClaw Agent Kernel System 长期管理多个 Agent 定义、Session、Run、�
 | `UP-CTX-001` | ContextThread 只关联 Root Run，不拥有 Run。 |
 | `UP-CTX-002` | ContextFrame 是有界、可解释的执行投影。 |
 | `UP-CTX-003` | 长期 MemorySpace 独立建模，并以授权视图进入上下文。 |
-| `UP-TOOL-001` | 所有工具调用统一经过 ToolRuntime、Permission 和 Sandbox Port。 |
+| `UP-TOOL-001` | 所有工具调用统一经过 L1 PEP、L3 ToolExecutionGuard 与 L4 受控执行边界。 |
 | `UP-DEL-001` | Child Run 只能通过 Scheduler 创建且不得成为孤儿。 |
 | `UP-DAT-001` | 聚合独立提交，事件持久化后发布并支持补拉去重。 |
 | `UP-SEC-001` | Host 编译执行信封；Kernel 只消费最小技术身份和权限快照。 |
@@ -63,8 +77,8 @@ LawClaw Agent Kernel System 长期管理多个 Agent 定义、Session、Run、�
 - 由 `RunScheduler` 管理队列、预算、并发、Deadline、Lease、技术重试和 Runtime 派发。
 - 由可重建的 `AgentRuntime` 执行已派发 Attempt，不让 Runtime 拥有调度或 Run 权威状态。
 - 由 `ContextEngine` 管理工作上下文，由 `MemoryManager` 管理长期记忆权威状态。
-- 由 `PermissionSystem` 对所有受保护动作执行 `Allow / Ask / Deny` 判定，并签发一次性 `ExecutionPermit`。
-- 由 `ToolRuntime` 提供版本化、可扩展且经过权限和沙箱约束的工具执行入口。
+- 由 Security Plane 的 `PermissionDecisionEngine` 对受保护动作执行 `Allow / Ask / Deny` 判定，并按 `ExecutionPermit` 组件不变量签发一次性授权。
+- 由 L3 `ToolCallRuntime` 提供版本化、可扩展且经过权限和 L4 执行约束的工具入口。
 - 用结构化并发管理受限 Subagent；由上层业务使用通用 Run/Session 接口组建 Multi-agent。
 - 通过 Port 隔离 Adapter、存储、Artifact、进程、沙箱、网络、Secret、时钟和观测机制。
 
@@ -97,9 +111,9 @@ Agent Kernel System 明确不拥有或解释：
 | ResourceManager | 进程级资源协调器；管理有界队列、执行槽和临时资源预算，不解释业务优先级。 |
 | ContextEngine | 组装、裁剪、摘要并冻结当前模型调用工作上下文的领域服务。 |
 | MemoryManager | 管理长期 MemorySpace、版本、授权视图和候选写入的应用服务。 |
-| PermissionSystem | 受保护动作的统一决策点；返回 Allow、Ask 或 Deny。 |
+| PermissionDecisionEngine | 受保护动作的统一决策点；返回 Allow、Ask 或 Deny，不执行动作。 |
 | ExecutionPermit | 绑定动作、资源、Run、Agent、授权版本和有效期的一次性执行授权。 |
-| ToolRuntime | 工具目录、调用状态、Permit 校验、沙箱规划、Provider 调用和结果归一化入口。 |
+| ToolCallRuntime | L3 工具调用状态协调入口；在 Guard 消费 Permit 后选择 L4 Provider 或 Sandbox 路径并归一化结果。 |
 | AgentAdapter | 屏蔽 Pi 等执行实现差异的出站 Port；原生类型不得越界。 |
 | KernelHost | Kernel 外部可信装配边界；解释用户、租户和 RBAC，构造执行信封和 Scoped Adapter。 |
 
@@ -119,9 +133,9 @@ Kernel 对“如何安全地组织和执行 Agent 工作”负责；业务编排
 
 ## 5. 领域对象与聚合边界
 
-![Agent Kernel System 领域对象全集](agent-kernel-v3-domain-classes.svg)
+[Agent Kernel System 领域对象全集 PlantUML 权威源](diagrams/system/04-agent-system-domain-universe.puml)
 
-对象的稳定 ID、唯一详细图页、调用方和 Port 映射见[领域对象目录](agent-kernel-domain-object-catalog.md)。核心关系为：
+对象的稳定 ID、唯一状态所有者、调用方和 Port 映射见[领域对象目录](reference/domain-object-catalog.md)。核心关系为：
 
 ```text
 Agent Kernel System（限界上下文）
@@ -141,23 +155,23 @@ Agent Kernel System（限界上下文）
 
 系统限界上下文不是聚合根。每个聚合独立保护不变量，通过 Port、稳定引用和事件协作，不能用一个巨型事务同时锁定 Run、权限、工具、记忆和团队状态。
 
-分领域细节分别由以下子文档维护：[Registry、能力与技术路由](agent-registry-routing-subsystem-design.md)、[Session、FlowEngine 与资源调度](session-flow-engine-resource-subsystem-design.md)、[Run、调度与 Runtime](run-scheduling-runtime-subsystem-design.md)、[Context 与长期记忆](context-memory-subsystem-design.md)、[权限与执行授权](technical-approval-subsystem-design.md)、[工具与沙箱](tool-call-subsystem-design.md)和[运维与基础设施最小能力](operations-infrastructure-minimum-design.md)。本节只保留全局聚合关系，不重复维护各子系统状态机和接口细节。
+细节采用“总设计 → C4 层设计 → 层内组件设计”三级结构维护。七个层级入口是 [L1 Control](layers/l1-control/README.md)、[L2 Cognitive](layers/l2-cognitive/README.md)、[Security Plane](layers/security-plane/README.md)、[L3 Tool Runtime](layers/l3-tool-runtime/README.md)、[L4 Execution Runtime](layers/l4-execution-runtime/README.md)、[Operations Plane](layers/operations-plane/README.md)和[Infrastructure Plane](layers/infrastructure-plane/README.md)。本节只保留全局聚合关系，不重复维护组件算法或跨层契约。
 
 ### 5.1 AgentRun、Attempt 与 Step
 
-`AgentRun` 独立保护执行状态、冻结路由、预算、取消、终态和 Attempt 序列。它不属于 Runtime 或 Session；`AgentLoopStep` 也不是顶层聚合。首版本地执行不强制 Lease/Fence，多 Worker 档案才启用租约隔离。生命周期、调度、恢复和 Port 见[Run、调度与 Runtime 子系统设计](run-scheduling-runtime-subsystem-design.md)。
+`AgentRun` 独立保护执行状态、冻结路由、预算、取消、终态和 Attempt 序列。它不属于 Runtime 或 Session；`AgentLoopStep` 也不是顶层聚合。首版本地执行不强制 Lease/Fence，多 Worker 档案才启用租约隔离。生命周期与提交规则见 [RunRegistry](layers/l1-control/components/run-registry.md)，调度见 [RunScheduler](layers/l1-control/components/run-scheduler.md)，认知执行见 [AgentRuntime/AgentLoop](layers/l2-cognitive/components/agent-runtime-loop.md)。
 
 ### 5.2 AgentSession
 
-`AgentSession` 是持久化技术会话聚合根，关联多个 Run，保存上下文增量、消息/观察记录、Artifact 引用、版本和可选父 Session 引用，但不拥有 Run 状态，也不对应进程。完整对象关系和资源调度见[AgentSession、FlowEngine 与本地资源调度](session-flow-engine-resource-subsystem-design.md)；Context 与 Memory 的投影边界见[上下文与长期记忆子系统设计](context-memory-subsystem-design.md)。
+`AgentSession` 是持久化技术会话聚合根，关联多个 Run，保存上下文增量、消息/观察记录、Artifact 引用、版本和可选父 Session 引用，但不拥有 Run 状态，也不对应进程。详细职责见 [SessionManager](layers/l1-control/components/session-manager.md)；Context 与 Memory 分别由 [ContextEngine](layers/l1-control/components/context-engine.md)和[MemoryManager](layers/l1-control/components/memory-manager.md)维护。
 
 ### 5.3 独立安全与资源聚合
 
-`PermissionRequest`、`ExecutionPermit`、`ToolCall`、`MemorySpace` 和 `AgentExecutionScope` 具有独立生命周期和并发边界，不能降为 Runtime、Session 或 Run 内的普通值对象。详细不变量见[权限设计](technical-approval-subsystem-design.md)、[工具设计](tool-call-subsystem-design.md)和[Session/Child Run 设计](session-flow-engine-resource-subsystem-design.md)。
+`PermissionRequest`、`ExecutionPermit`、`ToolCall`、`MemorySpace` 和 `AgentExecutionScope` 具有独立生命周期和并发边界，不能降为 Runtime、Session 或 Run 内的普通值对象。详细不变量分别由 [Security Plane](layers/security-plane/README.md)、[L3 Tool Runtime](layers/l3-tool-runtime/README.md)、[MemoryManager](layers/l1-control/components/memory-manager.md)和[SubagentCoordinator](layers/l1-control/components/subagent-coordinator.md)维护。
 
 ## 6. 系统服务 C4 组件协作
 
-![Agent Kernel System 服务 C4 组件协作](agent-kernel-v3-service-collaboration.svg)
+[Agent Kernel System 服务 C4 组件协作 PlantUML 权威源](diagrams/system/05-system-service-collaboration.puml)
 
 该图是逻辑组件视图，用于描述请求、认知、安全决策和受控执行之间的 High Level 协作，不要求图中组件与代码包、进程、聚合根或部署单元一一对应。为防止抽象名词在工程实现中扩大职责，采用以下规范化映射：
 
@@ -172,11 +186,11 @@ Agent Kernel System（限界上下文）
 | State DB / Sessions / Memory | Run、Context、Memory Repository Port 的逻辑持久化视图 | 图中的单一 DB 只表示持久化能力；各聚合仍独立提交，数据库实现不能反向定义领域所有权。 |
 | Agent Core / Agent Loop | `AgentRuntime` + `AgentLoopStep` + `AgentAdapterPort` | Runtime 执行已派发 Attempt；Run 权威状态和 Lease 仍由 Run Domain/Scheduler 管理。 |
 | Parser | Adapter 私有协议解析与 Kernel 规范化层 | 将模型输出转为规范化动作候选；Pi/模型原生类型不得越过 `AgentAdapterPort`。 |
-| Model Provider | `AgentAdapterPort` / `ModelInvocationPort` 后的外部模型能力 | 模型 Provider、密钥和网络机制不属于 Kernel；Kernel 只处理规范化请求、响应和事件。 |
-| PEP | `ToolRuntime`、`MemoryManager`、`SubagentCoordinator` 等执行点中的分布式强制检查 | PEP 不是独立拥有权限规则的聚合；每个受保护动作执行前必须校验并消费 `ExecutionPermit`。 |
-| PDP / Policy DB | `PermissionSystem` + `PolicySnapshotPort` + KernelHost 外部策略源 | Kernel 依据已编译策略快照做技术判定，不解释 Tenant、User、RBAC 或业务审批政策。 |
-| Tool Router | `ToolRuntime` + `ToolProviderPort` + `SandboxPort` | 只接受获授权的工具请求，负责路由、执行协调和结果归一化，不自行扩大权限。 |
-| Internal API / MicroVM / Docker | Tool Provider 与 Sandbox Infrastructure Adapter | 属于 Kernel Port 之外的机制实现，不拥有 Agent、权限或路由领域规则。 |
+| Model Provider | `AgentAdapterPort` 后的外部模型能力 | `AgentAdapterPort` 是 Kernel 唯一公共模型边界；`ModelInvocationPort` 只允许作为 Pi Adapter 私有接口。 |
+| PEP | L1 前置 PEP + L3 `ToolExecutionGuard` | L1 请求 PDP 决策；真实副作用前的 Guard 只校验并消费 Permit，不进行第二次策略裁决。 |
+| PDP / Policy DB | `PermissionDecisionEngine` + `PolicySnapshotPort` + KernelHost 外部策略源 | Kernel 依据已编译策略快照做技术判定，不解释 Tenant、User、RBAC 或业务审批政策。 |
+| Tool Router | `ToolCallRuntime` + `ToolCatalogRouter` + `ToolExecutionGuard` | 只接受获授权的工具请求，负责技术路由、执行协调和结果归一化，不自行扩大权限。 |
+| Internal API / Sandbox | L4 `ToolProviderAdapter` 与 `SandboxRuntime` | L4 定义受控执行语义；Infrastructure 只提供进程、容器、文件和网络机制。 |
 | 黑板 | `ContextFrame` + `AgentEvent` 投影 | 是执行过程中的可重建协作投影，不新增共享可变聚合，也不替代长期 MemorySpace。 |
 | Operations Plane | `ObservabilityPort` + 外部 Telemetry/运维平台 | Kernel 传播 `OperationContext` 并产生日志、Trace、指标、健康和安全审计；运维平台不得反向修改领域状态或参与权限裁决。 |
 | Infrastructure Plane | `InfrastructurePort` 族 + Container、Transport、Storage、Secret、Clock Adapter | 只提供进程、通信、存储、出口、密钥和时钟机制；不得包含 Agent 路由、业务编排或权限规则。 |
@@ -188,7 +202,7 @@ Agent Kernel System（限界上下文）
 | 边界 | 允许进入 | 允许输出 | 禁止行为 |
 |---|---|---|---|
 | Agent Kernel System | 规范化执行意图、执行信封引用、外部审批决定、基础设施能力 | Run 状态、规范化事件、候选结果、ActionProposal、遥测 | 解释 Token/Tenant/RBAC、直接操作基础设施、修改业务 Workflow |
-| Model Provider / Tool Provider | 经过 `AgentAdapterPort`、`ModelInvocationPort` 或 `ToolProviderPort` 的规范化请求 | 模型响应、工具结果和 Provider 健康 | 访问 Kernel 聚合、签发 Permit、修改 Run 或绕过资源约束 |
+| Model Provider / Tool Provider | 模型请求经 `AgentAdapterPort` 下的 Adapter 私有边界，工具请求经 `ToolProviderPort` | 模型响应、工具结果和 Provider 健康 | 访问 Kernel 聚合、签发 Permit、修改 Run 或绕过资源约束 |
 | Operations Plane | `OperationContext`、脱敏日志、Span、指标、健康和审计事件 | 告警、诊断查询结果、可观测性确认 | 直接改变 Run、Permit、ToolCall 或 Memory 权威状态 |
 | Infrastructure Plane | 通过 Port 提交的机制请求与不透明资源 Handle | 容器、进程、传输、存储、出口、Secret 和时钟结果 | 定义 Agent 路由、业务规则、权限策略或多 Agent 协调规则 |
 
@@ -196,26 +210,25 @@ Agent Kernel System（限界上下文）
 
 ### 6.3 层间协议与接口候选
 
-![Agent Kernel System C4 层间边界协议](agent-kernel-v3-boundary-protocols.svg)
+[Agent Kernel System C4 层间边界协议 PlantUML 权威源](diagrams/contracts/12-c4-boundary-protocols.puml)
 
-边界编号、Local-first 绑定和故障语义见[C4 边界协议与接口设计](c4-boundary-protocols.md)；对外稳定方法、版本策略和 Transport Adapter 约束见[稳定协议外观层设计](protocol-facade-subsystem-design.md)。主文档只约束 Port 语义、数据所有权和安全不变量，不在此重复维护协议细节。
+边界编号、Local-first 绑定和故障语义见[边界契约注册表](contracts/README.md)；对外稳定外观见 [Protocol Facade](layers/l1-control/components/protocol-facade.md)，Transport 机制见 [Transport Adapter](layers/infrastructure-plane/components/transport.md)。主文档只约束调用方向、数据所有权和安全不变量，不重复维护协议细节。
 
 | 服务 | 职责 | 明确不负责 |
 |---|---|---|
 | AgentKernelProtocolFacade | 版本协商、协议校验、DTO/错误/事件机械映射和 Transport Adapter 统一入口 | 调度、持久化、权限、重试、恢复和直接调用内部 Adapter |
-| AgentSystemGateway | 对外提供 Run、事件、Agent 和团队入口 | HTTP、认证、租户解析、业务 Workflow |
-| AgentControlPlane | 接收执行意图，协调 Definition、Session 和 Run 创建 | 模型循环和资源执行 |
+| AgentSystemGateway | 对外提供 Run、事件和 Agent 入口 | HTTP、认证、租户解析、业务 Workflow 和 Multi-agent 团队入口 |
 | AgentRegistry | 管理 AgentDefinition、Capability 和路由候选 | 业务优先级、具体 Adapter 创建 |
 | RunRegistry | Run 查询、状态入口、幂等回执和 Lease 协作 | 能力定义和业务调度 |
 | RunScheduler | 队列、并发、预算、Deadline、Lease、技术重试和派发 | 业务流程顺序和结果采纳 |
 | FlowEngine | 读取 Run/Session 快照并计算下一技术动作 | 保存权威状态、设计业务工作流 |
-| ResourceManager | 有界队列、执行槽、进程和临时资源配额 | 业务优先级和 Run 状态迁移 |
-| AgentRuntimePool | Worker 容量、隔离和健康 | Run 权威状态 |
+| ResourceManager | 执行准入、执行槽和临时资源预算 | 可运行队列、业务优先级和 Run 状态迁移 |
+| RuntimePool | Worker 容量、隔离和健康 | Run 权威状态 |
 | AgentRuntime | 执行已派发 Attempt 的 Agent Loop | 系统调度、身份解释、直接资源访问 |
 | ContextEngine | 工作上下文组装、预算、裁剪、摘要和冻结 | 长期记忆权威状态、业务 Conversation |
 | MemoryManager | 长期记忆空间、版本、授权视图和候选提交 | 无条件共享或直接覆盖 Context |
-| PermissionSystem | ActionProposal 判定、Ask 状态和 Permit 规则 | 审批人选择和受保护动作执行 |
-| ToolRuntime | ToolDefinition、ToolCall、Permit 校验和 Provider 协调 | 权限裁决和基础设施实现 |
+| PermissionDecisionEngine | ActionProposal 判定与 Ask 技术请求 | 审批人选择、Permit 消费和受保护动作执行 |
+| ToolCallRuntime | ToolDefinition、ToolCall、Guard 调用和 L4 协调 | PDP 权限裁决、Permit 签发、Sandbox 机制和基础设施实现 |
 | SubagentCoordinator | Parent/Child Run 的 Fork、Join、Cancel 和级联收敛 | Multi-agent 团队组建、角色、仲裁和业务结果采纳 |
 | AgentAdapter | Pi/未来 Runtime 私有类型映射和规范化事件 | Kernel 策略、权限、工具和记忆决策 |
 
@@ -223,37 +236,37 @@ Agent Kernel System（限界上下文）
 
 `AgentSession` 是持久化技术档案，不是一进程；`AgentRun` 是执行聚合根；`FlowEngine` 是无状态推进算法；`AgentRuntime` 是可重建执行服务。所有 Root 和 Child Run 都经统一 Scheduler。首版使用一个 Host 进程、一个 FlowEngine、一个本地有界队列和若干执行槽；Lease/Fence 只属于多 Worker 部署档案。
 
-对象关系、Session 分支、进程模型和资源开销见[AgentSession、FlowEngine 与本地资源调度](session-flow-engine-resource-subsystem-design.md)；Run 生命周期、Port、重复派发防护、取消和恢复规则见[AgentRun、调度与 Runtime 子系统设计](run-scheduling-runtime-subsystem-design.md)。
+对象关系、Session 分支、进程模型和资源开销从[L1 层设计](layers/l1-control/README.md)进入对应组件；L2 执行生命周期见[L2 层设计](layers/l2-cognitive/README.md)。
 
 ## 8. 身份、租户与执行信封
 
 Runtime 需要执行身份和资源权限，但纯 Kernel 不解释用户或租户领域。KernelHost 把外部身份、权限和资源范围编译为 `AgentExecutionEnvelope`；Kernel 聚合只保存稳定的 `AgentExecutionEnvelopeRef` 和必要审计摘要。
 
-Envelope 的对象结构、权限求交、资源 Handle 和执行点约束见[权限、审批与执行授权子系统设计](technical-approval-subsystem-design.md)。纯 Kernel 领域对象和 Runtime 状态中仍禁止加入 Tenant、User、组织或 RBAC 业务字段。
+Envelope 的权限求交、资源 Handle 和执行点约束见[Security Plane](layers/security-plane/README.md)与[公共契约元数据](contracts/common-metadata.md)。纯 Kernel 领域对象和 Runtime 状态中仍禁止加入 Tenant、User、组织或 RBAC 业务字段。
 
 ## 9. 权限与外部审批
 
-`PermissionSystem` 是统一技术决策点，返回 Allow、Ask 或 Deny；`ExecutionPermit` 是唯一能够触发受保护动作的一次性授权制品。外部审批只能批准或缩小原 `ActionProposal`，Kernel 不拥有业务 ApprovalCase。
+`PermissionDecisionEngine` 是统一技术决策点，返回 Allow、Ask 或 Deny；`ExecutionPermit` 是唯一能够触发受保护动作的一次性授权制品。外部审批只能批准或缩小原 `ActionProposal`，Kernel 不拥有业务 ApprovalCase。
 
-执行信封、决策与执行点分离、Permit 生命周期、审批 Port 和故障关闭规则见[权限、审批与执行授权子系统设计](technical-approval-subsystem-design.md)。
+决策与执行点分离、Permit 生命周期、审批桥和故障关闭规则见[Security Plane](layers/security-plane/README.md)。
 
 ## 10. 工具扩展与沙箱
 
-`ToolRuntime` 是唯一工具执行编排入口，工具通过版本化 `ToolDefinition` 与 `ToolDescriptor` 扩展。Candidate 不能直接进入 Provider，Sandbox 和 Secret 机制也不能绕过 Permit。
+`ToolCallRuntime` 是工具调用状态协调入口，工具通过版本化 `ToolDefinition` 与 `ToolDescriptor` 扩展。Candidate 不能直接进入 Provider，Sandbox 和 Secret 机制也不能绕过 Permit。
 
-同步/异步工具接口、ToolCall 聚合、合法调用链、沙箱边界、取消和未知副作用规则见[工具调用与沙箱子系统设计](tool-call-subsystem-design.md)。
+ToolCall 聚合、合法调用链、取消和未知副作用规则见[L3 Tool Runtime](layers/l3-tool-runtime/README.md)；Provider 与 Sandbox 受控执行语义见[L4 Execution Runtime](layers/l4-execution-runtime/README.md)。
 
 ## 11. 上下文与长期记忆
 
 `AgentSession` 是技术会话聚合根；`MemorySpace` 是独立长期记忆聚合根；`ContextFrame` 只是一次模型调用的不可变投影。Agent 只能提交 `MemoryCandidate`，不能直接覆盖共享记忆。
 
-上下文组装、归约追踪、MemoryView、共享范围、授权写入和 Local-first 持久化见[上下文与长期记忆子系统设计](context-memory-subsystem-design.md)。
+上下文组装与归约追踪见 [ContextEngine](layers/l1-control/components/context-engine.md)；MemoryView、共享范围和候选写入见 [MemoryManager](layers/l1-control/components/memory-manager.md)。
 
 ## 12. Subagent 与上层 Multi-agent 边界
 
 Subagent 是受 `AgentExecutionScope` 管理的 Child Run，属于 Kernel 的结构化执行能力。Multi-agent 团队由上层业务编排使用多个 Run/Session 组建；Kernel 不拥有 Team、Participant、RoleAssignment、CoordinationPolicy 或团队仲裁。
 
-父子生命周期、可选 Child Session、预算/权限继承和孤儿防护见[AgentSession、FlowEngine 与本地资源调度](session-flow-engine-resource-subsystem-design.md)。上层共享记忆仍必须使用显式 MemoryView/Grant，不因 Multi-agent 组建方式而放宽权限。
+父子生命周期、可选 Child Session、预算/权限继承和孤儿防护见 [SubagentCoordinator](layers/l1-control/components/subagent-coordinator.md)。上层共享记忆仍必须使用显式 MemoryView/Grant，不因 Multi-agent 组建方式而放宽权限。
 
 ## 13. 数据、一致性与韧性原则
 
@@ -276,52 +289,48 @@ Runtime 故障不等于 Run 必然终止。只有安全 Checkpoint、已知副�
 
 ## 14. Port 与依赖规则
 
-层间协议和第一批关键接口已经进入步骤二候选，详见 [C4 边界协议与接口设计](c4-boundary-protocols.md)。当前冻结调用方向：
+层间协议和第一批关键接口仍是步骤二候选，详见[边界契约注册表](contracts/README.md)。当前步骤一只冻结调用方向：
 
 | 调用方 | Port | 实现/被调用方 | 权威数据 |
 |---|---|---|---|
-| 业务编排/KernelHost | AgentSystemGateway | AgentControlPlane | 对应领域聚合 |
-| AgentControlPlane | AgentRegistry Port | AgentRegistry | AgentDefinition |
-| AgentControlPlane | SessionPort | Session Application Service | AgentSession |
-| ControlPlane/SubagentCoordinator | RunSchedulerPort | RunScheduler | AgentRun/RuntimeLease |
-| RunScheduler | RuntimeDispatchPort | RuntimePool/Runtime | Run 仍归 RunRegistry |
-| AgentRuntime | RunExecutionPort | Run Domain | Run/Attempt/Event |
-| AgentRuntime | RuntimeEventPort | L1 ActionCoordinator | ToolCallCandidate、暂停与恢复关联 |
-| AgentRuntime | ContextPort | ContextEngine | ContextThread/Snapshot |
-| L1 ActionCoordinator/PEP | ToolRuntimePort | ToolRuntime | ToolDefinition/ToolCall |
-| AgentRuntime | ChildRunPort | SubagentCoordinator/RunScheduler | AgentExecutionScope/Child Run |
-| Tool/Memory/Delegation/Secret/Artifact 执行点 | PermissionDecisionPort / PermitValidationPort | PermissionSystem | PermissionRequest/Permit |
-| PermissionSystem | ApprovalRequestPort | Backend/业务审批边界 | 外部 ApprovalCase |
-| Backend/业务审批边界 | ApprovalDecisionPort | PermissionSystem | PermissionRequest |
+| 业务编排/KernelHost | AgentSystemGateway | AgentSystemGateway | 无；协调 Registry、Session 与 Run 用例 |
+| AgentSystemGateway | AgentRegistryQueryPort | AgentRegistry | AgentDefinition |
+| AgentSystemGateway | SessionCommandPort / SessionQueryPort | SessionManager | AgentSession |
+| AgentSystemGateway/SubagentCoordinator | RunSchedulerPort | RunScheduler | 可重建调度投影；Run 仍归 RunRegistry |
+| RunScheduler/RuntimePool | RuntimeControlPort | L2 AgentRuntime | Run 仍归 RunRegistry |
+| AgentRuntime | RuntimeEventPort | L1 RunRegistry | 规范化事件、ToolCallCandidate、ChildRunCandidate |
+| L1 PEP Enforcement | PermissionDecisionPort | PermissionDecisionEngine | PermissionRequest/Permit |
+| L1 PEP Enforcement | ToolRuntimePort | L3 ToolCallRuntime | ToolDefinition/ToolCall |
+| L1 SubagentCoordinator | ChildRunPort / RunSchedulerPort | RunScheduler | AgentExecutionScope/Child Run |
+| L3/L4、Memory、Delegation、Secret、Artifact 执行点 | PermitValidationPort | ExecutionPermit 组件 | ExecutionPermit 消费状态 |
+| PermissionDecisionEngine | ApprovalRequestPort | Backend/业务审批边界 | 外部 ApprovalCase |
+| Backend/业务审批边界 | ApprovalDecisionPort | ApprovalBridge / PermissionDecisionEngine | PermissionRequest |
 | ContextEngine | MemoryQueryPort | MemoryManager | MemorySpace |
-| ToolRuntime | Provider/Sandbox/Secret Port | Infrastructure | 基础设施机制 |
+| ToolExecutionGuard | ToolProviderPort / SandboxPort | L4 Execution Runtime | 受控执行结果 |
+| L4 Execution Runtime | Process/Container/Secret/Artifact Port | Infrastructure | 基础设施机制 |
 | AgentRuntime | AgentAdapterPort | Pi/未来 Adapter | Adapter 私有状态 |
 
 跨模块行为调用必须经过 Port；跨模块对象只保存 ID、Ref、Snapshot 或 Handle。Kernel Core 不导入 Pi、Bun、SQLite、HTTP 或具体 Adapter；具体 Adapter 只在 Composition Root 实例化；Infrastructure 不反向定义路由、权限或业务规则。
 
 ## 15. Pi Adapter、运维与基础设施
 
-Pi 位于 `AgentAdapterPort` 下方，不与 Gateway、Scheduler 或 Runtime 并列。可复用其模型 Provider、流式事件、工具调用原语、Abort、Session/Context 原语和 Agent Loop 参考实现；Kernel/Adapter 补齐 Definition、Session、Run/Attempt、Context/Memory、Permission/Permit、ToolRuntime 和受限 Child Run 生命周期。
+Pi 位于 `AgentAdapterPort` 下方，不与 Gateway、Scheduler 或 Runtime 并列。可复用其模型 Provider、流式事件、工具调用原语、Abort、Session/Context 原语和 Agent Loop 参考实现；Kernel/Adapter 补齐 Definition、Session、Run/Attempt、Context/Memory、Permission/Permit、L3 ToolCallRuntime 和受限 Child Run 生命周期。
 
 Pi 是否托管某段循环属于 Adapter 能力档案，不能改变 Kernel 对 Run、权限、工具、记忆和调度的所有权。Pi 原生委派不能绕过 Scheduler。
 
 `OperationContext` 跨 Port 传播 Trace、Correlation、Causation、Deadline 和 `TimeContext`。领域时间只通过 Clock Port 获取：绝对时间用 UTC，日历解释用显式 IANA 时区。日志和诊断包不得记录 Key、Prompt 正文、完整输出、工具参数、Memory 内容或物理资源路径。
 
-Container、Process、Transport、Storage、Artifact、Egress、Secret、Clock 和 Sandbox 都是 Infrastructure Port；它们只实现机制。首版最小运维与基础设施 Port、Local Adapter、故障语义及实现顺序见[Operations Plane 与 Infrastructure Plane 最小能力设计](operations-infrastructure-minimum-design.md)。
+Container、Process、Transport、Storage、Artifact、Egress、Secret 和 Clock 都由 Infrastructure Port 提供机制；Sandbox 的受控执行语义属于 L4，不能下沉为通用基础设施规则。详细边界分别见[Operations Plane](layers/operations-plane/README.md)、[Infrastructure Plane](layers/infrastructure-plane/README.md)、[L4 Execution Runtime](layers/l4-execution-runtime/README.md)和[Local-first 部署档案](deployment/local-first-profile.md)。
 
 ## 16. 架构图与变更治理
 
-正式 UML 使用以下权威源：
+正式 PlantUML 按文档层级组织：
 
-1. [领域对象全集](diagrams/domain/04-agent-system-domain-universe.puml)
-2. [系统服务 C4 组件协作](diagrams/domain/05-system-service-collaboration.puml)
-3. [Agent 定义、能力与路由](diagrams/domain/06-agent-definition-capability-routing.puml)
-4. [Run、调度与执行](diagrams/domain/07-run-scheduling-execution.puml)
-5. [上下文与长期记忆](diagrams/domain/08-context-memory.puml)
-6. [权限、身份与执行授权](diagrams/domain/09-permission-authority.puml)
-7. [工具、调用与沙箱](diagrams/domain/10-tool-sandbox.puml)
-8. [Subagent 生命周期与上层 Multi-agent 边界](diagrams/domain/11-subagent-multiagent.puml)
-9. [C4 层间边界协议](diagrams/domain/12-c4-boundary-protocols.puml)
+1. [系统视图](diagrams/system/)：Context、Container、领域对象全集和全局依赖。
+2. [七层 C4 Component 视图](diagrams/layers/)：每层组件与跨层 Port。
+3. [组件视图](diagrams/components/)：组件内部类、状态和生命周期。
+4. [跨层场景](diagrams/scenarios/)：启动、审批、工具执行、取消和事务顺序。
+5. [边界协议](diagrams/contracts/)与[部署视图](diagrams/deployment/)。
 
 `.puml` 是正式图形内容权威源；Draw.io 仅作为历史评审和人工调整画布。本轮不把领域图批量导入 Draw.io，也不以 Draw.io 页面状态替代 PlantUML 语法、边界和预览校验。未来若需要导入，必须使用 PlantUML“绘图”模式生成原生矢量节点，禁止嵌入 SVG。
 
@@ -364,6 +373,6 @@ Container、Process、Transport、Storage、Artifact、Egress、Secret、Clock �
 | DDL、事务、CAS、Lease/fence 和迁移 | 3 | 不使用旧 DDL |
 | YAML、SecretHandle 和 Pi 能力档案 | 2、4、5 | 关键配置缺失或明文 Secret 时失败关闭 |
 
-当前停留在步骤二。层间协议候选获得确认后，再补齐其余领域 Port 的完整 DTO、事件和错误码目录；步骤二整体通过前不得进入生命周期、数据流和韧性设计确认。
+当前仍停留在步骤一；`contracts/` 中的层间协议只作为步骤二候选输入。步骤一重新确认后，再评审完整 DTO、事件和错误码目录；步骤二整体通过前不得进入生命周期、数据流和韧性设计确认。
 
-系统级风险和测试评审使用 [Agent Kernel System SFMEA 与系统测试用例清单](agent-kernel-system-sfmea-test-plan.md)。该清单当前只作为步骤二/三的前置评审输入，不代表测试已经实现或步骤三已经开始。
+系统级风险和测试评审使用 [System SFMEA 与系统测试用例清单](../verification/system-sfmea.md)。该清单当前只作为步骤二/三的前置评审输入，不代表测试已经实现或步骤三已经开始。

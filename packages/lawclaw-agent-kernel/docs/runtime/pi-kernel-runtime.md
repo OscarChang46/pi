@@ -2,11 +2,11 @@
 
 > 文档性质：当前实现兼容说明，不定义领域架构。
 >
-> 架构权威：以 [Agent Kernel 主设计](../design/agent-kernel-design.md)、[领域对象目录](../design/agent-kernel-domain-object-catalog.md) 和 [ACR-2026-0008](../governance/changes/ACR-2026-0008-agent-system-boundary-v3.md) 为准。
+> 架构权威：以 [Agent Kernel 主设计](../design/agent-kernel-design.md)、[领域对象目录](../design/reference/domain-object-catalog.md) 和 [ACR-2026-0008](../governance/changes/ACR-2026-0008-agent-system-boundary-v3.md) 为准。
 
 ## 1. Runtime 的准确定位
 
-`AgentRuntime` 是长期存在、可重建的执行服务，不是聚合根，也不等同于一次用户对话。它由 `AgentRuntimePool` 管理，可以先后执行多个 `AgentRun`；单个 Run 的权威生命周期由 Run Domain 管理。
+`AgentRuntime` 是长期存在、可重建的执行服务，不是聚合根，也不等同于一次用户对话。它由 `RuntimePool` 管理，可以先后执行多个 `AgentRun`；单个 Run 的权威生命周期由 RunRegistry 管理。
 
 当前 Pi 接入用于验证模型循环、上下文组装、工具扩展和委派原语。它不能绕过 `RunScheduler` 创建 Run，不能直接改变调度状态，也不能成为权限、记忆或业务会话的权威数据源。
 
@@ -21,8 +21,11 @@ AgentSystemGateway
   → AgentRuntime 执行 AgentLoopStep
       → ContextPort 构造 ContextFrame
       → AgentAdapterPort 执行模型 Turn
-      → ToolRuntimePort 执行工具候选
-      → DelegationPort 申请 Child Run
+      → RuntimeEventPort 把 ToolCallCandidate / ChildRunCandidate 返回 L1
+  → L1 PEP 请求 PermissionDecisionPort 完成 Allow / Ask / Deny
+  → Allow 后携带 ExecutionPermit 调用 L3 ToolRuntimePort
+  → L3 ToolExecutionGuard 校验并消费 Permit，再进入 L4 Provider / Sandbox
+  → ChildRunCandidate 由 SubagentCoordinator 经 RunSchedulerPort 创建 Child Run
   → RunExecutionPort 追加规范化 AgentEvent 和终态
 ```
 
@@ -32,9 +35,9 @@ AgentSystemGateway
 
 - `AgentContextThread` 负责多轮上下文的连续关联，但不拥有 Run，也不承担调度和权限职责。
 - `ContextFrame` 是某个 Loop Step 的只读执行投影，不是业务 Conversation 的权威状态。
-- 工具调用必须依次经过 `ToolCallCandidate`、`PermissionPort`、一次性 `ExecutionPermit` 和 `AuthorizedToolRequest`，才能进入 Provider 或 Sandbox。
+- 工具调用必须依次经过 `ToolCallCandidate` 回传 L1、`PermissionDecisionPort`、一次性 `ExecutionPermit`、L3 `PermitValidationPort` 和 `AuthorizedToolRequest`，才能进入 L4 Provider 或 Sandbox；L2 不直接调用 L3。
 - 子 Agent 必须形成显式 `ParentChildRunLink`，只能通过 `RunSchedulerPort` 创建；其权限、预算、截止时间和资源范围不得超过父 Run。
-- 多 Agent 参与者必须绑定明确的技术角色；共享长期记忆必须经过 `MemoryPort` 和权限判断，不能默认共享完整上下文。
+- 上层业务编排可以用多个普通 Run/Session 组成 Multi-agent，但 Kernel 不保存团队、参与者角色或仲裁模型；共享长期记忆必须经过 `MemoryQueryPort` / `MemoryCandidatePort` 和权限判断，不能默认共享完整上下文。
 - Pi 原生消息、Session、Event 和 Tool 对象只存在于 Adapter 内部，不得进入公共契约。
 
 ## 4. 当前代码与目标架构的差距
@@ -44,7 +47,7 @@ AgentSystemGateway
 - Run Registry、Scheduler 和 Runtime Pool 的独立实现；
 - `AgentExecutionEnvelopeRef` 到 Scoped Adapter 的完整装配；
 - 独立 `ToolCall`、`PermissionRequest`、`ExecutionPermit` 聚合及异步审批；
-- 结构化父子 Run 生命周期与 Multi-agent 协作；
+- 结构化父子 Run 生命周期；Multi-agent 团队协作仍由 Kernel 上层负责；
 - Context 与共享长期记忆的持久化边界；
 - Event Journal、租约恢复和 JSONL Sidecar。
 

@@ -1,0 +1,103 @@
+schema_version: "1.0"
+candidate_baseline: "AKB-2026-09-03-09"
+root_document:
+  doc_id: "SYS-DES-001"
+  path: "docs/design/agent-kernel-design.md"
+required_metadata:
+  - doc_id
+  - level
+  - layer
+  - component
+  - status
+  - baseline
+  - authoritative_for
+  - parent
+  - interfaces
+  - diagrams
+  - supersedes
+
+layers:
+  - doc_id: "L1-DES-001"
+    path: "docs/design/layers/l1-control/README.md"
+    diagram: "docs/design/diagrams/layers/01-l1-control-components.puml"
+    components:
+      L1-CMP-001: "docs/design/layers/l1-control/components/protocol-facade.md"
+      L1-CMP-002: "docs/design/layers/l1-control/components/agent-system-gateway.md"
+      L1-CMP-003: "docs/design/layers/l1-control/components/agent-registry.md"
+      L1-CMP-004: "docs/design/layers/l1-control/components/capability-router.md"
+      L1-CMP-005: "docs/design/layers/l1-control/components/session-manager.md"
+      L1-CMP-006: "docs/design/layers/l1-control/components/run-registry.md"
+      L1-CMP-007: "docs/design/layers/l1-control/components/run-scheduler.md"
+      L1-CMP-008: "docs/design/layers/l1-control/components/flow-engine.md"
+      L1-CMP-009: "docs/design/layers/l1-control/components/context-engine.md"
+      L1-CMP-010: "docs/design/layers/l1-control/components/memory-manager.md"
+      L1-CMP-011: "docs/design/layers/l1-control/components/resource-manager.md"
+      L1-CMP-012: "docs/design/layers/l1-control/components/runtime-pool.md"
+      L1-CMP-013: "docs/design/layers/l1-control/components/subagent-coordinator.md"
+  - doc_id: "L2-DES-001"
+    path: "docs/design/layers/l2-cognitive/README.md"
+    diagram: "docs/design/diagrams/layers/02-l2-cognitive-components.puml"
+    components:
+      L2-CMP-001: "docs/design/layers/l2-cognitive/components/agent-runtime-loop.md"
+      L2-CMP-002: "docs/design/layers/l2-cognitive/components/parser-normalizer.md"
+      L2-CMP-003: "docs/design/layers/l2-cognitive/components/agent-adapter-boundary.md"
+      L2-CMP-004: "docs/design/layers/l2-cognitive/components/pi-agent-adapter.md"
+  - doc_id: "SEC-DES-001"
+    path: "docs/design/layers/security-plane/README.md"
+    diagram: "docs/design/diagrams/layers/03-security-plane-components.puml"
+    components:
+      SEC-CMP-001: "docs/design/layers/security-plane/components/permission-decision-engine.md"
+      SEC-CMP-002: "docs/design/layers/security-plane/components/execution-permit.md"
+      SEC-CMP-003: "docs/design/layers/security-plane/components/pep-enforcement.md"
+      SEC-CMP-004: "docs/design/layers/security-plane/components/approval-bridge.md"
+  - doc_id: "L3-DES-001"
+    path: "docs/design/layers/l3-tool-runtime/README.md"
+    diagram: "docs/design/diagrams/layers/04-l3-tool-runtime-components.puml"
+    components:
+      L3-CMP-001: "docs/design/layers/l3-tool-runtime/components/tool-catalog-router.md"
+      L3-CMP-002: "docs/design/layers/l3-tool-runtime/components/tool-call-runtime.md"
+      L3-CMP-003: "docs/design/layers/l3-tool-runtime/components/tool-execution-guard.md"
+  - doc_id: "L4-DES-001"
+    path: "docs/design/layers/l4-execution-runtime/README.md"
+    diagram: "docs/design/diagrams/layers/05-l4-execution-runtime-components.puml"
+    components:
+      L4-CMP-001: "docs/design/layers/l4-execution-runtime/components/tool-provider-adapter.md"
+      L4-CMP-002: "docs/design/layers/l4-execution-runtime/components/sandbox-runtime.md"
+  - doc_id: "OPS-DES-001"
+    path: "docs/design/layers/operations-plane/README.md"
+    diagram: "docs/design/diagrams/layers/06-operations-plane-components.puml"
+    components:
+      OPS-CMP-001: "docs/design/layers/operations-plane/components/telemetry-pipeline.md"
+      OPS-CMP-002: "docs/design/layers/operations-plane/components/logging-tracing-metrics.md"
+      OPS-CMP-003: "docs/design/layers/operations-plane/components/health-diagnostics.md"
+      OPS-CMP-004: "docs/design/layers/operations-plane/components/security-audit.md"
+  - doc_id: "INF-DES-001"
+    path: "docs/design/layers/infrastructure-plane/README.md"
+    diagram: "docs/design/diagrams/layers/07-infrastructure-plane-components.puml"
+    components:
+      INF-CMP-001: "docs/design/layers/infrastructure-plane/components/state-storage.md"
+      INF-CMP-002: "docs/design/layers/infrastructure-plane/components/artifact-storage.md"
+      INF-CMP-003: "docs/design/layers/infrastructure-plane/components/execution-capacity.md"
+      INF-CMP-004: "docs/design/layers/infrastructure-plane/components/process-container.md"
+      INF-CMP-005: "docs/design/layers/infrastructure-plane/components/transport.md"
+      INF-CMP-006: "docs/design/layers/infrastructure-plane/components/model-egress.md"
+      INF-CMP-007: "docs/design/layers/infrastructure-plane/components/secret-resolver.md"
+      INF-CMP-008: "docs/design/layers/infrastructure-plane/components/clock-time.md"
+
+document_sets:
+  contracts:
+    root: "docs/design/contracts"
+    required_ids: [SYS-CON-001, SYS-CON-002, SYS-CON-003, BND-EXT-001, BND-L1-001, BND-L12-001, BND-SEC-001, BND-L13-001, BND-L34-001, BND-MEM-001, BND-MOD-001, BND-OPS-001, BND-INF-001]
+  deployment:
+    root: "docs/design/deployment"
+    required_ids: [SYS-DEP-001, SYS-DEP-002, SYS-DEP-003]
+  reference:
+    root: "docs/design/reference"
+    required_ids: [SYS-REF-001]
+  verification:
+    root: "docs/verification"
+    required_ids: [VER-INDEX-001, SYS-VER-001, L1-VER-001, L2-VER-001, SEC-VER-001, L3-VER-001, L4-VER-001, OPS-VER-001, INF-VER-001]
+
+non_normative_roots:
+  - "docs/governance/archive"
+  - "docs/runtime"

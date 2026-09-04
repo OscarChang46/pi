@@ -1,0 +1,31 @@
+@startuml
+!include ../theme.puml
+title Infrastructure Plane 组件图
+left to right direction
+
+rectangle "Kernel / L4 Port 调用方" as KERNEL LC_EXTERNAL
+package "Infrastructure Plane" LC_INFRASTRUCTURE {
+  component "StateStorage" as STATE
+  component "ArtifactStorage" as ARTIFACT
+  component "ExecutionCapacity" as CAPACITY
+  component "Process / Container" as PROCESS
+  component "Transport" as TRANSPORT
+  component "ModelEgress" as EGRESS
+  component "SecretResolver" as SECRET
+  component "Clock / Time" as CLOCK
+}
+
+KERNEL --> STATE : Repository Ports
+KERNEL --> ARTIFACT : ArtifactPort
+KERNEL --> CAPACITY : ExecutionCapacityPort
+KERNEL --> PROCESS : Process / Container Ports
+KERNEL --> TRANSPORT : TransportPort
+KERNEL --> EGRESS : ModelEgressPort
+KERNEL --> SECRET : SecretResolverPort
+KERNEL --> CLOCK : ClockPort
+
+note bottom of STATE
+  Infrastructure 只返回机制结果和不透明 Handle；
+  不定义 Agent、Run、调度、权限、工具或业务规则。
+end note
+@enduml

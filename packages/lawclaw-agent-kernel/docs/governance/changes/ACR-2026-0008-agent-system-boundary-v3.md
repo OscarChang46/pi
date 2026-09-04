@@ -9,7 +9,7 @@
 - 候选基线：AKB-2026-09-03-09
 - 父基线：AKB-2026-09-03-08
 
-> 口径说明：本 ACR 取代 ACR-2026-0007 的目标设计口径，但其 Session、FlowEngine、Multi-agent 和本地运行边界已由 [ACR-2026-0009](ACR-2026-0009-session-flow-engine-boundary.md) 重新打开评审。冲突处以 0009 为准；未经五步批准不得迁移代码或激活候选基线。
+> 口径说明：本 ACR 取代 ACR-2026-0007 的目标设计口径，但其 Session、FlowEngine、Multi-agent 和本地运行边界已由 [ACR-2026-0009](ACR-2026-0009-session-flow-engine-boundary.md) 修订；候选资料的权威结构由 [ACR-2026-0010](ACR-2026-0010-layered-design-documentation.md) 规定。冲突处以 0009 为准；未经五步批准不得迁移代码或激活候选基线。
 
 ## 1. 触发原因
 
@@ -89,8 +89,8 @@ ACR-2026-0007 继续解释当前代码基线，但不再作为后续设计文档
 
 | 步骤 | 状态 | 证据 |
 |---|---|---|
-| 1. 系统职责、边界与核心对象 | ACCEPTED | 2026-09-04 用户确认边界基本无误并要求进入层间协议设计 |
-| 2. 接口与数据契约 | REVIEWING | `docs/design/c4-boundary-protocols.md`、七份子系统设计、`docs/design/diagrams/domain/` |
+| 1. 系统职责、边界与核心对象 | REVIEWING | 由 ACR-2026-0009 修订并以 ACR-2026-0010 的三级文档结构重新提交评审 |
+| 2. 接口与数据契约 | PENDING | 候选契约位于 `docs/design/contracts/`；步骤一确认前不冻结签名与 DTO |
 | 3. 生命周期、数据流与韧性 | PENDING | 待步骤二确认 |
 | 4. 安全与架构一致性 | PENDING | 待步骤三确认 |
 | 5. 基线批准与代码授权 | PENDING | 待步骤四确认 |
@@ -101,21 +101,24 @@ ACR-2026-0007 继续解释当前代码基线，但不再作为后续设计文档
 - [核心领域对象 UML 预览](../../design/agent-kernel-v3-domain-classes.svg)
 - [系统服务 C4 组件协作预览](../../design/agent-kernel-v3-service-collaboration.svg)
 - [C4 层间边界协议预览](../../design/agent-kernel-v3-boundary-protocols.svg)
-- [C4 边界协议与接口设计](../../design/c4-boundary-protocols.md)
-- [SFMEA 与系统测试用例清单](../../design/agent-kernel-system-sfmea-test-plan.md)
-- [领域对象目录](../../design/agent-kernel-domain-object-catalog.md)
-- [子系统设计导航](../../README.md#32-子系统设计导航)
-- [正式 PlantUML 权威源目录](../../design/diagrams/domain/)
+- [总设计](../../design/agent-kernel-design.md)
+- [文档清单](../../design/document-manifest.yaml)
+- [七层设计与组件设计](../../design/layers/)
+- [边界契约注册表](../../design/contracts/README.md)
+- [Local-first 部署档案](../../design/deployment/local-first-profile.md)
+- [SFMEA 与系统测试用例清单](../../verification/system-sfmea.md)
+- [领域对象目录](../../design/reference/domain-object-catalog.md)
+- [正式 PlantUML 权威源目录](../../design/diagrams/)
 
 ## 9. 文档阶段验证
 
 已完成的步骤一文档门禁：
 
-- 九张基础架构源图与九张领域/C4 源图语法检查通过，正式 UML 与 C4 内容均由 `.puml` 维护；
+- 十九张正式架构图按 system、layers、components、contracts、scenarios 和 deployment 分类维护；`theme.puml` 与 `drawio-theme.puml` 不计入图数量；
 - Draw.io 评审画布未作为本轮正式领域图内容源，也未据此声明与 PlantUML 的页面级一致性；
 - 领域对象全集、六张分领域类图、系统服务 C4 组件协作图和领域对象目录之间的所有权映射检查通过；
 - Markdown 本地引用与架构职责门禁通过。
-- 主设计只保存全局边界和不变量；子系统细节下放到唯一维护文档，并建立主文档、子文档、对象目录和 PlantUML 的双向引用。
+- 主设计只保存全局边界和不变量；层与组件细节下放到唯一维护文档，并通过清单连接总设计、七层、组件、契约、对象目录、验证和 PlantUML。
 
 步骤二至五仍须验证：
 

@@ -1,0 +1,31 @@
+@startuml
+!include ../../theme.puml
+title AgentRun 状态机（V3）
+
+[*] --> ACCEPTED : RunCommandPort.submit\n持久化 RunAccepted
+ACCEPTED --> QUEUED : RunScheduler.enqueue
+QUEUED --> RUNNING : 签发 RuntimeLease\n创建 AgentRunAttempt
+RUNNING --> WAITING_PERMISSION : PermissionDecision.ASK
+WAITING_PERMISSION --> RUNNING : 审批通过且 Permit 有效
+WAITING_PERMISSION --> FAILED : 拒绝 / 超时 / 执行约束失效
+RUNNING --> WAITING_CHILDREN : 结构化委派
+WAITING_CHILDREN --> RUNNING : Join / 受控移交完成
+RUNNING --> COMPLETED : 最终输出已提交
+RUNNING --> FAILED : 不可恢复故障
+RUNNING --> CANCELING : cancel
+WAITING_PERMISSION --> CANCELING : cancel
+WAITING_CHILDREN --> CANCELING : cancel
+CANCELING --> CANCELED : 子 Run 收敛 + Runtime 中断
+RUNNING --> RECOVERING : Lease 丢失 / Worker 崩溃
+RECOVERING --> QUEUED : 安全恢复检查通过\n新 Attempt
+RECOVERING --> FAILED : 未知副作用或无安全恢复点
+
+COMPLETED --> [*]
+FAILED --> [*]
+CANCELED --> [*]
+
+note right of WAITING_CHILDREN
+  父 Run 终态前，所有 Child Run 必须
+  Join、Cancel 或完成受控移交，不允许孤儿 Run。
+end note
+@enduml

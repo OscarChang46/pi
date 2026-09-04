@@ -21,20 +21,23 @@ mapfile_compat() {
   done < <("$@")
 }
 
-mapfile_compat diagram_files find "${DIAGRAM_DIR}" -maxdepth 1 -type f -name '[0-9][0-9]-*.puml' -print
-if [[ "${#diagram_files[@]}" -ne 9 ]]; then
-  echo "错误：应有 9 张编号 PlantUML，实际为 ${#diagram_files[@]} 张。" >&2
+mapfile_compat diagram_files find "${DIAGRAM_DIR}" -mindepth 2 -type f -name '[0-9][0-9]-*.puml' -not -path '*/rendered/*' -print
+if [[ "${#diagram_files[@]}" -ne 19 ]]; then
+  echo "错误：应有 19 张编号 PlantUML，实际为 ${#diagram_files[@]} 张。" >&2
   exit 1
 fi
 
+find "${OUTPUT_DIR}" -type f -name '*.svg' -delete
 for source_file in "${diagram_files[@]}"; do
-  source_name="$(basename "${source_file}")"
+  source_name="${source_file#${DIAGRAM_DIR}/}"
+  source_dir="$(dirname "${source_name}")"
+  mkdir -p "${OUTPUT_DIR}/${source_dir}"
   docker run --rm \
     "${PLANTUML_FONT_MOUNT[@]}" \
     --volume "${DIAGRAM_DIR}:/workspace" \
     --workdir /workspace \
     "${PLANTUML_IMAGE}" \
-    -charset UTF-8 -tsvg -o rendered "${source_name}"
+    -charset UTF-8 -tsvg -o "/workspace/rendered/${source_dir}" "${source_name}"
 done
 
-echo "已使用 ${PLANTUML_IMAGE} 生成 9 张 SVG：${OUTPUT_DIR}"
+echo "已使用 ${PLANTUML_IMAGE} 生成 19 张 SVG：${OUTPUT_DIR}"

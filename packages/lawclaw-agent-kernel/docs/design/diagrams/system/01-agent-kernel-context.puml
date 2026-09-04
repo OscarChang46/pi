@@ -1,0 +1,28 @@
+@startuml
+!include ../theme.puml
+title Agent Kernel System 上下文与职责边界（V3）
+left to right direction
+
+rectangle "业务编排子域\n决定何时调用及是否采纳结果" as ORCH LC_ORCHESTRATION
+rectangle "KernelHost\n编译可信执行约束" as HOST LC_EXTERNAL
+rectangle "Agent Kernel System\nAgent Registry / Session / Run / Context & Memory\nPermission / Tool / Structured Subagent" as KERNEL LC_KERNEL
+rectangle "AgentAdapterPort\nPi / ACP Adapter" as ADAPTER LC_ADAPTER
+rectangle "Infrastructure Ports\nStorage / Sandbox / Artifact / Secret / Clock" as INFRA LC_INFRASTRUCTURE
+rectangle "ObservabilityPort\n日志 / Trace / 指标 / 健康" as OPS LC_OPERATIONS
+
+ORCH --> HOST : AgentSystemGateway\n业务命令 + 外部身份上下文
+HOST --> KERNEL : RunCommandPort\nAgentExecutionEnvelopeRef
+KERNEL --> ADAPTER : AgentAdapterPort\n规范化 Turn
+KERNEL --> INFRA : Infrastructure Ports\n不透明资源句柄
+KERNEL ..> OPS : OperationContext\nAgentEvent / 指标
+
+ORCH -[#DC2626,dashed,bold]-> ADAPTER : <color:#B91C1C>禁止绕过 Kernel</color>
+KERNEL -[#DC2626,dashed,bold]-> ORCH : <color:#B91C1C>禁止修改 Workflow/业务审批</color>
+
+note bottom of KERNEL
+  Kernel 管理多个 Agent、Session、Run、工具、权限、上下文、记忆和受限 Child Run。
+  AgentRuntime 是长期执行服务；AgentRun 是核心生命周期聚合。
+  Multi-agent 团队组建与角色协调属于上层业务编排。
+  Kernel 不解释用户、组织或租户业务语义。
+end note
+@enduml

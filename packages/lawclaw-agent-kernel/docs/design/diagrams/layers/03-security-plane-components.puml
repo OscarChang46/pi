@@ -1,0 +1,34 @@
+@startuml
+!include ../theme.puml
+title Security Plane 组件图
+left to right direction
+
+rectangle "KernelHost / Backend\n策略与身份权威源" as HOST LC_EXTERNAL
+rectangle "L1 PEP / L3 ExecutionGuard" as PEP_CALLERS LC_EXTERNAL
+package "Security Plane" LC_DANGER {
+  component "PermissionDecisionEngine\nPDP" as PDP
+  component "ExecutionPermit" as PERMIT
+  component "PEP Enforcement" as PEP
+  component "ApprovalBridge" as APPROVAL
+  database "Compiled Policy Snapshot" as POLICY
+}
+rectangle "业务审批边界" as BUSINESS LC_EXTERNAL
+rectangle "Security Repository Port" as INFRA LC_INFRASTRUCTURE
+rectangle "Security Audit" as OPS LC_OPERATIONS
+
+HOST --> POLICY : PolicySnapshotPort
+PEP_CALLERS --> PEP : BND-SEC-001
+PEP --> PDP : PermissionDecisionPort
+PDP --> POLICY : 只读策略快照
+PDP --> PERMIT : Allow / Ask / Deny
+PERMIT --> APPROVAL : Ask
+APPROVAL --> BUSINESS : ApprovalRequestPort
+BUSINESS ..> APPROVAL : ApprovalDecisionPort
+PERMIT --> INFRA : PermitRepositoryPort
+PDP ..> OPS : BND-OPS-001
+
+note bottom of POLICY
+  Kernel 不认证用户，也不拥有 RBAC/ABAC；
+  这里只保存已编译、带版本的技术策略快照。
+end note
+@enduml

@@ -1,0 +1,31 @@
+@startuml
+!include ../theme.puml
+title L3 受控工具运行层组件图
+left to right direction
+
+rectangle "L1 FlowEngine / PEP" as L1 LC_EXTERNAL
+package "L3 Controlled Tool Runtime" LC_ADAPTER {
+  component "ToolCatalogRouter" as CATALOG
+  component "ToolCallRuntime" as RUNTIME
+  component "ToolExecutionGuard" as GUARD
+}
+rectangle "Security Plane" as SEC LC_EXTERNAL
+rectangle "L4 Execution Runtime" as L4 LC_EXTERNAL
+rectangle "Artifact / Secret / Repository Ports" as INFRA LC_INFRASTRUCTURE
+rectangle "Operations Plane" as OPS LC_OPERATIONS
+
+L1 --> RUNTIME : BND-L13-001\nAuthorizedToolRequest
+RUNTIME --> CATALOG : 冻结 Tool Route
+RUNTIME --> GUARD : 执行前检查
+GUARD --> SEC : PermitValidationPort\nvalidateAndConsume
+GUARD --> L4 : BND-L34-001
+L4 ..> RUNTIME : ToolResult
+RUNTIME --> INFRA : ToolCallRepository / Artifact / Secret
+RUNTIME ..> L1 : ToolEventPort
+RUNTIME ..> OPS : BND-OPS-001
+
+note bottom of GUARD
+  Guard 不重新进行策略裁决；
+  只验证一次性 Permit 与执行请求仍匹配。
+end note
+@enduml
