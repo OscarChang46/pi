@@ -1,0 +1,87 @@
+@startuml AgentDefinitionCapabilityRouting
+!include drawio-theme.puml
+title Agent 定义、能力与技术路由模块
+left to right direction
+
+class "AgentControlPlane" as ControlPlane <<external_subdomain>>
+class "RunScheduler" as Scheduler <<external_subdomain>>
+class "Agent Adapter" as Adapter <<external_subdomain>>
+
+package "Agent Kernel System" as Kernel <<bounded_context>> {
+  package "Agent Registry" as RegistryModule <<domain_module>> {
+    interface AgentRegistryCommandPort <<inbound_port>> {
+      +publish(definition)
+      +retire(agentId, version)
+    }
+    interface AgentRegistryQueryPort <<inbound_port>> {
+      +get(agentId, version)
+      +match(requirement): RouteProposal
+    }
+    interface AdapterCapabilityPort <<outbound_port>> {
+      +describeCapabilities(adapterId)
+      +health(adapterId)
+    }
+    class AgentRegistryService <<application_service>>
+    class CapabilityMatcher <<domain_service>>
+    class TechnicalRouter <<domain_service>>
+    class AgentDefinition <<aggregate_root>> {
+      +agentId: AgentId
+      +activeVersion: Version
+      +status: DefinitionStatus
+    }
+    class AgentDefinitionVersion <<entity>> {
+      +version: Version
+      +publishedAt: Instant
+      +definitionDigest: Hash
+    }
+    class AgentDescriptor <<value_object>> {
+      +adapterProfileRef: AdapterProfileRef
+      +modelProfileRef: ModelProfileRef
+      +contextPolicyRef: ContextPolicyRef
+      +toolSetRef: ToolSetRef
+    }
+    class CapabilityDescriptor <<value_object>> {
+      +streaming: boolean
+      +tools: boolean
+      +delegation: boolean
+      +contextWindow: integer
+      +executionProfile: ExecutionProfile
+    }
+    class AgentRoleDescriptor <<value_object>> {
+      +roleId: RoleId
+      +technicalPurpose: string
+      +capabilityRequirement: CapabilityRequirement
+    }
+    class RouteProposal <<reference>> {
+      +definitionVersionRef: DefinitionVersionRef
+      +capabilityDigest: Hash
+      +adapterId: AdapterId
+      +modelProfileRef: ModelProfileRef
+      +toolSetDigest: Hash
+    }
+
+    AgentRegistryCommandPort <|.. AgentRegistryService
+    AgentRegistryQueryPort <|.. AgentRegistryService
+    AgentRegistryService --> AgentDefinition
+    AgentDefinition *-- AgentDefinitionVersion
+    AgentDefinitionVersion *-- AgentDescriptor
+    AgentDescriptor *-- CapabilityDescriptor
+    AgentDefinitionVersion *-- AgentRoleDescriptor
+    AgentRegistryService --> CapabilityMatcher
+    CapabilityMatcher --> CapabilityDescriptor : 匹配要求
+    CapabilityMatcher --> TechnicalRouter : 候选集合
+    TechnicalRouter --> CapabilityDescriptor : 校验最终能力摘要
+    TechnicalRouter --> AdapterCapabilityPort : 能力与健康
+    TechnicalRouter --> RouteProposal : 返回不可变候选
+  }
+}
+
+ControlPlane --> AgentRegistryCommandPort : publish / retire
+Scheduler --> AgentRegistryQueryPort : match(requirement)
+AdapterCapabilityPort --> Adapter : describe / health
+
+note bottom of RouteProposal
+  RouteProposal 是查询 Port DTO，不是领域对象。
+  Run Domain 校验该候选后创建并唯一拥有 RouteSnapshot。
+end note
+@enduml

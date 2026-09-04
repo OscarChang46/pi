@@ -1,58 +1,37 @@
-@startuml 05-start-run-sequence
+@startuml
 !include theme.puml
-title start_run：最小接受、上下文组装、Agent Loop 与事件发布顺序
+title 启动 AgentRun：接受、调度与执行（V3）
 
-autonumber
-participant "业务编排" as ORCH LC_ORCHESTRATION
-participant "AgentGateway" as GW LC_KERNEL
-participant "请求守卫 / 技术路由" as GUARD LC_KERNEL
-participant "TimePort" as TIME_PORT LC_KERNEL
-participant "SystemTimeAdapter" as TIME_ADAPTER LC_INFRASTRUCTURE
-participant "最小 Run Supervisor" as SUPERVISOR LC_KERNEL
-participant "Context Engine" as CONTEXT LC_KERNEL
-participant "Tool Runtime" as TOOL LC_KERNEL
-participant "Agent Loop Engine" as LOOP LC_KERNEL
-participant "AgentAdapter" as ADAPTER_PORT LC_KERNEL
-participant "PiAgentAdapter" as PI_ADAPTER LC_ADAPTER
-database "最小 Run / Event Store" as DB
-participant "事件订阅者" as SUBSCRIBER LC_ORCHESTRATION
+actor "业务编排" as Caller
+participant "KernelHost" as Host
+participant "AgentSystemGateway" as Gateway
+participant "AgentRegistry" as Registry
+participant "RunRegistry" as Runs
+participant "RunScheduler" as Scheduler
+participant "AgentRuntimePool" as Pool
+participant "AgentRuntime" as Runtime
+participant "AgentAdapter" as Adapter
+participant "Event Journal" as Journal
+participant "AgentEventPublisherPort" as Publisher
 
-ORCH -> GW : AgentGateway.start_run\n(RequestContext, ContextSpec, ToolPolicyRef, DelegationPolicy)
-GW -> GUARD : 校验 tenant / UTC deadline / IANA TimeContext\n幂等 / 预算 / 能力
-GUARD -> TIME_PORT : now / parseIsoUtc / 校验时区
-TIME_PORT -> TIME_ADAPTER : TimePort
-TIME_ADAPTER --> GUARD : UTC TimePoint / 支持状态
-GUARD -> DB : 写 CommandReceipt + AgentRun(ACCEPTED)\n+ RunAccepted(sequence=1)
-DB --> GUARD : commit(run_id)
-GUARD --> GW : 已接受快照
-GW --> ORCH : run_id / status=ACCEPTED
-
-... 接受响应与异步智能执行解耦 ...
-SUPERVISOR -> CONTEXT : assemble(ContextSpec, ContextPolicy)
-CONTEXT --> SUPERVISOR : ContextFrame + ReductionTrace
-SUPERVISOR -> TOOL : resolveTools(ToolPolicyRef)
-TOOL --> SUPERVISOR : 有界 ToolDescriptor 集
-SUPERVISOR -> LOOP : start(ContextFrame, ToolSet, DelegationPolicy)
-SUPERVISOR -> TIME_PORT : 计算 min(RunBudget, Operation deadline)\n生成 UTC 事件时间
-
-loop 模型—工具/委派—继续，受轮次、Token、时间与子 Run 预算约束
-  LOOP -> ADAPTER_PORT : AgentAdapter.executeTurn\n(规范化 ContextFrame + ToolDescriptor)
-  ADAPTER_PORT -> PI_ADAPTER : Pi 私有消息 / Provider 调用
-  PI_ADAPTER --> ADAPTER_PORT : RuntimeEventCandidate
-  ADAPTER_PORT --> LOOP : OutputDelta / ToolRequested / TurnCompleted
-  LOOP -> CONTEXT : 追加结果并构造下一轮 ContextFrame
-  CONTEXT --> LOOP : 新快照 / 裁剪原因
-end
-
-loop 每个对外规范化 AgentEvent
-  LOOP -> DB : append_event(run_id, expected_sequence)
-  DB --> LOOP : commit(sequence=n)
-  LOOP -->> SUBSCRIBER : AgentEvent（提交后发布）
-end
-
-note over GW,DB
-  首版只要求最小接受记录、租户隔离、严格序号和可补拉事件；
-  不以复杂 Attempt / fence / Checkpoint 作为 Agent Loop 启动前置条件。
-  约束：UP-DAT-001、UP-RES-001、UP-CTX-002、UP-INF-002
-end note
+Caller -> Host : submit(command, externalContext)
+Host -> Host : 编译 AgentExecutionEnvelopeRef
+Host -> Gateway : RunCommandPort.submit(command, envelopeRef)
+Gateway -> Registry : resolve(definitionVersion, capabilityRequest)
+Registry --> Gateway : RouteSnapshot
+Gateway -> Runs : accept(trigger, route, budget, envelopeRef)
+Runs -> Journal : 持久化 RunAccepted
+Journal --> Runs : committed
+Runs -> Publisher : publish(committed RunAccepted)
+Runs --> Gateway : runId
+Runs -> Scheduler : enqueue(runId)
+Scheduler -> Pool : dispatch(runId, runtimeLease, envelopeRef)
+Pool -> Runtime : execute(attempt, lease)
+Runtime -> Adapter : AgentAdapterPort.executeTurn(contextFrame)
+Adapter --> Runtime : 规范化 AgentEvent 流
+Runtime -> Runs : RunExecutionPort.appendStep / complete
+Runs -> Journal : 先持久化事件与状态
+Journal --> Runs : committed
+Runs -> Publisher : 提交后发布 AgentEvent
+Publisher --> Caller : event stream / subscription
 @enduml

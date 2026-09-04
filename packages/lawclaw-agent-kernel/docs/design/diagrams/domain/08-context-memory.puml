@@ -1,0 +1,147 @@
+@startuml ContextAndLongTermMemory
+!include drawio-theme.puml
+title 上下文与长期记忆模块
+left to right direction
+
+class "AgentRuntime" as Runtime <<external_subdomain>>
+class "Permission System" as Permission <<external_subdomain>>
+class "Artifact Infrastructure" as ArtifactInfra <<infrastructure>>
+
+package "Agent Kernel System" as Kernel <<bounded_context>> {
+  package "Context" as ContextModule <<domain_module>> {
+    interface ContextPort <<inbound_port>> {
+      +assemble(runId, spec, envelopeRef): ContextFrame
+      +recordDelta(threadId, delta, envelopeRef)
+    }
+    interface MemoryQueryPort <<outbound_port>> {
+      +readView(spaceId, grant, version, envelopeRef): MemoryView
+    }
+    interface ContextArtifactPort <<outbound_port>> {
+      +read(reference)
+      +write(content): ArtifactReference
+    }
+    class ContextEngine <<domain_service>>
+    class AgentSession <<aggregate_root>> {
+      +sessionId: SessionId
+      +parentSessionId: SessionId?
+      +status: OPEN|CLOSED|ARCHIVED
+      +currentVersion: long
+    }
+    class ContextDelta <<entity>> {
+      +ordinal: long
+      +runId: RunId
+      +deltaRef: ArtifactReference
+    }
+    class ContextSpec <<value_object>> {
+      +sourceRefs: SourceRef[]
+      +memoryViewRefs: MemoryViewRef[]
+      +maxTokens: integer
+      +reductionPolicyRef: PolicyRef
+    }
+    class ContextItem <<value_object>> {
+      +kind: ContextItemKind
+      +contentRef: ArtifactReference
+      +priority: integer
+    }
+    class ContextFrame <<value_object>> {
+      +frameId: ContextFrameId
+      +estimatedTokens: integer
+      +contentDigest: Hash
+    }
+    class ContextSnapshot <<entity>> {
+      +snapshotId: ContextSnapshotId
+      +turnOrdinal: integer
+      +memoryVersions: MemoryVersionRef[]
+    }
+    class ContextReductionTrace <<value_object>> {
+      +action: KEEP|DROP|SUMMARIZE
+      +reasonCode: string
+    }
+    ContextPort <|.. ContextEngine
+    ContextEngine --> AgentSession
+    AgentSession *-- ContextDelta
+    AgentSession *-- ContextSnapshot
+    ContextEngine --> ContextSpec
+    ContextSnapshot *-- ContextItem
+    ContextSnapshot *-- ContextFrame
+    ContextSnapshot *-- ContextReductionTrace
+    ContextEngine --> MemoryQueryPort
+    ContextEngine --> ContextArtifactPort
+  }
+
+  package "Memory" as MemoryModule <<domain_module>> {
+    interface MemoryPort <<inbound_port>> {
+      +readView(spaceId, grant, version, envelopeRef): MemoryView
+      +submitCandidate(candidate, envelopeRef): CandidateId
+      +commitCandidate(candidateId, permitRef, envelopeRef)
+    }
+    interface PermissionDecisionPort <<outbound_port>> {
+      +authorize(actionProposal, envelopeRef): PermissionDecision
+    }
+    interface PermitValidationPort <<outbound_port>> {
+      +validateAndConsume(permitRef, actionDigest, envelopeRef)
+    }
+    interface MemoryArtifactPort <<outbound_port>> {
+      +read(reference)
+      +write(content): ArtifactReference
+    }
+    class MemoryManager <<application_service>>
+    class MemorySpace <<aggregate_root>> {
+      +spaceId: MemorySpaceId
+      +scope: PRIVATE|EXECUTION|TEAM|HOST_BOUND
+      +currentVersion: long
+    }
+    class MemoryEntry <<entity>> {
+      +entryId: MemoryEntryId
+      +contentRef: ArtifactReference
+      +supersedes: MemoryEntryId?
+    }
+    class MemoryVersion <<value_object>> {
+      +version: long
+      +entryDigest: Hash
+    }
+    class MemoryView <<value_object>> {
+      +spaceId: MemorySpaceId
+      +version: long
+      +entryRefs: MemoryEntryRef[]
+    }
+    class MemoryGrant <<value_object>> {
+      +spaceId: MemorySpaceId
+      +operations: READ|PROPOSE|COMMIT
+      +expiresAt: Instant
+    }
+    class MemoryCandidate <<entity>> {
+      +candidateId: CandidateId
+      +sourceRunId: RunId
+      +status: PROPOSED|AUTHORIZED|COMMITTED|REJECTED
+      +contentRef: ArtifactReference
+    }
+    class AgentExecutionEnvelopeRef <<reference>>
+    class ExecutionPermitRef <<reference>>
+    MemoryPort <|.. MemoryManager
+    MemoryManager --> MemorySpace
+    MemoryManager --> MemoryCandidate
+    MemoryManager --> PermissionDecisionPort
+    MemoryManager --> PermitValidationPort
+    MemoryManager --> MemoryArtifactPort
+    MemorySpace *-- MemoryEntry
+    MemorySpace *-- MemoryVersion
+    MemorySpace o-- MemoryGrant
+    MemoryCandidate ..> MemoryEntry : 授权后 append-only 追加
+  }
+
+  MemoryQueryPort --> MemoryPort : 模块间只经 Port
+}
+
+Runtime --> ContextPort : assemble / recordDelta + envelopeRef
+Runtime --> MemoryPort : submitCandidate + envelopeRef
+PermissionDecisionPort --> Permission : authorize
+PermitValidationPort --> Permission : validateAndConsume
+ContextArtifactPort --> ArtifactInfra : opaque artifact access
+MemoryArtifactPort --> ArtifactInfra : opaque artifact access
+
+note bottom of MemorySpace
+  Agent 只能提交 MemoryCandidate，不能直接修改 MemorySpace。
+  MemoryView 只含 EntryRef，不拥有 MemoryEntry 实体。
+end note
+@enduml

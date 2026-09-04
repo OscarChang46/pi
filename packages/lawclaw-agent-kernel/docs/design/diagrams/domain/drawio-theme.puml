@@ -1,0 +1,41 @@
+' Draw.io 原生 PlantUML 导入专用主题。
+' 该文件会在导入前被展开，Draw.io 中不得保留无法解析的本地 include。
+skinparam shadowing false
+skinparam linetype ortho
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+skinparam defaultFontName "PingFang SC"
+skinparam defaultFontSize 13
+skinparam classBackgroundColor #FFF8F0
+skinparam classBorderColor #C65D1E
+skinparam interfaceBackgroundColor #F3E8FF
+skinparam interfaceBorderColor #7C3AED
+skinparam packageBackgroundColor #FFFDF8
+skinparam packageBorderColor #475569
+skinparam noteBackgroundColor #FFF7CC
+skinparam noteBorderColor #A16207
+skinparam classBackgroundColor<<aggregate_root>> #FFF1E8
+skinparam classBorderColor<<aggregate_root>> #C65D1E
+skinparam classBackgroundColor<<entity>> #FFF8F0
+skinparam classBorderColor<<entity>> #C65D1E
+skinparam classBackgroundColor<<value_object>> #FFFDF8
+skinparam classBorderColor<<value_object>> #D97706
+skinparam classBackgroundColor<<application_service>> #E8F3FF
+skinparam classBorderColor<<application_service>> #2563EB
+skinparam classBackgroundColor<<domain_service>> #EEF2FF
+skinparam classBorderColor<<domain_service>> #4F46E5
+skinparam classBackgroundColor<<reference>> #F8FAFC
+skinparam classBorderColor<<reference>> #64748B
+skinparam classBackgroundColor<<external_subdomain>> #F1F5F9
+skinparam classBorderColor<<external_subdomain>> #475569
+skinparam classBackgroundColor<<infrastructure>> #E5E7EB
+skinparam classBorderColor<<infrastructure>> #4B5563
+skinparam interfaceBackgroundColor<<inbound_port>> #F3E8FF
+skinparam interfaceBorderColor<<inbound_port>> #7C3AED
+skinparam interfaceBackgroundColor<<outbound_port>> #ECFDF5
+skinparam interfaceBorderColor<<outbound_port>> #047857
+skinparam packageBackgroundColor<<bounded_context>> #FFFDF8
+skinparam packageBorderColor<<bounded_context>> #172033
+skinparam packageBackgroundColor<<domain_module>> #FFFFFF
+skinparam packageBorderColor<<domain_module>> #64748B
+hide circle

@@ -1,62 +1,45 @@
-@startuml 10-deployment
+@startuml
 !include theme.puml
-title macOS ARM64 首版部署：Agent Loop、Context、Tool 与单层子 Agent
+title Agent Kernel System 部署关系（V3）
+left to right direction
 
-top to bottom direction
-node "LawClaw Desktop 进程" as DESKTOP LC_ORCHESTRATION {
-  component "业务编排" as ORCH
-  component "Python 异步客户端" as PY
+node "Python / Desktop Host" as HOST LC_ORCHESTRATION {
+  component "业务编排调用方" as CALLER
+  component "KernelHost\n执行约束编译 + Scoped Adapter 装配" as KH
+  CALLER --> KH : AgentSystemGateway
 }
-node "Bun Sidecar\nmacOS ARM64 单文件" as SIDECAR LC_KERNEL {
-  component "JSONL stdin/stdout\n协议与多路复用" as JSONL
-  component "AgentGateway / Run Supervisor" as KERNEL
-  component "Agent Loop Engine" as LOOP
-  component "Context Engine" as CONTEXT
-  component "Tool Runtime" as TOOL
-  component "Delegation Engine\n单层子 Run" as DELEGATION
-  component "Composition Root" as ROOT
-  component "PiAgentAdapter / Pi 0.84.4" as PI_ADAPTER LC_ADAPTER
-  component "只读 Tool / Context Provider" as PROVIDERS LC_ADAPTER
-  component "SQLite / Artifact / Secret Adapter" as INFRA LC_INFRASTRUCTURE
-  component "SystemTimeAdapter\nUTC 时钟 / IANA 时区投影" as TIME LC_INFRASTRUCTURE
-  component "stderr 安全日志\nTrace / 指标 / 健康" as OPS LC_OPERATIONS
+
+node "Bun Sidecar（macOS ARM64）" as SIDECAR LC_KERNEL {
+  component "JSONL Gateway" as JSONL
+  component "RunRegistry + Scheduler" as RUN
+  component "RuntimePool + AgentRuntime" as RUNTIME
+  component "Context / Memory / Permission / Tool / Multi-agent" as SERVICES
+  JSONL --> RUN
+  RUN --> RUNTIME
+  RUNTIME --> SERVICES
 }
-database "SQLite WAL\n最小 Run / Event / Context 元数据" as SQLITE
-folder "Artifact 目录\n租户范围 / 加密" as ARTIFACTS
-cloud "OpenAI-compatible\n模型服务" as MODEL
-rectangle "环境变量密钥\nSecretHandle 映射" as SECRETS LC_INFRASTRUCTURE
 
-ORCH --> PY : OrchestrationPort
-PY --> JSONL : JSONL IPC\nAgentGateway 方法
-JSONL --> KERNEL : AgentGateway
-KERNEL --> LOOP : start / cancel / budgets
-LOOP --> CONTEXT : ContextFrame
-LOOP --> TOOL : ToolRequested
-LOOP --> DELEGATION : 单层技术委派
-ROOT --> KERNEL : 创建内核
-ROOT --> PI_ADAPTER : 唯一实例化点
-ROOT --> PROVIDERS : 唯一 Provider 装配点
-ROOT --> INFRA : 唯一机制装配点
-ROOT --> TIME : 唯一时间适配器装配点
-LOOP -right-> PI_ADAPTER : AgentAdapter
-PI_ADAPTER -right-> MODEL : ModelProviderPort\n受控网络出口
-TOOL --> PROVIDERS : ToolProviderPort
-CONTEXT --> PROVIDERS : ContextSourcePort
-INFRA --> SQLITE : StoragePort
-INFRA --> ARTIFACTS : ArtifactPort
-INFRA --> SECRETS : SecretPort
-TIME --> KERNEL : TimePort
-OPS ..> KERNEL : ObservabilityPort\nOperationContext
-OPS ..> LOOP : Context / 模型 / 工具 / 子 Run 耗时
+node "Adapter 进程内组件" as ADAPTERS LC_ADAPTER {
+  component "PiAgentAdapter" as PI
+  component "ToolProvider Adapters" as TP
+}
 
-JSONL -[#DC2626,dashed,bold]-> PI_ADAPTER : 禁止协议暴露 Pi 原生类型
-DELEGATION -[#DC2626,dashed,bold]-> ORCH : 禁止子 Run 修改业务状态
-INFRA -[#DC2626,dashed,bold]-> KERNEL : 禁止机制定义领域规则
+node "Infrastructure" as INFRA LC_INFRASTRUCTURE {
+  database "SQLite Stores" as DB
+  folder "Artifacts" as ART
+  component "Sandbox / Process / Secret / Clock" as MECH
+}
+
+KH --> JSONL : JSONL IPC\ncommand + AgentExecutionEnvelopeRef
+RUNTIME --> PI : AgentAdapterPort
+SERVICES --> TP : ToolProviderPort
+RUN --> DB : Repository Ports
+SERVICES --> DB : Domain Repository Ports
+SERVICES --> ART : ArtifactPort
+SERVICES --> MECH : Infrastructure Ports
 
 note bottom of SIDECAR
-  stdout 仅协议；stderr 仅脱敏结构化日志。
-  首版交付受限单层子 Agent；只内置三个只读工具；
-  不含 Shell、写文件、MCP、业务工具或任意网络工具。
-  约束：UP-AGT-009、UP-AGT-010、UP-OBS-001、UP-INF-001、UP-INF-002、UP-SEC-001
+  部署单元可变，领域边界不随进程边界改变。
+  父子 Run 与 Multi-agent 都走统一调度、权限和记忆 Port。
 end note
 @enduml

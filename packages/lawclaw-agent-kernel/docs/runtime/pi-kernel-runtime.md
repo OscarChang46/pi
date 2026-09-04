@@ -1,76 +1,67 @@
-# Pi Kernel Runtime 使用与设计说明
+# Pi Kernel Runtime 实现说明
 
-> 状态：正式代码基线，当前为内存型首版
-> 基线：`AKB-2026-09-02-06`
+> 文档性质：当前实现兼容说明，不定义领域架构。
+>
+> 架构权威：以 [Agent Kernel 主设计](../design/agent-kernel-design.md)、[领域对象目录](../design/agent-kernel-domain-object-catalog.md) 和 [ACR-2026-0008](../governance/changes/ACR-2026-0008-agent-system-boundary-v3.md) 为准。
 
-## 1. 能力范围
+## 1. Runtime 的准确定位
 
-Agent Kernel 通过 Pi 的单轮流式原语执行模型 Turn，同时把以下控制权保留在 Kernel：
+`AgentRuntime` 是长期存在、可重建的执行服务，不是聚合根，也不等同于一次用户对话。它由 `AgentRuntimePool` 管理，可以先后执行多个 `AgentRun`；单个 Run 的权威生命周期由 Run Domain 管理。
 
-- 规范化 `ContextFrame` 的组装、预算和裁剪；
-- 工具目录、风险政策、参数与结果边界；
-- 父子 Run、最大深度和委派预算；
-- Run 轮次、输出、工具次数和截止时间；
-- UTC 时间、IANA 时区上下文和单调耗时；
-- Pi 原生消息与公共契约隔离。
+当前 Pi 接入用于验证模型循环、上下文组装、工具扩展和委派原语。它不能绕过 `RunScheduler` 创建 Run，不能直接改变调度状态，也不能成为权限、记忆或业务会话的权威数据源。
 
-当前版本使用内存事件与会话引用；持久化 Journal、崩溃恢复和 JSONL Sidecar 属于后续里程碑。该限制不改变现有公共契约和职责边界。
-
-## 2. 模块与依赖
-
-| 模块 | 职责 | 边界 |
-|---|---|---|
-| `src/contracts` | 公共 DTO、Port、事件和稳定错误码 | 不导入 Pi、Node 基础设施或业务模型 |
-| `src/kernel` | Agent Loop、Context、Tool、Delegation 和上下文守卫 | 只依赖公共契约 |
-| `src/adapters` | Pi、只读工具、委派和系统时间适配 | 原生类型不得越过 Port |
-| `src/application/composition-root.ts` | 唯一程序化装配点 | 创建并注入所有具体 Adapter |
-| `src/pi-cli` | Pi CLI 开发入口与只读扩展 | 不替代正式 AgentGateway/Sidecar |
-
-## 3. 单次 Run 调用路径
+## 2. 目标调用路径
 
 ```text
-StartAgentRunCommand
-  → ContextEngine.assemble
-  → AgentLoopEngine.run
-      → PiAgentAdapter.executeTurn
-      → ToolRuntime.execute 或 DelegationEngine.delegate
-      → ContextEngine.appendTurn
-      → 下一轮 PiAgentAdapter.executeTurn
-  → AgentRunResult + AgentEvent[] + ContextFrame
+AgentSystemGateway
+  → RunCommandPort.submit(command, executionEnvelopeRef)
+  → AgentRegistryQueryPort.resolve(agentDefinitionVersion)
+  → RunScheduler 接受并调度 AgentRun
+  → RuntimeDispatchPort.dispatch(runId, runtimeLease)
+  → AgentRuntime 执行 AgentLoopStep
+      → ContextPort 构造 ContextFrame
+      → AgentAdapterPort 执行模型 Turn
+      → ToolRuntimePort 执行工具候选
+      → DelegationPort 申请 Child Run
+  → RunExecutionPort 追加规范化 AgentEvent 和终态
 ```
 
-Pi 返回工具调用时不会直接执行 Provider。Kernel 先验证预算和政策，再把已授权请求交给 `ToolProviderPort`。`lawclaw_delegate` 由 `DelegationEngine` 接管，子 Agent 的摘要以工具结果进入父 Run 下一轮上下文。
+`AgentExecutionEnvelopeRef` 是 KernelHost 编译后的不透明执行约束引用。Kernel 只消费其中的技术身份、权限快照、资源句柄、预算和时间约束，不解释用户、组织或租户业务语义。
 
-## 4. 数据、安全与故障语义
+## 3. 上下文、工具和委派
 
-- `RequestContext` 显式携带 `TenantContext`、`OperationContext` 和 IANA `TimeContext`。
-- `ContextFrame` 是技术执行投影，不是业务 Conversation 的权威状态。
-- Pi `AssistantMessage` 只存在于 Adapter 私有 Map；Kernel 只保存不可解释引用和规范化内容。
-- Secret 内联上下文、未知工具、路径逃逸、递归子 Agent 和无效时区默认拒绝。
-- 工具、模型输出、Context、子 Agent、文件扫描和时间预算全部有界。
-- 当前内存会话无法跨进程恢复，引用失效时返回 `ADAPTER_PROTOCOL_ERROR`。
+- `AgentContextThread` 负责多轮上下文的连续关联，但不拥有 Run，也不承担调度和权限职责。
+- `ContextFrame` 是某个 Loop Step 的只读执行投影，不是业务 Conversation 的权威状态。
+- 工具调用必须依次经过 `ToolCallCandidate`、`PermissionPort`、一次性 `ExecutionPermit` 和 `AuthorizedToolRequest`，才能进入 Provider 或 Sandbox。
+- 子 Agent 必须形成显式 `ParentChildRunLink`，只能通过 `RunSchedulerPort` 创建；其权限、预算、截止时间和资源范围不得超过父 Run。
+- 多 Agent 参与者必须绑定明确的技术角色；共享长期记忆必须经过 `MemoryPort` 和权限判断，不能默认共享完整上下文。
+- Pi 原生消息、Session、Event 和 Tool 对象只存在于 Adapter 内部，不得进入公共契约。
+
+## 4. 当前代码与目标架构的差距
+
+当前内存型实现已经验证 Pi 的流式 Turn、只读工具、上下文裁剪、时间预算和受控委派，但尚未完成下列 V3 目标：
+
+- Run Registry、Scheduler 和 Runtime Pool 的独立实现；
+- `AgentExecutionEnvelopeRef` 到 Scoped Adapter 的完整装配；
+- 独立 `ToolCall`、`PermissionRequest`、`ExecutionPermit` 聚合及异步审批；
+- 结构化父子 Run 生命周期与 Multi-agent 协作；
+- Context 与共享长期记忆的持久化边界；
+- Event Journal、租约恢复和 JSONL Sidecar。
+
+这些属于后续评审和迁移工作。本页只如实描述兼容状态，不赋予当前代码偏离 V3 的架构合法性。
 
 ## 5. 配置与运行
 
-默认配置为 `config/agent-kernel.yaml`，系统提示词位于 `config/prompts.zh-CN.yaml`。可通过 `LAWCLAW_CONFIG_FILE` 指定另一份严格 YAML；父子 Pi CLI 继承同一个绝对配置路径。
-
-确定性 Faux Provider 纵切：
+默认配置为 `config/agent-kernel.yaml`，系统提示词位于 `config/prompts.zh-CN.yaml`。可通过 `LAWCLAW_CONFIG_FILE` 指定另一份严格 YAML。真实密钥由 Pi 标准认证或环境变量提供，不能进入 YAML、日志或事件。
 
 ```bash
 npm start
-```
-
-交互式 Pi CLI：
-
-```bash
 npm run pi
 ```
 
-`model.source=builtin` 时，Launcher 使用配置中的 Provider/Model；命令行显式 `--provider/--model` 优先。真实密钥由 Pi 标准认证或环境变量提供，不能进入 YAML、日志或事件。
+CLI 是开发与兼容入口，不是领域边界。它最终也必须通过 `AgentSystemGateway` 和调度链进入 Kernel，不得直接把 Pi Runtime 暴露给上层。
 
-交互中可以执行 `/lawclaw-status` 查看租户、委派深度和只读模式。父 Agent 可调用 `lawclaw_delegate`；子进程以 `LAWCLAW_CHILD_DEPTH=1` 启动，不会再次注册委派工具。
-
-## 6. 验收
+## 6. 验证
 
 ```bash
 npm run build
@@ -78,4 +69,4 @@ npm run check
 bash scripts/verify-milestone-one.sh
 ```
 
-验收覆盖类型检查、19 个自动化场景、确定性纵切、Pi CLI RPC、依赖/职责门禁、中文公共契约注释、依赖审计和 10 张 PlantUML/SVG 一致性检查。
+验证必须同时覆盖依赖方向、领域对象所有权、PlantUML/Draw.io 一致性以及 V3 禁止项。当前代码测试通过不代表架构迁移已经完成。

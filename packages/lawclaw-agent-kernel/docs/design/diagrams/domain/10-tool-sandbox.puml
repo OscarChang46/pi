@@ -1,0 +1,153 @@
+@startuml ToolCallAndSandbox
+!include drawio-theme.puml
+title 工具、调用与沙箱模块
+left to right direction
+
+class "L1 Action Coordinator / PEP" as L1Control <<external_subdomain>>
+class "AgentRuntime" as Runtime <<external_subdomain>>
+class "Permission System" as Permission <<external_subdomain>>
+class "Tool Provider" as Provider <<external_subdomain>>
+class "Sandbox Infrastructure" as SandboxInfra <<infrastructure>>
+class "Secret Infrastructure" as SecretInfra <<infrastructure>>
+class "Artifact Infrastructure" as ArtifactInfra <<infrastructure>>
+class "Run / Event Domain" as RunEvent <<external_subdomain>>
+class "Tool Persistence" as ToolPersistence <<infrastructure>>
+
+package "Agent Kernel System" as Kernel <<bounded_context>> {
+  package "Tool" as ToolModule <<domain_module>> {
+    interface ToolRuntimePort <<inbound_port>> {
+      +describeTools(runId, envelopeRef): ToolDescriptor[]
+      +executeTool(candidate, envelopeRef): ToolResult
+    }
+    interface AsyncToolRuntimePort <<inbound_port>> {
+      +start(candidate, envelopeRef): ToolCallRef
+      +get(toolCallId, envelopeRef): ToolCallSnapshot
+      +cancel(toolCallId, envelopeRef)
+      +stream(toolCallId, envelopeRef): ToolEventStream
+    }
+    interface PermissionDecisionPort <<outbound_port>> {
+      +authorize(actionProposal, envelopeRef): PermissionDecision
+    }
+    interface PermitValidationPort <<outbound_port>> {
+      +validateAndConsume(permitRef, actionDigest, envelopeRef): ConsumeResult
+    }
+    interface ToolProviderPort <<outbound_port>> {
+      +describe(): ProviderDescriptor
+      +execute(request, sandboxHandle): ProviderToolResult
+    }
+    interface SandboxPort <<outbound_port>> {
+      +execute(request, authorizedToolRequest): SandboxExecutionResult
+    }
+    interface SecretResolverPort <<outbound_port>> {
+      +resolve(handle, executionScope): SecretLease
+    }
+    interface ToolArtifactPort <<outbound_port>> {
+      +write(content): ArtifactReference
+      +read(reference)
+    }
+    interface ToolEventPort <<outbound_port>> {
+      +append(toolEvent)
+    }
+    interface ToolCallRepositoryPort <<outbound_port>> {
+      +load(toolCallId)
+      +save(toolCall, expectedVersion)
+    }
+    class ToolRuntime <<application_service>>
+    class ToolExecutionGuard <<domain_service>>
+    class ToolDefinition <<aggregate_root>> {
+      +toolName: ToolName
+      +activeVersion: SemVer
+      +status: ToolStatus
+    }
+    class ToolDescriptor <<value_object>> {
+      +version: SemVer
+      +inputSchemaDigest: Hash
+      +outputSchemaDigest: Hash
+      +risk: ToolRisk
+      +readOnly: boolean
+      +sandboxProfileRef: SandboxProfileRef
+    }
+    class ToolCall <<aggregate_root>> {
+      +toolCallId: ToolCallId
+      +runId: RunId
+      +status: PROPOSED|AUTHORIZING|WAITING_APPROVAL|AUTHORIZED|EXECUTING|SUCCEEDED|FAILED|DENIED|CANCELLED
+      +sideEffectState: SideEffectState
+      +executionEnvelopeRef: AgentExecutionEnvelopeRef
+      +permitRef: ExecutionPermitRef?
+    }
+    class ToolCallCandidate <<value_object>> {
+      +toolDescriptorHash: Hash
+      +argumentsHash: Hash
+      +resourceClaims: ResourceClaim[]
+    }
+    class AuthorizedToolRequest <<value_object>> {
+      +candidate: ToolCallCandidate
+      +permitRef: ExecutionPermitRef
+      +executionDigest: Hash
+    }
+    class ToolResult <<value_object>> {
+      +status: SUCCESS|FAILED|PENDING_APPROVAL|DENIED|CANCELLED
+      +resultRef: ArtifactReference?
+      +errorCode: string?
+    }
+    class SandboxProfile <<value_object>> {
+      +profileId: SandboxProfileId
+      +isolationLevel: IsolationLevel
+      +networkMode: NetworkMode
+    }
+    class SandboxRequest <<value_object>> {
+      +permitDigest: Hash
+      +resourceLimits: ResourceLimit[]
+      +egressGrants: EgressGrant[]
+    }
+    class ActionProposal <<reference>>
+    class PermissionDecision <<reference>>
+    class ExecutionPermitRef <<reference>>
+    class AgentExecutionEnvelopeRef <<reference>>
+    class ArtifactReference <<reference>>
+
+    ToolRuntimePort <|.. ToolRuntime
+    AsyncToolRuntimePort <|.. ToolRuntime
+    ToolRuntime --> ToolCall : 创建并唯一协调授权状态
+    ToolRuntime --> ToolDefinition
+    ToolRuntime --> PermissionDecisionPort : 唯一 authorize 调用方
+    ToolRuntime --> PermitValidationPort : 副作用前原子消费
+    ToolRuntime --> ToolCallRepositoryPort
+    ToolRuntime --> ToolEventPort
+    ToolRuntime --> ToolExecutionGuard : 仅消费 Permit 后执行
+    ToolRuntime --> ActionProposal : 由 Candidate 构造
+    ToolRuntime --> PermissionDecision : Allow / Ask / Deny
+    ToolExecutionGuard --> AuthorizedToolRequest
+    ToolExecutionGuard --> SandboxRequest : Permit 权限子集
+    ToolExecutionGuard --> SandboxPort
+    ToolExecutionGuard --> SecretResolverPort
+    ToolExecutionGuard --> ToolProviderPort
+    ToolExecutionGuard --> ToolArtifactPort
+    ToolDefinition *-- ToolDescriptor
+    ToolCall *-- ToolCallCandidate
+    ToolCall o-- AuthorizedToolRequest
+    ToolCall o-- ToolResult
+    AuthorizedToolRequest --> ExecutionPermitRef : 必须绑定
+    SandboxRequest --> SandboxProfile
+    ToolResult --> ArtifactReference
+  }
+}
+
+Runtime ..> L1Control : RuntimeEventPort\nToolCallCandidate
+L1Control --> ToolRuntimePort : describeTools / executeTool + envelopeRef
+L1Control --> AsyncToolRuntimePort : 仅 ASYNC_EXECUTION\nstart / get / cancel / stream
+L1Control ..> Runtime : RuntimeControlPort\nresumeAttempt(ToolResultRef)
+PermissionDecisionPort --> Permission : authorize
+PermitValidationPort --> Permission : validateAndConsume
+ToolProviderPort --> Provider : execute authorized request
+SandboxPort --> SandboxInfra : 单次有界 execute / 自动回收
+SecretResolverPort --> SecretInfra : resolve opaque handle
+ToolArtifactPort --> ArtifactInfra : result artifact
+ToolEventPort ..> RunEvent : committed tool event
+ToolCallRepositoryPort --> ToolPersistence : CAS ToolCall
+
+note bottom of ToolCall
+  ToolCall 是独立聚合根；ToolRuntime 是授权编排的唯一入口。
+  Runtime 必须先把 Candidate 交回 L1；Runtime 与 Provider 都不能自行提交 Permit 或绕过权限端口。
+end note
+@enduml

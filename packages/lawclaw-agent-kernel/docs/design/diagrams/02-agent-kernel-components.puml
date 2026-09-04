@@ -1,113 +1,47 @@
-@startuml 02-agent-kernel-components
+@startuml
 !include theme.puml
-title Agent Kernel 内部组件：控制面、智能执行面、支撑数据面与端口
+title Agent Kernel System 内部组件（V3）
+left to right direction
 
-top to bottom direction
-skinparam nodesep 25
-skinparam ranksep 35
+package "Agent Kernel System" as KERNEL LC_KERNEL {
+  component "AgentSystemGateway\n应用门面" as GATEWAY
+  component "AgentControlPlane\n命令协调" as CONTROL
+  component "AgentRegistry\n定义 / 能力 / 路由" as REGISTRY
+  component "RunRegistry\nRun 权威状态" as RUN
+  component "RunScheduler\n队列 / Lease / 调度" as SCHEDULER
+  component "FlowEngine\n无状态流程推进" as FLOW
+  component "ResourceManager\n执行槽 / 资源预算" as RESOURCE
+  component "AgentSessionService\n上下文档案 / 版本锁" as SESSION
+  component "AgentRuntimePool\n长期 Worker 管理" as POOL
+  component "AgentRuntime\nAgent Loop 执行服务" as RUNTIME
+  component "ContextEngine\n上下文投影" as CONTEXT
+  component "MemoryManager\n长期记忆" as MEMORY
+  component "PermissionSystem\nAllow / Ask / Deny" as PERMISSION
+  component "ToolRuntime\n工具安全管线" as TOOL
+  component "SubagentCoordinator\nChild Run / Join / Cancel" as SUBAGENT
 
-rectangle "业务编排子系统" as ORCH LC_ORCHESTRATION
-
-package "Agent Kernel" as KERNEL LC_KERNEL {
-  package "控制面" as CONTROL LC_KERNEL {
-    component "AgentGateway" as GW
-    component "RequestContext / Budget Guard\nUTC deadline / IANA 时区校验" as GUARD
-    component "Agent / Tool / 子 Agent Catalog" as CATALOG
-    component "能力匹配 / 技术路由" as ROUTER
-    component "Adapter / Provider Registry" as REGISTRY
-
-    GW -right-> GUARD : 可信命令
-    GUARD -right-> ROUTER : 能力与预算需求
-    CATALOG -down-> ROUTER : 版本化描述符
-    ROUTER -right-> REGISTRY : 选择执行档案
-  }
-
-  package "智能执行面" as EXECUTION LC_KERNEL {
-    component "AgentRuntime 聚合根\nSession 目录 / 系统能力" as RUNTIME
-    component "AgentSession / AgentRun\n会话串行 / 状态 / 总预算" as SUPERVISOR
-    component "AgentLoop / Loop Engine\n模型—动作—上下文迭代" as LOOP
-    component "Context Engine\n组装 / 预算 / 裁剪 / 摘要" as CONTEXT_ENGINE
-    component "Tool Runtime\nRegistry / Guard / Sandbox orchestration" as TOOL_RUNTIME
-    component "Delegation Engine\n单层父子 Run / 汇总" as DELEGATION
-    component "Permission Approval\nKernel 内部权限判定" as PERMISSION_APPROVAL
-    component "Sandbox Planner\nGrant → 执行限制" as SANDBOX_PLANNER
-
-    RUNTIME -right-> SUPERVISOR : 创建 Session / AgentRun
-    SUPERVISOR -right-> LOOP : 创建 Loop / 取消 / 剩余预算
-    LOOP -down-> CONTEXT_ENGINE : 下一轮 ContextFrame
-    LOOP -down-> TOOL_RUNTIME : ToolRequested
-    LOOP -down-> DELEGATION : DelegationRequested
-    TOOL_RUNTIME -right-> PERMISSION_APPROVAL : evaluate / revalidate
-    TOOL_RUNTIME -right-> SANDBOX_PLANNER : 落实 PermissionGrant
-    DELEGATION -left-> SUPERVISOR : 创建受限子 AgentRun
-  }
-
-  package "支撑数据面" as DATA LC_KERNEL {
-    component "AgentRun / AgentSession\nParentRunLink" as RUN_DATA
-    component "ContextSnapshot\nReductionTrace" as CONTEXT_DATA
-    component "ToolCall / Delegation\n技术状态" as ACTION_DATA
-    component "最小 Event Journal\nCommandReceipt" as JOURNAL
-  }
-
-  interface "AgentAdapter" as ADAPTER_PORT
-  interface "ToolProviderPort" as TOOL_PORT
-  interface "SandboxPort" as SANDBOX_PORT
-  interface "ContextSourcePort" as CONTEXT_PORT
-  interface "InfrastructurePort" as INFRA_PORT
-  interface "TimePort\nUTC Instant / IANA 时区投影" as TIME_PORT
-  interface "ObservabilityPort" as OBS_PORT
-
-  SUPERVISOR -down-> RUN_DATA : 最小状态迁移
-  CONTEXT_ENGINE -down-> CONTEXT_DATA : 快照 / 裁剪轨迹
-  TOOL_RUNTIME -down-> ACTION_DATA : ToolCall 状态
-  DELEGATION -down-> ACTION_DATA : 父子 Run 关联
-  SUPERVISOR -down-> JOURNAL : 已提交事件 / 幂等收据
-  LOOP -down-> ADAPTER_PORT : 执行档案
-  TOOL_RUNTIME -down-> TOOL_PORT : 已授权请求
-  SANDBOX_PLANNER -down-> SANDBOX_PORT : 创建隔离环境
-  CONTEXT_ENGINE -down-> CONTEXT_PORT : 受控候选项
-  SUPERVISOR -down-> INFRA_PORT : 机制能力
-  GUARD -down-> TIME_PORT : 当前时间 / UTC 解析
-  SUPERVISOR -down-> TIME_PORT : deadline / 事件时间
+  GATEWAY --> CONTROL : AgentSystemGateway
+  CONTROL --> REGISTRY : AgentRegistryQueryPort
+  CONTROL --> RUN : RunCommandPort
+  CONTROL --> SESSION : SessionPort
+  RUN --> SCHEDULER : RunSchedulingPort
+  SCHEDULER --> RESOURCE : ExecutionResourcePort
+  RESOURCE --> POOL : RuntimeDispatchPort
+  POOL --> RUNTIME : 派发 Attempt + Lease
+  RUNTIME --> FLOW : advance(RunSnapshot, SessionSnapshot)
+  RUNTIME --> CONTEXT : ContextPort
+  RUNTIME --> TOOL : ToolRuntimePort
+  RUNTIME --> SUBAGENT : ChildRunPort
+  CONTEXT --> MEMORY : MemoryQueryPort
+  TOOL --> PERMISSION : PermissionDecisionPort\nPermitValidationPort
+  SUBAGENT --> PERMISSION : PermissionDecisionPort\nPermitValidationPort
+  SUBAGENT --> SCHEDULER : RunSchedulerPort
+  MEMORY --> PERMISSION : PermissionDecisionPort\nPermitValidationPort
 }
 
-package "Adapter / Provider 实现" as IMPLEMENTATIONS LC_ADAPTER {
-  component "Composition Root\n唯一装配点" as ROOT LC_EXTERNAL
-  component "PiAgentAdapter\nembedded_loop" as PI_ADAPTER
-  component "FakeAgentAdapter" as FAKE_ADAPTER
-  component "未来 ACP Adapter\nmanaged_loop" as ACP_ADAPTER
-  component "只读 Tool Provider" as TOOL_PROVIDER
-  component "Sandbox Adapter" as SANDBOX_ADAPTER
-  component "受控 Context Provider" as CONTEXT_PROVIDER
-  component "Infrastructure Adapter" as INFRA LC_INFRASTRUCTURE
-  component "SystemTimeAdapter\n系统时钟 / Intl 时区库" as TIME_ADAPTER LC_INFRASTRUCTURE
-}
-
-rectangle "运维组件" as OPS LC_OPERATIONS
-
-ORCH -down-> GW : AgentGateway
-ADAPTER_PORT -down-> PI_ADAPTER : AgentAdapter
-ADAPTER_PORT -down-> FAKE_ADAPTER : AgentAdapter
-ADAPTER_PORT -down-> ACP_ADAPTER : AgentAdapter
-TOOL_PORT -down-> TOOL_PROVIDER : ToolProviderPort
-SANDBOX_PORT -down-> SANDBOX_ADAPTER : SandboxPort
-CONTEXT_PORT -down-> CONTEXT_PROVIDER : ContextSourcePort
-INFRA_PORT -down-> INFRA : InfrastructurePort
-TIME_PORT -down-> TIME_ADAPTER : TimePort
-OPS ..> OBS_PORT : ObservabilityPort
-OBS_PORT ..> EXECUTION : OperationContext / 安全遥测
-
-note bottom of DELEGATION
-  首版最大深度 1；最多 4 个子 Run、并发 2；
-  禁止子 Agent 再委派或修改 Workflow；
-  子 Run 只返回摘要与 ArtifactRef。
-  约束：UP-DEL-001、UP-AGT-002、UP-RES-001
-end note
-
-note bottom of ROOT
-  Composition Root 是唯一允许实例化并注册
-  具体 Adapter / Provider 的位置。
-  Kernel 不导入 Pi、SQLite、HTTP 或具体实现。
-  约束：UP-DEP-001、UP-DEP-002、UP-OBS-001、UP-INF-001、UP-INF-002
+note bottom of RUNTIME
+  Runtime 不拥有 Run、会话、权限或调度队列；
+  它只执行已由 Scheduler 派发且带有效 Lease 的 Attempt。
+  Session 不对应进程；FlowEngine 不保存权威状态。
 end note
 @enduml
