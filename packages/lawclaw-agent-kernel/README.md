@@ -47,7 +47,10 @@ npm install --ignore-scripts
 npm run typecheck
 npm run build
 npm test
+npm run test:all
 npm run verify
+npm run test:coverage
+npm run test:coverage:gate
 npm run check:boundaries
 npm run check:comments
 npm run check:docs
@@ -62,6 +65,10 @@ npm run pi:smoke
 `npm start` 执行默认配置中的确定性 Faux 场景。`npm run pi` 启动只读 CLI，原生参数可以通过 `--` 追加。真实模型需使用 `model.source: builtin` 并配置目录中的模型标识；凭据仍交给 Pi 标准认证机制。
 
 `npm run verify` 生成 `.artifacts/verification/report.json` 和 `report.md`。支持按 UT、DT、Contract、Integration、System 分层执行及按 ID 复现；未来能力单独登记，不以占位测试计为通过。详见 [验证框架](docs/verification/framework.md)。
+
+`npm run test:all` 一次执行全部登记用例，输出总耗时、各层耗时和最慢用例，并生成 JSON、Markdown 报告。统计口径见[全量测试与耗时统计](docs/verification/test-all-timing.md)。
+
+`npm run test:coverage` 生成本地覆盖率报告；`npm run test:coverage:gate` 按版本化配置检查测试结果、行覆盖率和分支覆盖率，可直接作为 PR 门禁步骤。配置、门禁协议及流水线扩展方式见[覆盖率统计说明](docs/verification/test-coverage.md)。
 
 ## 最小程序化调用
 

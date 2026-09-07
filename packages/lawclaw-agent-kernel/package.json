@@ -19,6 +19,8 @@
     "build": "node scripts/compile.mjs --build",
     "typecheck": "node scripts/compile.mjs --typecheck",
     "test": "node scripts/verify.mjs",
+    "test:all": "node scripts/test-all.mjs",
+    "test:all:tooling": "node --test scripts/test-all-summary.test.mjs",
     "start": "tsx src/application/run-kernel.ts",
     "pi": "bash scripts/run-pi-cli.sh",
     "pi:smoke": "node scripts/pi-cli-smoke.mjs",
@@ -27,6 +29,9 @@
     "check": "npm run verify",
     "check:boundaries": "bash scripts/check-runtime-boundaries.sh",
     "check:docs": "node scripts/check-framework-docs.mjs",
+    "test:coverage": "node scripts/coverage.mjs --mode report",
+    "test:coverage:gate": "node scripts/coverage.mjs --mode gate",
+    "test:coverage:tooling": "node --test scripts/coverage-tooling.test.mjs",
     "verify": "node scripts/verify.mjs --checks",
     "test:ut": "node scripts/verify.mjs --level ut",
     "test:dt": "node scripts/verify.mjs --level dt",
@@ -44,6 +49,7 @@
   "devDependencies": {
     "@types/node": "22.19.19",
     "@typescript/native-preview": "7.0.0-dev.20260120.1",
+    "c8": "12.0.0",
     "tsx": "4.22.1",
     "typescript": "5.9.3"
   }
