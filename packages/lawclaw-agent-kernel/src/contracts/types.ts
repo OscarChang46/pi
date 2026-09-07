@@ -5,7 +5,15 @@ import type { SandboxHandle } from "./tool-security.ts";
  *
  * 约束：不得把 Pi、Node.js、SQLite 或业务领域对象伪装为 JSON 值跨越边界。
  */
-export type JsonValue = string | number | boolean | null | JsonValue[] | { readonly [key: string]: JsonValue };
+export type JsonValue =
+	| string
+	| number
+	| boolean
+	| null
+	| JsonValue[]
+	| {
+			/** 以字符串键保存规范化 JSON 值，不允许 SDK 或基础设施对象。 */ readonly [key: string]: JsonValue;
+	  };
 
 /** 由 Backend 签发的可信租户上下文；Agent Kernel 只消费，不负责认证或 RBAC 计算。 */
 export interface TenantContext {
@@ -165,7 +173,7 @@ export interface KernelToolCallBlock {
 	readonly type: "tool_call";
 	/** 单次调用的稳定关联标识，用于配对工具结果。 */
 	readonly toolCallId: string;
-	/** 请求调用的规范化工具名；最终是否允许由 ToolRuntime 判定。 */
+	/** 请求调用的规范化工具名；最终是否允许由 ToolCoordinator 判定。 */
 	readonly toolName: string;
 	/** Runtime 产生的 JSON 参数；进入 Provider 前仍需进行政策和大小校验。 */
 	readonly arguments: Readonly<Record<string, JsonValue>>;
@@ -284,11 +292,11 @@ export interface ToolPolicy {
 	readonly maxArgumentsBytes: number;
 }
 
-/** 已通过模型生成、等待 ToolRuntime 进行政策校验的工具调用。 */
+/** 已通过模型生成、等待 ToolCoordinator 进行政策校验的工具调用。 */
 export interface ToolInvocation {
 	/** 与助手消息中的调用块一致的关联标识。 */
 	readonly toolCallId: string;
-	/** 模型请求的工具名；未经 ToolRuntime 校验不能直接执行。 */
+	/** 模型请求的工具名；未经 ToolCoordinator 校验不能直接执行。 */
 	readonly toolName: string;
 	/** 待校验的 JSON 对象参数。 */
 	readonly arguments: Readonly<Record<string, JsonValue>>;
@@ -307,7 +315,7 @@ export interface ToolResult {
 /**
  * 工具实现的下行端口。
  *
- * 权限：只执行已经由 ToolRuntime 授权的请求；不得自行改变工具政策。
+ * 权限：只执行已经由 ToolCoordinator 授权的请求；不得自行改变工具政策。
  * 租户：所有方法显式接收 RequestContext，资源必须限制在同一 tenant。
  * 取消：execute 必须尊重 AbortSignal；超时后不得继续产生副作用。
  * 错误：机制错误映射为稳定 KernelError，不泄漏路径外信息或 Secret。
@@ -322,7 +330,7 @@ export interface ToolProviderPort {
 	 */
 	describe(context: RequestContext): Promise<readonly ToolDescriptor[]>;
 	/**
-	 * 执行一项已经由 ToolRuntime 授权的工具调用。
+	 * 执行一项已经由 ToolCoordinator 授权的工具调用。
 	 *
 	 * @param context 资源访问必须遵守的租户和运维上下文。
 	 * @param invocation 已通过名称、风险和参数大小校验的调用。
@@ -412,9 +420,26 @@ export interface AgentTurnRequest {
 
 /** 具体 Runtime 输出的规范化候选事件；Kernel 决定是否记录和如何推进状态。 */
 export type RuntimeEventCandidate =
-	| { readonly type: "text_delta"; readonly text: string }
-	| { readonly type: "turn_completed"; readonly message: KernelAssistantMessage }
-	| { readonly type: "turn_failed"; readonly errorCode: string; readonly retryable: boolean };
+	| {
+			/** 规范化事件分支标识，不暴露 Provider 原生事件类型。 */
+			readonly type: "text_delta";
+			/** 本次文本增量，由控制层累计并检查输出字符预算。 */
+			readonly text: string;
+	  }
+	| {
+			/** 规范化事件分支标识，不暴露 Provider 原生事件类型。 */
+			readonly type: "turn_completed";
+			/** 单轮完成后的规范化助手消息；工具调用仍只是候选。 */
+			readonly message: KernelAssistantMessage;
+	  }
+	| {
+			/** 规范化事件分支标识，不暴露 Provider 原生事件类型。 */
+			readonly type: "turn_failed";
+			/** Adapter 归一化的技术错误码，不包含原生异常或凭据。 */
+			readonly errorCode: string;
+			/** 是否允许调用方在预算和幂等约束内考虑重试；不代表自动重试。 */
+			readonly retryable: boolean;
+	  };
 
 /**
  * 具体 Agent Runtime 的下行适配端口。

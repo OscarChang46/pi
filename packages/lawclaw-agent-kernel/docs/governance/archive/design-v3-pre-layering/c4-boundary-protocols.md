@@ -1,4 +1,4 @@
-> **非规范性归档：** 已由[边界契约注册表](../../../design/contracts/README.md)及独立 `BND-*` 契约取代。
+> **非规范性归档：** 已由独立 `BND-*` 契约取代；入口见[边界契约导览](../../../design/contracts/README.md)。
 
 # Agent Kernel System C4 边界协议与接口设计
 

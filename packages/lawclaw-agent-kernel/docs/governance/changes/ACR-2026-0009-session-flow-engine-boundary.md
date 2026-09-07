@@ -41,7 +41,7 @@
 - [SubagentCoordinator 组件设计](../../design/layers/l1-control/components/subagent-coordinator.md)
 - [Operations Plane 层设计](../../design/layers/operations-plane/README.md)
 - [Infrastructure Plane 层设计](../../design/layers/infrastructure-plane/README.md)
-- [边界契约注册表](../../design/contracts/README.md)
+- [边界契约导览](../../design/contracts/README.md)
 - [Local-first 部署档案](../../design/deployment/local-first-profile.md)
 - [System SFMEA](../../verification/system-sfmea.md)
 - [文档清单](../../design/document-manifest.yaml)

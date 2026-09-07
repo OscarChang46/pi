@@ -80,7 +80,7 @@ Kernel 不拥有：
 - [L4 Execution Runtime](../../design/layers/l4-execution-runtime/README.md)
 - [Operations Plane](../../design/layers/operations-plane/README.md)
 - [Infrastructure Plane](../../design/layers/infrastructure-plane/README.md)
-- [边界契约注册表](../../design/contracts/README.md)
+- [边界契约导览](../../design/contracts/README.md)
 - [领域对象目录](../../design/reference/domain-object-catalog.md)
 - [Verification](../../verification/README.md)
 

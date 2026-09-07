@@ -6,9 +6,9 @@
 
 ## 1. Runtime 的准确定位
 
-`AgentRuntime` 是长期存在、可重建的执行服务，不是聚合根，也不等同于一次用户对话。它由 `RuntimePool` 管理，可以先后执行多个 `AgentRun`；单个 Run 的权威生命周期由 RunRegistry 管理。
+当前 `cognitive/AgentRuntime` 是可重建的单轮执行服务，不是聚合根。`control/AgentSystem` 协调独立 `RunRegistry` 和 Session 档案，`RunFlow` 在轮次间推进执行。RuntimePool 尚未实现。详细现状见[框架边界映射](framework-boundaries.md)。
 
-当前 Pi 接入用于验证模型循环、上下文组装、工具扩展和委派原语。它不能绕过 `RunScheduler` 创建 Run，不能直接改变调度状态，也不能成为权限、记忆或业务会话的权威数据源。
+当前 Pi 接入保留模型单轮调用、上下文预算、只读工具和单层委派。认知层不创建 Run 或调用工具；现有委派尚未接入候选设计中的 RunScheduler。以下目标调用路径不代表已交付能力。
 
 ## 2. 目标调用路径
 
@@ -44,7 +44,7 @@ AgentSystemGateway
 
 当前内存型实现已经验证 Pi 的流式 Turn、只读工具、上下文裁剪、时间预算和受控委派，但尚未完成下列 V3 目标：
 
-- Run Registry、Scheduler 和 Runtime Pool 的独立实现；
+- RunRegistry 已独立持有内存 Run；其持久化、Scheduler 和 RuntimePool 尚未实现；
 - `AgentExecutionEnvelopeRef` 到 Scoped Adapter 的完整装配；
 - 独立 `ToolCall`、`PermissionRequest`、`ExecutionPermit` 聚合及异步审批；
 - 结构化父子 Run 生命周期；Multi-agent 团队协作仍由 Kernel 上层负责；
@@ -67,9 +67,12 @@ CLI 是开发与兼容入口，不是领域边界。它最终也必须通过 `Ag
 ## 6. 验证
 
 ```bash
-npm run build
-npm run check
-bash scripts/verify-milestone-one.sh
+npm run typecheck
+npm test
+npm run check:boundaries
+npm run check:comments
+npm run check:docs
+npm run pi:smoke
 ```
 
 验证必须同时覆盖依赖方向、领域对象所有权、PlantUML/Draw.io 一致性以及 V3 禁止项。当前代码测试通过不代表架构迁移已经完成。

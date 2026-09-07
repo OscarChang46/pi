@@ -203,7 +203,7 @@ Permit 的资源、预算、Deadline 和动作摘要必须是原始 `ActionPropo
 9. Agent 只能提交 `MemoryCandidate`，不能直接写 `MemorySpace`；跨 Agent 读取只能使用绑定版本和授权范围的 `MemoryView`。
 10. Backend/业务审批只通过 `ApprovalRequestPort` 接收请求、通过 `ApprovalDecisionPort` 回写裁决；它不进入 Permission 聚合，也不把业务 `ApprovalCase`、审批人或通知规则带入 Kernel。
 11. Infrastructure Port 只提供存储、进程/容器、Artifact、Secret、Clock 和通信机制，不包含 Sandbox 受控执行语义、Agent 路由、业务工作流或权限策略；Sandbox 执行语义由 L4 拥有。
-12. 当前因 ACR-2026-0009 回到评审步骤一。层间协议候选见[边界契约注册表](../contracts/README.md)；表中 Port、DTO、错误码、回调方式和事务语义仍须在步骤二确认，未经确认不得固化为运行代码。
+12. 当前因 ACR-2026-0009 回到评审步骤一。层间协议候选从[边界契约导览](../contracts/README.md)进入对应的 `BND-*` 文档；表中 Port、DTO、错误码、回调方式和事务语义仍须在步骤二确认，未经确认不得固化为运行代码。
 
 ## 13. 完整性检查清单
 

@@ -24,8 +24,11 @@ export type KernelErrorCode =
  * 安全：details 只能保存不敏感、可安全返回的技术摘要。
  */
 export class KernelError extends Error {
+	/** 供调用方分支处理的稳定技术错误码。 */
 	public readonly code: KernelErrorCode;
+	/** 是否允许调用方在预算和幂等约束内考虑重试；不代表自动重试。 */
 	public readonly retryable: boolean;
+	/** 可安全返回的非敏感错误摘要；禁止凭据与原生 SDK 异常。 */
 	public readonly details: Readonly<Record<string, string | number | boolean>>;
 
 	/**

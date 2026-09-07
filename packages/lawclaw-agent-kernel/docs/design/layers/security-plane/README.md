@@ -8,11 +8,15 @@ baseline: AKB-2026-09-03-09
 authoritative_for: 技术权限决策、Permit、PEP 与外部审批桥接的层边界
 parent: SYS-DES-001
 interfaces: [BND-SEC-001]
-diagrams: []
+diagrams: [VIEW-SECURITY-COMPONENTS, SCN-TOOL-APPROVAL]
 supersedes: ["[归档技术审批子系统设计](../../../governance/archive/design-v3-pre-layering/technical-approval-subsystem-design.md)"]
 ---
 
 # Security Plane 层设计
+
+![Security Plane 组件图](../../diagrams/rendered/layers/03-security-plane-components.svg)
+
+[查看 PlantUML 权威源](../../diagrams/layers/03-security-plane-components.puml)
 
 ## 1. 职责与信任边界
 
@@ -34,6 +38,10 @@ Security Plane 对 Kernel 内受保护动作提供统一的技术判定和可验
 L1 PEP 可调用 PermissionDecisionEngine 与 ApprovalBridge，并把 Permit 引用交给 L3 等受保护执行点。执行点只能调用 Permit 校验/消费能力，不能查询策略源后自行裁决。Security Plane 可读取外部已编译策略快照和耐久安全存储 Port，但不能反向调用 Backend 身份系统解释 Token。
 
 ## 4. 决策与执行流
+
+![工具调用与异步审批时序](../../diagrams/rendered/scenarios/06-tool-approval-sequence.svg)
+
+[查看 PlantUML 权威源](../../diagrams/scenarios/06-tool-approval-sequence.puml)
 
 1. L1 将候选动作冻结为不可变 ActionProposal，并绑定 Run、Agent、资源、动作摘要和策略版本。
 2. PermissionDecisionEngine 返回 Deny、Ask 或 Allow，不执行动作。

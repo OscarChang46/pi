@@ -24,4 +24,4 @@ JSONL 初始化协商主版本、能力和最大帧；stdout 保持协议纯净�
 
 ## Ports 与恢复
 
-实现各边界的 Transport Adapter；公共语义见 [Contracts](../../../contracts/README.md)。重连使用稳定 request/command ID 和事件序号补拉；是否重试由调用方契约决定。
+实现各边界的 Transport Adapter；公共行为见[契约语义](../../../contracts/contract-semantics.md)，具体边界见对应 `BND-*` 文档。重连使用稳定 request/command ID 和事件序号补拉；是否重试由调用方契约决定。

@@ -8,11 +8,15 @@ baseline: AKB-2026-09-03-09
 authoritative_for: "infrastructure-plane 的职责、组件、依赖与故障隔离"
 parent: SYS-DES-001
 interfaces: [BND-INF-001]
-diagrams: []
+diagrams: [VIEW-INFRASTRUCTURE-COMPONENTS]
 supersedes: [docs/design/operations-infrastructure-minimum-design.md]
 ---
 
 # Infrastructure Plane 层设计
+
+![Infrastructure Plane 组件图](../../diagrams/rendered/layers/07-infrastructure-plane-components.svg)
+
+[查看 PlantUML 权威源](../../diagrams/layers/07-infrastructure-plane-components.puml)
 
 ## 职责与边界
 

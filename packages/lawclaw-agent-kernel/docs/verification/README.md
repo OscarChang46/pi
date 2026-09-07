@@ -14,6 +14,8 @@ supersedes: []
 
 # Agent Kernel Verification 索引
 
+当前代码入口见 [首期验证框架](framework.md)、[验收清单](acceptance.json) 和 [测试说明](../../test/README.md)。报告生成实际执行结果，不把候选设计用例标记为已实现。
+
 [System SFMEA 与系统测试清单](system-sfmea.md) 是全部 `FM-*`、`ST-*` 的唯一权威定义；层文件只建立风险/测试所有权视图，不复制评分或预期结果。
 
 | 层 | 验证视图 |

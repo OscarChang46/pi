@@ -8,7 +8,7 @@ baseline: AKB-2026-09-03-09
 authoritative_for: AgentExecutionScope 与 Parent/Child Run 的 fork、join、cancel、移交和约束继承
 parent: L1-DES-001
 interfaces: [ChildRunPort, DelegationPort, PermissionDecisionPort, PermitValidationPort, RunSchedulerPort, RunQueryPort, SessionBranchPort, ExecutionScopeRepositoryPort]
-diagrams: []
+diagrams: [LIFECYCLE-SUBAGENT]
 supersedes: [session-flow-engine-resource-subsystem-design.md 中的 Subagent 内容]
 ---
 
@@ -39,6 +39,10 @@ Child 的权限、预算、Deadline、工具范围、MemoryView 和资源上限�
 | 出站 | `ExecutionScopeRepositoryPort` | 持久化 Scope 与 Join 状态 |
 
 ## 4. 生命周期与算法
+
+![Subagent 生命周期与上层 Multi-agent 边界](../../../diagrams/rendered/components/l1-control/11-subagent-lifecycle.svg)
+
+[查看 PlantUML 权威源](../../../diagrams/components/l1-control/11-subagent-lifecycle.puml)
 
 收到委派候选后先验证父 Run 可继续、深度/数量上限和约束子集，再持久化 Scope 关系并通过统一 Scheduler 创建 Child。默认复用 Parent Session 的只读 ContextSnapshot，结果以 Artifact/ContextDelta 引用回传；只有独立演进时创建 Session 分支。Parent 完成或取消前执行 Join/Cancel 栅栏。
 

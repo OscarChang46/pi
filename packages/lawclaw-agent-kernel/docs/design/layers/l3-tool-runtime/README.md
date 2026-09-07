@@ -8,11 +8,15 @@ baseline: AKB-2026-09-03-09
 authoritative_for: 工具目录、ToolCall 生命周期、Permit 强制与 L4 协调
 parent: SYS-DES-001
 interfaces: [BND-L13-001, BND-L34-001]
-diagrams: []
+diagrams: [VIEW-L3-COMPONENTS]
 supersedes: ["[归档工具调用子系统设计](../../../governance/archive/design-v3-pre-layering/tool-call-subsystem-design.md) 中 ToolRuntime 部分"]
 ---
 
 # L3 Tool Runtime 层设计
+
+![L3 受控工具运行层组件图](../../diagrams/rendered/layers/04-l3-tool-runtime-components.svg)
+
+[查看 PlantUML 权威源](../../diagrams/layers/04-l3-tool-runtime-components.puml)
 
 ## 1. 职责与边界
 

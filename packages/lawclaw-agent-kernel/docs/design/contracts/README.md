@@ -1,20 +1,8 @@
----
-doc_id: SYS-CON-001
-level: contract
-layer: cross-layer
-component: null
-status: candidate
-baseline: AKB-2026-09-03-09
-authoritative_for: "边界契约、公共元数据或契约语义的唯一来源"
-parent: SYS-DES-001
-interfaces: []
-diagrams: []
-supersedes: [docs/design/c4-boundary-protocols.md]
----
+# Agent Kernel 边界契约导览
 
-# Agent Kernel 边界契约注册表
+本文件只负责导览，不定义任何规范性内容。每个层间边界的权威定义位于对应的 `BND-*` 文档；公共元数据和通用契约语义分别位于独立文档中。层与组件文档只引用这些文档，不复制完整签名。
 
-本目录是跨层 Port、DTO、稳定错误、幂等、超时、重试和版本兼容的唯一权威来源。层与组件文档只引用契约，不复制完整签名。当前操作名和载荷均为步骤二候选，不构成已接受代码基线。
+## 边界契约
 
 | ID | 边界 | 契约 |
 |---|---|---|
@@ -29,4 +17,7 @@ supersedes: [docs/design/c4-boundary-protocols.md]
 | `BND-OPS-001` | Kernel → Operations | [运维边界](bnd-ops-001.md) |
 | `BND-INF-001` | Kernel → Infrastructure | [基础设施边界](bnd-inf-001.md) |
 
-公共字段见[组合式元数据](common-metadata.md)，交付、错误、重试和版本规则见[契约语义](contract-semantics.md)。
+## 公共契约
+
+- 公共字段：[组合式元数据](common-metadata.md)
+- 交付、错误、重试和版本规则：[契约语义](contract-semantics.md)

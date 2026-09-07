@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.build.json",
+  "compilerOptions": {
+    "paths": {
+      "@earendil-works/pi-ai": ["./scripts/type-stubs/pi-ai.d.ts"],
+      "@earendil-works/pi-ai/providers/all": [
+        "./scripts/type-stubs/pi-ai-providers-all.d.ts"
+      ],
+      "@earendil-works/pi-coding-agent": [
+        "./scripts/type-stubs/pi-coding-agent.d.ts"
+      ],
+      "yaml": ["./scripts/type-stubs/yaml.d.ts"]
+    }
+  }
+}

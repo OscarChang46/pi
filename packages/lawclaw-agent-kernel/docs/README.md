@@ -19,7 +19,7 @@
 3. [V3.1 步骤一评审](governance/reviews/agent-kernel-v3.1-step1-review.md)
 4. [Agent Kernel System 总设计](design/agent-kernel-design.md)
 5. 从总设计进入对应 C4 层，再进入层内组件。
-6. 需要接口语义时查阅[边界契约注册表](design/contracts/README.md)。
+6. 需要接口语义时，从[边界契约导览](design/contracts/README.md)进入对应的独立契约文档。
 7. 需要对象所有权时查阅[领域对象目录](design/reference/domain-object-catalog.md)。
 8. 需要风险与验收时查阅[Verification 索引](verification/README.md)。
 
@@ -41,7 +41,7 @@ Client Interface、Backend、Model Provider 和业务 Tool Provider 是外部边
 
 | 目录 | 唯一职责 |
 |---|---|
-| [contracts](design/contracts/README.md) | Port、DTO、错误、幂等、超时、重试和兼容语义 |
+| [contracts](design/contracts/README.md) | 跨层边界与公共契约文档导览 |
 | [deployment](design/deployment/README.md) | Local-first 部署档案和 Composition Root |
 | [reference](design/reference/domain-object-catalog.md) | 领域对象 ID、生命周期和状态所有者索引 |
 | [verification](verification/README.md) | SFMEA、系统场景和验收证据 |

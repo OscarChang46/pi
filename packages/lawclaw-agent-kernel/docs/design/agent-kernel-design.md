@@ -8,7 +8,7 @@ baseline: AKB-2026-09-03-09
 authoritative_for: 系统职责、C4 层边界、全局依赖与安全不变量
 parent: null
 interfaces: [BND-EXT-001, BND-L12-001, BND-SEC-001, BND-L13-001, BND-L34-001, BND-MOD-001, BND-OPS-001, BND-INF-001]
-diagrams: [VIEW-SYS-CONTEXT, VIEW-SYS-CONTAINER, VIEW-SYS-DOMAIN]
+diagrams: [VIEW-SYS-CONTEXT, VIEW-SYS-DEPENDENCIES, VIEW-SYS-DOMAIN, VIEW-SYS-SERVICES, VIEW-SYS-BOUNDARIES]
 supersedes: []
 ---
 
@@ -121,6 +121,8 @@ Agent Kernel System 明确不拥有或解释：
 
 业务编排是业务用例的权威协调者，Agent Kernel System 是技术执行子系统：
 
+![Agent Kernel System 上下文与职责边界](diagrams/rendered/system/01-agent-kernel-context.svg)
+
 1. Backend 完成认证、RBAC 和租户解析。
 2. KernelHost 将外部身份、资源边界和策略编译为 `AgentExecutionEnvelope`。
 3. 业务编排决定为什么、何时发起 Agent 执行。
@@ -133,7 +135,8 @@ Kernel 对“如何安全地组织和执行 Agent 工作”负责；业务编排
 
 ## 5. 领域对象与聚合边界
 
-[Agent Kernel System 领域对象全集 PlantUML 权威源](diagrams/system/04-agent-system-domain-universe.puml)
+![Agent Kernel System 领域对象全集](diagrams/rendered/system/04-agent-system-domain-universe.svg)
+
 
 对象的稳定 ID、唯一状态所有者、调用方和 Port 映射见[领域对象目录](reference/domain-object-catalog.md)。核心关系为：
 
@@ -171,7 +174,9 @@ Agent Kernel System（限界上下文）
 
 ## 6. 系统服务 C4 组件协作
 
-[Agent Kernel System 服务 C4 组件协作 PlantUML 权威源](diagrams/system/05-system-service-collaboration.puml)
+![Agent Kernel System 服务 C4 组件协作](diagrams/rendered/system/05-system-service-collaboration.svg)
+
+[查看 PlantUML 权威源](diagrams/system/05-system-service-collaboration.puml)
 
 该图是逻辑组件视图，用于描述请求、认知、安全决策和受控执行之间的 High Level 协作，不要求图中组件与代码包、进程、聚合根或部署单元一一对应。为防止抽象名词在工程实现中扩大职责，采用以下规范化映射：
 
@@ -210,9 +215,11 @@ Agent Kernel System（限界上下文）
 
 ### 6.3 层间协议与接口候选
 
-[Agent Kernel System C4 层间边界协议 PlantUML 权威源](diagrams/contracts/12-c4-boundary-protocols.puml)
+![Agent Kernel System C4 层间边界协议](diagrams/rendered/contracts/12-c4-boundary-protocols.svg)
 
-边界编号、Local-first 绑定和故障语义见[边界契约注册表](contracts/README.md)；对外稳定外观见 [Protocol Facade](layers/l1-control/components/protocol-facade.md)，Transport 机制见 [Transport Adapter](layers/infrastructure-plane/components/transport.md)。主文档只约束调用方向、数据所有权和安全不变量，不重复维护协议细节。
+[查看 PlantUML 权威源](diagrams/contracts/12-c4-boundary-protocols.puml)
+
+边界文档入口见[边界契约导览](contracts/README.md)，Local-first 绑定和故障语义见[契约语义](contracts/contract-semantics.md)；对外稳定外观见 [Protocol Facade](layers/l1-control/components/protocol-facade.md)，Transport 机制见 [Transport Adapter](layers/infrastructure-plane/components/transport.md)。主文档只约束调用方向、数据所有权和安全不变量，不重复维护协议细节。
 
 | 服务 | 职责 | 明确不负责 |
 |---|---|---|
@@ -289,7 +296,11 @@ Runtime 故障不等于 Run 必然终止。只有安全 Checkpoint、已知副�
 
 ## 14. Port 与依赖规则
 
-层间协议和第一批关键接口仍是步骤二候选，详见[边界契约注册表](contracts/README.md)。当前步骤一只冻结调用方向：
+层间协议和第一批关键接口仍是步骤二候选，文档入口见[边界契约导览](contracts/README.md)，具体语义以对应 `BND-*` 文档为准。当前步骤一只冻结调用方向：
+
+![Agent Kernel System 依赖边界与 Composition Root](diagrams/rendered/system/03-dependency-boundaries.svg)
+
+[查看 PlantUML 权威源](diagrams/system/03-dependency-boundaries.puml)
 
 | 调用方 | Port | 实现/被调用方 | 权威数据 |
 |---|---|---|---|

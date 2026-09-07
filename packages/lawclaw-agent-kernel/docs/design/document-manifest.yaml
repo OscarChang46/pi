@@ -87,7 +87,7 @@ layers:
 document_sets:
   contracts:
     root: "docs/design/contracts"
-    required_ids: [SYS-CON-001, SYS-CON-002, SYS-CON-003, BND-EXT-001, BND-L1-001, BND-L12-001, BND-SEC-001, BND-L13-001, BND-L34-001, BND-MEM-001, BND-MOD-001, BND-OPS-001, BND-INF-001]
+    required_ids: [SYS-CON-002, SYS-CON-003, BND-EXT-001, BND-L1-001, BND-L12-001, BND-SEC-001, BND-L13-001, BND-L34-001, BND-MEM-001, BND-MOD-001, BND-OPS-001, BND-INF-001]
   deployment:
     root: "docs/design/deployment"
     required_ids: [SYS-DEP-001, SYS-DEP-002, SYS-DEP-003]

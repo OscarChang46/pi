@@ -8,7 +8,7 @@ baseline: AKB-2026-09-03-09
 authoritative_for: AgentRun、Attempt、LoopStep、Run Event Journal 与状态提交入口
 parent: L1-DES-001
 interfaces: [RunCommandPort, RunQueryPort, RunExecutionPort, RuntimeEventPort, RunEventQueryPort, RunRepositoryPort, DomainEventPort]
-diagrams: []
+diagrams: [STATE-RUN, SCN-PERSISTENCE-TRANSACTION]
 supersedes: [run-scheduling-runtime-subsystem-design.md 中的 RunRegistry 内容]
 ---
 
@@ -40,7 +40,17 @@ RunRegistry 为 `AgentRun` 提供唯一创建、查询、取消、执行事件�
 
 ## 4. 生命周期与算法
 
+![AgentRun 状态机](../../../diagrams/rendered/components/l1-control/04-run-state-machine.svg)
+
+[查看 PlantUML 权威源](../../../diagrams/components/l1-control/04-run-state-machine.puml)
+
 外部意图先建立已受理 Run；Scheduler 获得派发资格后创建 Attempt；Runtime 事件按 attempt 与 sequence 校验后持久化，并驱动 FlowEngine 计算的命令提交。等待审批/工具/外部事件时保存稳定 waitReasonRef 并进入挂起；终态提交关闭后续写入口。
+
+### 4.1 事务边界
+
+![Run、事件、工具与授权的事务边界](../../../diagrams/rendered/scenarios/09-persistence-transaction.svg)
+
+[查看 PlantUML 权威源](../../../diagrams/scenarios/09-persistence-transaction.puml)
 
 ## 5. 韧性与可观测性
 

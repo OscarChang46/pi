@@ -8,11 +8,15 @@ baseline: AKB-2026-09-03-09
 authoritative_for: "operations-plane 的职责、组件、依赖与故障隔离"
 parent: SYS-DES-001
 interfaces: [BND-OPS-001]
-diagrams: []
+diagrams: [VIEW-OPERATIONS-COMPONENTS]
 supersedes: [docs/design/operations-infrastructure-minimum-design.md]
 ---
 
 # Operations Plane 层设计
+
+![Operations Plane 组件图](../../diagrams/rendered/layers/06-operations-plane-components.svg)
+
+[查看 PlantUML 权威源](../../diagrams/layers/06-operations-plane-components.puml)
 
 ## 职责与边界
 

@@ -1,65 +1,96 @@
 # LawClaw Agent Kernel
 
-LawClaw Agent Kernel 是基于 Pi Runtime 构建的独立 Agent 技术执行内核。Kernel 拥有规范化上下文、有界 Agent Loop、工具政策、受限子 Agent 和统一时间语义；业务编排仍负责决定何时调用以及是否采纳候选结果。
+基于 Pi 单轮模型能力构建的上层技术内核。代码按职责组织；Pi 核心和其他 workspace 包保持不变。业务编排决定何时调用及是否采纳结果。
 
-当前代码基线提供：
+## 当前状态
 
-- `AgentAdapter` 下的 Pi 单轮流式适配；
-- `ContextEngine` 的上下文选择与预算控制；
-- `ToolProviderPort` 和三个内置只读工具；
-- 最大深度为 1 的技术子 Agent；
-- UTC `TimePoint`、IANA `TimeContext` 和基础设施 `TimePort`；
-- 严格 YAML 配置、集中 Prompt Catalog 和 Pi CLI 开发入口。
+本次仅迁移已有能力、拆分职责边界并补齐框架。V3.1 候选文档的完整协议和审批状态没有改变。
 
-当前版本尚未交付持久化 Journal、生产 Sidecar、Backend、业务编排或业务审批；Shell、文件写入、MCP 和任意网络工具保持禁用。
+| 状态 | 能力 |
+|---|---|
+| 已有能力，已重排 | 内存 Run/Session、单轮 Pi 适配、上下文预算、三个只读工具、Grant 判定及复核、停止开关、单层委派、UTC/IANA 时间 |
+| 框架边界 | 控制、认知、工具、安全、执行、运维、基础设施的职责与 Port；见源码导航和边界映射 |
+| 尚未实现 | 持久化 Journal、调度器、独立 Attempt/Lease 恢复、Memory、一次性 Permit、异步审批、运维后端、生产隔离和存储机制 |
 
-## 快速开始
+当前 Grant 不具备一次性原子消费。只读 Sandbox 依赖 Provider 路径检查，不提供 OS 隔离。程序化默认场景使用 Faux 模型和 Fake 子调用；CLI 委派使用真实受限子进程。现有身份快照仍采用旧隔离字段，尚未实现完整 ExecutionEnvelope 协议。
 
-要求 Node.js `>=22.19.0`。本包作为 Pi monorepo workspace 参与构建，程序化 Adapter 与 CLI 统一使用仓库基线 `0.84.4`；Pi 原生类型仍由规范化契约隔离。
+## 目录与调用关系
+
+入口导航见 [src/README.md](src/README.md)。各维护目录均有 README，公开接口用中文 TSDoc 解释职责、约束与生命周期。
+
+```text
+application → control → cognitive → AgentAdapter → Pi
+                  │          │
+                  │          └─ 候选交回 control
+                  ├─ security：技术判定
+                  └─ tools：授权检查 → execution：Provider/Sandbox
+                           执行结果 → control → 下一轮 cognitive
+```
+
+跨职责调用经 contracts 中的 Port；application 和 CLI 扩展负责装配。AgentSystem 管理 Session 档案并协调独立 RunRegistry；AgentRuntime 不持有 Session 或 Run 目录。Session 只保存 Run ID，查询状态使用 `kernel.getRun(runId)`。
+
+详细映射和待实现装配点见 [框架边界映射](docs/runtime/framework-boundaries.md)。
+
+## 运行与检查
+
+要求 Node.js >=22.19.0，使用同一 Pi monorepo 的依赖。从仓库根目录安装：
 
 ```bash
 npm install --ignore-scripts
-npm run check --workspace=lawclaw-agent-kernel
 ```
 
-运行配置中的确定性 Faux Provider 纵切：
+进入本包目录后：
+
+仓库根目录的 `npm run build` 和 `npm run build:offline` 均包含本包，在 Pi AI 和 Pi CLI 依赖构建完成后构建上层内核。以下命令用于单独操作本包：
 
 ```bash
-npm start --workspace=lawclaw-agent-kernel
+npm run typecheck
+npm run build
+npm test
+npm run verify
+npm run check:boundaries
+npm run check:comments
+npm run check:docs
+npm start
+npm run pi:smoke
 ```
 
-启动带 LawClaw 安全扩展的 Pi CLI：
+`npm run build` 优先使用 Pi 工作区包已生成的声明文件；依赖声明尚未生成时，会
+自动切换到 `scripts/type-stubs` 中的编译期最小类型桩。类型桩不包含运行时实现，
+因此独立构建通过只说明上层内核可以编译，不代表缺少真实 Pi 包时可以启动。
 
-```bash
-npm run pi --workspace=lawclaw-agent-kernel
+`npm start` 执行默认配置中的确定性 Faux 场景。`npm run pi` 启动只读 CLI，原生参数可以通过 `--` 追加。真实模型需使用 `model.source: builtin` 并配置目录中的模型标识；凭据仍交给 Pi 标准认证机制。
+
+`npm run verify` 生成 `.artifacts/verification/report.json` 和 `report.md`。支持按 UT、DT、Contract、Integration、System 分层执行及按 ID 复现；未来能力单独登记，不以占位测试计为通过。详见 [验证框架](docs/verification/framework.md)。
+
+## 最小程序化调用
+
+下面示例从本包根目录运行；同份代码受类型检查和测试验证：
+
+```ts
+import {
+	createAgentKernel,
+	createRequestContext,
+	createRunCommand,
+	loadRuntimeSettings,
+	resolveConfiguredPath,
+} from "./src/index.ts";
+
+const settings = loadRuntimeSettings();
+const workspace = resolveConfiguredPath(settings, settings.config.runtime.workspaceRoot);
+const kernel = await createAgentKernel(workspace, settings);
+const result = await kernel.run(
+	createRequestContext(settings),
+	createRunCommand(workspace, settings),
+	new AbortController().signal,
+);
+console.log(result.status, result.output);
 ```
 
-全部可调运行参数统一配置在 `config/agent-kernel.yaml`，包括模型、Context 估算、Run 预算、工具/委派政策、只读扫描、Pi Adapter、CLI、RequestContext、IANA 时区/locale 和本地 Run 档案。系统提示词正文集中位于 `config/prompts.zh-CN.yaml`，运行时代码只引用 Prompt ID。
+服务接入时由可信主机提供 RequestContext；本地 `createRequestContext` 不是认证服务。运行返回规范事件、候选输出及最后一个 ContextFrame；事件尚未持久化，不应宣称具有重放或崩溃恢复能力。
 
-使用其他配置文件时设置：
+## 配置与设计
 
-```bash
-LAWCLAW_CONFIG_FILE=/absolute/path/runtime.yaml npm start --workspace=lawclaw-agent-kernel
-LAWCLAW_CONFIG_FILE=/absolute/path/runtime.yaml npm run pi --workspace=lawclaw-agent-kernel
-```
-
-真实模型调用需要把 `model.source` 改为 `builtin`，并填写 Pi 模型目录中的 `providerId` 和 `modelId`。密钥由 Pi 标准认证或环境变量机制提供，禁止写入 YAML、日志或事件。
-
-CLI 默认使用 `--no-builtin-tools`，只启用：
-
-- `lawclaw_list_files`
-- `lawclaw_read_text`
-- `lawclaw_search_text`
-- `lawclaw_delegate`（仅父 Agent；子 Agent 不会再次注册）
-
-可以把 Pi 原生参数追加在 `--` 后，例如：
-
-```bash
-npm run pi --workspace=lawclaw-agent-kernel -- --provider anthropic --model claude-sonnet-4-6
-```
-
-## 架构边界
-
-`src/contracts` 和 `src/kernel` 不导入 Pi；`src/adapters` 和 `src/pi-cli` 可以导入 Pi。具体 Adapter/Provider 只在 `src/application/composition-root.ts` 或 Pi CLI 扩展工厂中装配。程序化入口使用 Pi 单轮流式 API，Kernel 保持 Loop、Context、Tool 和 Delegation 决策权。
-
-架构说明见 [Agent Kernel 完整设计文档](docs/design/agent-kernel-design.md)，运行说明见 [Pi Kernel Runtime 使用与设计说明](docs/runtime/pi-kernel-runtime.md)，治理流程见 [LawClaw 架构设计变更标准流程](docs/governance/architecture-change-process.md)。
+- [配置说明](config/README.md)：预算、时区和模型选择，使用 `LAWCLAW_CONFIG_FILE` 覆盖配置路径。
+- [测试说明](test/README.md)与[脚本说明](scripts/README.md)。
+- [当前设计文档](docs/design/agent-kernel-design.md)与[契约索引](docs/design/contracts/README.md)。

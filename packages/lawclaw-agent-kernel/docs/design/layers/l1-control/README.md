@@ -8,11 +8,15 @@ baseline: AKB-2026-09-03-09
 authoritative_for: L1 的职责、组件清单、允许依赖、控制流、数据流和故障隔离
 parent: SYS-DES-001
 interfaces: [BND-EXT-001, BND-L1-001, BND-L12-001, BND-SEC-001, BND-L13-001, BND-MEM-001, BND-OPS-001, BND-INF-001]
-diagrams: []
+diagrams: [VIEW-L1-COMPONENTS, SCN-START-RUN, SCN-CANCEL-RECOVERY]
 supersedes: [protocol-facade-subsystem-design.md, agent-registry-routing-subsystem-design.md, session-flow-engine-resource-subsystem-design.md, run-scheduling-runtime-subsystem-design.md, context-memory-subsystem-design.md 中的 L1 内容]
 ---
 
 # L1 Control & Orchestration Runtime 层设计
+
+![L1 统一控制层组件图](../../diagrams/rendered/layers/01-l1-control-components.svg)
+
+[查看 PlantUML 权威源](../../diagrams/layers/01-l1-control-components.puml)
 
 ## 1. 定位
 
@@ -93,6 +97,10 @@ Backend / KernelHost
 
 ### 5.1 Root Run
 
+![启动 AgentRun：接受、调度与执行](../../diagrams/rendered/scenarios/05-start-run-sequence.svg)
+
+[查看 PlantUML 权威源](../../diagrams/scenarios/05-start-run-sequence.puml)
+
 1. KernelHost 验证外部身份并提供可信 `ExecutionEnvelopeRef`。
 2. Protocol Facade 完成协议校验，Gateway 受理规范化执行意图。
 3. Registry 与 Router 生成技术候选，RunRegistry 冻结选择并持久化 Run。
@@ -109,6 +117,10 @@ Backend / KernelHost
 5. L3 只校验并消费 Permit，不进行第二次策略裁决；结果回到 L1 后恢复 L2 Attempt。
 
 ### 5.3 挂起、恢复与取消
+
+![取消、Worker 故障与结构化恢复](../../diagrams/rendered/scenarios/07-cancel-recovery-sequence.svg)
+
+[查看 PlantUML 权威源](../../diagrams/scenarios/07-cancel-recovery-sequence.puml)
 
 - 等待审批、外部事件或长任务时，RunRegistry 记录等待引用，Scheduler 释放执行槽。
 - 恢复信号通过幂等入口进入 RunRegistry；Scheduler 重新判定并创建或恢复 Attempt。

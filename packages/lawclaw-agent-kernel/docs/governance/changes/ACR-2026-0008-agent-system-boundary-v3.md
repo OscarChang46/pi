@@ -104,7 +104,7 @@ ACR-2026-0007 继续解释当前代码基线，但不再作为后续设计文档
 - [总设计](../../design/agent-kernel-design.md)
 - [文档清单](../../design/document-manifest.yaml)
 - [七层设计与组件设计](../../design/layers/)
-- [边界契约注册表](../../design/contracts/README.md)
+- [边界契约导览](../../design/contracts/README.md)
 - [Local-first 部署档案](../../design/deployment/local-first-profile.md)
 - [SFMEA 与系统测试用例清单](../../verification/system-sfmea.md)
 - [领域对象目录](../../design/reference/domain-object-catalog.md)

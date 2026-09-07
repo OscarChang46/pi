@@ -8,11 +8,15 @@ baseline: AKB-2026-09-03-09
 authoritative_for: Tool Provider 适配与 Sandbox 执行机制层边界
 parent: SYS-DES-001
 interfaces: [BND-L34-001]
-diagrams: []
+diagrams: [VIEW-L4-COMPONENTS]
 supersedes: ["[归档工具调用子系统设计](../../../governance/archive/design-v3-pre-layering/tool-call-subsystem-design.md) 中 Provider 与 Sandbox 机制部分"]
 ---
 
 # L4 Execution Runtime 层设计
+
+![L4 受控执行层组件图](../../diagrams/rendered/layers/05-l4-execution-runtime-components.svg)
+
+[查看 PlantUML 权威源](../../diagrams/layers/05-l4-execution-runtime-components.puml)
 
 ## 1. 职责与边界
 

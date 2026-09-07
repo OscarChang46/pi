@@ -27,7 +27,7 @@ supersedes: [docs/design/operations-infrastructure-minimum-design.md]
 | Memory | 进程内 Port + SQLite/Artifact | 同左 |
 | Operations | 本地日志、Trace、指标快照、SQLite 审计 | 可选 OTLP Exporter |
 
-首版不引入 Temporal、Kafka/独立 Event Bus、内部 gRPC、服务发现、分布式锁、MicroVM 编排或远程遥测集群。后续只有在跨主机 Worker、多个耐久消费者、独立扩缩容或更强隔离成为实际需求时才评估；切换绑定不得改变 [`contracts/`](../contracts/README.md) 的语义。
+首版不引入 Temporal、Kafka/独立 Event Bus、内部 gRPC、服务发现、分布式锁、MicroVM 编排或远程遥测集群。后续只有在跨主机 Worker、多个耐久消费者、独立扩缩容或更强隔离成为实际需求时才评估；切换绑定不得改变对应 `BND-*` 文档及[契约语义](../contracts/contract-semantics.md)定义的行为。
 
 ## 安全与恢复
 

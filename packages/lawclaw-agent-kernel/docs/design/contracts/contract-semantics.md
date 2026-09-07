@@ -5,7 +5,7 @@ layer: cross-layer
 component: null
 status: candidate
 baseline: AKB-2026-09-03-09
-authoritative_for: "边界契约、公共元数据或契约语义的唯一来源"
+authoritative_for: "跨边界交付、幂等、超时、重试与版本兼容规则"
 parent: SYS-DES-001
 interfaces: []
 diagrams: []

@@ -8,11 +8,15 @@ baseline: AKB-2026-09-03-09
 authoritative_for: L2 职责、组件边界、允许依赖、控制流与故障隔离
 parent: SYS-DES-001
 interfaces: [BND-L12-001, BND-MOD-001]
-diagrams: []
+diagrams: [VIEW-L2-COMPONENTS]
 supersedes: ["[归档 Run 调度与 Runtime 设计](../../../governance/archive/design-v3-pre-layering/run-scheduling-runtime-subsystem-design.md) 中的 AgentRuntime 部分"]
 ---
 
 # L2 Cognitive Runtime 层设计
+
+![L2 认知运行层组件图](../../diagrams/rendered/layers/02-l2-cognitive-components.svg)
+
+[查看 PlantUML 权威源](../../diagrams/layers/02-l2-cognitive-components.puml)
 
 ## 1. 职责与边界
 
