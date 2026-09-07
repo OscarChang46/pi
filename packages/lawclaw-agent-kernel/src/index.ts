@@ -5,6 +5,12 @@ export { loadRuntimeSettings, RuntimeConfigurationError, resolveConfiguredPath }
 export type { KernelErrorCode } from "./contracts/errors.ts";
 export { KernelError } from "./contracts/errors.ts";
 export type {
+	AdvanceInput as FlowAdvanceInput,
+	AdvanceResult as FlowAdvanceResult,
+	FlowAdvancePort,
+	StateCommitPort as FlowStateCommitPort,
+} from "./contracts/flow-engine.ts";
+export type {
 	AgentAdapter,
 	AgentEvent,
 	AgentRunResult,
@@ -15,3 +21,4 @@ export type {
 	TimePort,
 } from "./contracts/types.ts";
 export type { AgentSystem } from "./control/agent-system.ts";
+export { FlowEngine } from "./control/flow-engine/flow-engine.ts";

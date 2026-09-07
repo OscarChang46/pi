@@ -75,6 +75,11 @@
       "id": "verification",
       "title": "验收框架自身",
       "status": "implemented"
+    },
+    {
+      "id": "flow-engine",
+      "title": "FE-CON-1纯Core及运行边界接入",
+      "status": "partial"
     }
   ],
   "requirements": [
@@ -1321,6 +1326,308 @@
           "file": "test/dt/verification-runner.test.ts"
         }
       ]
+    },
+    {
+      "id": "REQ-AK-FE-001",
+      "capability": "flow-engine",
+      "status": "implemented",
+      "title": "FE-CON-1八个独立设计向量与实际Core完整输出一致",
+      "risk": "纯推进产生错误状态、重复意图或不符合冻结数据契约",
+      "levels": [
+        "contract"
+      ],
+      "cases": [
+        {
+          "id": "AK-FE-001",
+          "level": "contract",
+          "file": "test/contract/flow-engine.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-FE-002",
+      "capability": "flow-engine",
+      "status": "implemented",
+      "title": "FE-C14N-1固定字节与摘要保持跨实现一致",
+      "risk": "纯推进产生错误状态、重复意图或不符合冻结数据契约",
+      "levels": [
+        "contract"
+      ],
+      "cases": [
+        {
+          "id": "AK-FE-002",
+          "level": "contract",
+          "file": "test/contract/flow-engine.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-FE-003",
+      "capability": "flow-engine",
+      "status": "implemented",
+      "title": "非JSON值与超界输入不能被规范化为合法摘要",
+      "risk": "纯推进产生错误状态、重复意图或不符合冻结数据契约",
+      "levels": [
+        "contract"
+      ],
+      "cases": [
+        {
+          "id": "AK-FE-003",
+          "level": "contract",
+          "file": "test/contract/flow-engine.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-FE-004",
+      "capability": "flow-engine",
+      "status": "implemented",
+      "title": "A-B-A交错推进稳定且输出不共享可变输入",
+      "risk": "纯推进产生错误状态、重复意图或不符合冻结数据契约",
+      "levels": [
+        "contract"
+      ],
+      "cases": [
+        {
+          "id": "AK-FE-004",
+          "level": "contract",
+          "file": "test/contract/flow-engine.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-FE-005",
+      "capability": "flow-engine",
+      "status": "implemented",
+      "title": "Guard拒绝未知字段作用域旧Attempt与非法事件载荷",
+      "risk": "纯推进产生错误状态、重复意图或不符合冻结数据契约",
+      "levels": [
+        "ut"
+      ],
+      "cases": [
+        {
+          "id": "AK-FE-005",
+          "level": "ut",
+          "file": "test/ut/flow-engine.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-FE-006",
+      "capability": "flow-engine",
+      "status": "implemented",
+      "title": "重复终态序号缺口按优先级短路且不调用ResolverFactory",
+      "risk": "纯推进产生错误状态、重复意图或不符合冻结数据契约",
+      "levels": [
+        "ut"
+      ],
+      "cases": [
+        {
+          "id": "AK-FE-006",
+          "level": "ut",
+          "file": "test/ut/flow-engine.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-FE-007",
+      "capability": "flow-engine",
+      "status": "implemented",
+      "title": "模型文本工具Child迁移保留完整转录并只预留新动作用量",
+      "risk": "纯推进产生错误状态、重复意图或不符合冻结数据契约",
+      "levels": [
+        "ut"
+      ],
+      "cases": [
+        {
+          "id": "AK-FE-007",
+          "level": "ut",
+          "file": "test/ut/flow-engine.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-FE-008",
+      "capability": "flow-engine",
+      "status": "implemented",
+      "title": "权限允许Ask拒绝不可用过期及预算零均有封闭结果",
+      "risk": "纯推进产生错误状态、重复意图或不符合冻结数据契约",
+      "levels": [
+        "ut"
+      ],
+      "cases": [
+        {
+          "id": "AK-FE-008",
+          "level": "ut",
+          "file": "test/ut/flow-engine.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-FE-009",
+      "capability": "flow-engine",
+      "status": "implemented",
+      "title": "UNKNOWN不重试且恢复必须匹配命令incident与结果种类",
+      "risk": "纯推进产生错误状态、重复意图或不符合冻结数据契约",
+      "levels": [
+        "ut"
+      ],
+      "cases": [
+        {
+          "id": "AK-FE-009",
+          "level": "ut",
+          "file": "test/ut/flow-engine.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-FE-010",
+      "capability": "flow-engine",
+      "status": "implemented",
+      "title": "Context失败预算边界与取消超时不依赖外部服务",
+      "risk": "纯推进产生错误状态、重复意图或不符合冻结数据契约",
+      "levels": [
+        "ut"
+      ],
+      "cases": [
+        {
+          "id": "AK-FE-010",
+          "level": "ut",
+          "file": "test/ut/flow-engine.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-FE-011",
+      "capability": "flow-engine",
+      "status": "implemented",
+      "title": "Factory拒绝终态业务命令错配下标及用量回退",
+      "risk": "纯推进产生错误状态、重复意图或不符合冻结数据契约",
+      "levels": [
+        "ut"
+      ],
+      "cases": [
+        {
+          "id": "AK-FE-011",
+          "level": "ut",
+          "file": "test/ut/flow-engine.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-FE-012",
+      "capability": "flow-engine",
+      "status": "implemented",
+      "title": "未声明状态事件组合均拒绝且错配回执不解除等待",
+      "risk": "纯推进产生错误状态、重复意图或不符合冻结数据契约",
+      "levels": [
+        "ut"
+      ],
+      "cases": [
+        {
+          "id": "AK-FE-012",
+          "level": "ut",
+          "file": "test/ut/flow-engine.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-FE-013",
+      "capability": "flow-engine",
+      "status": "implemented",
+      "title": "状态乘事件矩阵覆盖全部等待类型和终态封闭",
+      "risk": "纯推进产生错误状态、重复意图或不符合冻结数据契约",
+      "levels": [
+        "ut"
+      ],
+      "cases": [
+        {
+          "id": "AK-FE-013",
+          "level": "ut",
+          "file": "test/ut/flow-engine.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-FE-014",
+      "capability": "flow-engine",
+      "status": "implemented",
+      "title": "已知失败审批拒绝与输出超限不产生新业务命令",
+      "risk": "纯推进产生错误状态、重复意图或不符合冻结数据契约",
+      "levels": [
+        "ut"
+      ],
+      "cases": [
+        {
+          "id": "AK-FE-014",
+          "level": "ut",
+          "file": "test/ut/flow-engine.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "FUTURE-FLOW-RUNTIME",
+      "capability": "flow-engine",
+      "status": "planned",
+      "title": "FE-CON-1真实RunRegistry事务、耐久执行、Permit首次启动及Coordinator接入",
+      "risk": "纯Core正确不证明事务、授权执行和崩溃恢复正确",
+      "levels": [
+        "integration",
+        "system"
+      ],
+      "cases": []
+    },
+    {
+      "id": "REQ-AK-FE-015",
+      "capability": "flow-engine",
+      "status": "implemented",
+      "title": "迁移表拒绝重复出边终态出边及未声明目标",
+      "risk": "迁移定义冲突或扩展绕过既有安全优先级",
+      "levels": [
+        "ut"
+      ],
+      "cases": [
+        {
+          "id": "AK-FE-015",
+          "level": "ut",
+          "file": "test/ut/flow-engine.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-FE-016",
+      "capability": "flow-engine",
+      "status": "implemented",
+      "title": "新增迁移仅扩展定义且无法绕过公共取消优先级",
+      "risk": "迁移定义冲突或扩展绕过既有安全优先级",
+      "levels": [
+        "ut"
+      ],
+      "cases": [
+        {
+          "id": "AK-FE-016",
+          "level": "ut",
+          "file": "test/ut/flow-engine.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-FE-017",
+      "capability": "flow-engine",
+      "status": "implemented",
+      "title": "结果策略表穷尽类型并拒绝未知变体",
+      "risk": "新增结果类型遗漏处理器或运行时命中原型属性",
+      "levels": ["ut"],
+      "cases": [{"id": "AK-FE-017", "level": "ut", "file": "test/ut/flow-engine.test.ts"}]
+    },
+    {
+      "id": "REQ-AK-FE-018",
+      "capability": "flow-engine",
+      "status": "implemented",
+      "title": "计划状态策略拒绝错绑ProposalChild与转录角色",
+      "risk": "计划校验拆分后接受错误状态命令绑定",
+      "levels": ["ut"],
+      "cases": [{"id": "AK-FE-018", "level": "ut", "file": "test/ut/flow-engine.test.ts"}]
     }
   ]
 }
