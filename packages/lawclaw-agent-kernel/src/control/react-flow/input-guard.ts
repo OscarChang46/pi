@@ -1,5 +1,6 @@
 import type { ActionProposal, AdvanceInput, AdvanceResult, FlowErrorCode } from "../../contracts/flow-engine.ts";
-import { canonicalize, flowDigest, flowId } from "./canonical.ts";
+import { canonicalize, flowDigest, flowId } from "../../contracts/flow-value.ts";
+import { FLOW_EFFECT, isTerminalReActState } from "../../contracts/react-flow-values.ts";
 import { isAdvanceInput } from "./input-schema.ts";
 
 type ShortCircuit = Exclude<AdvanceResult, { readonly kind: "advance" }>;
@@ -109,7 +110,8 @@ export class InputGuard {
 		if (
 			payload.kind === "ToolObserved" &&
 			((payload.outcome === "success" &&
-				(payload.resultRef === null || !(["NONE", "KNOWN_APPLIED"] as const).some((e) => e === payload.effect))) ||
+				(payload.resultRef === null ||
+					!([FLOW_EFFECT.NONE, FLOW_EFFECT.KNOWN_APPLIED] as const).some((e) => e === payload.effect))) ||
 				(payload.outcome === "failed" && payload.resultRef !== null))
 		)
 			return denied("FLOW_EVENT_CONFLICT", "event.payload.resultRef");
@@ -135,7 +137,7 @@ export class InputGuard {
 			};
 		}
 		if (event.sequence <= run.consumedSequence) return denied("FLOW_EVENT_CONFLICT", "event.sequence");
-		if (["Completed", "Failed", "Cancelled"].includes(run.position.kind))
+		if (isTerminalReActState(run.position.kind))
 			return { kind: "short_circuit", result: { kind: "ignore", reason: "terminal", existingCommitId: null } };
 		if (event.sequence !== run.consumedSequence + 1) return denied("FLOW_SEQUENCE_GAP", "event.sequence");
 		if (

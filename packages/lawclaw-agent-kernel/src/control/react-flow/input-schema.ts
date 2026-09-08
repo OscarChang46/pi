@@ -1,4 +1,5 @@
 import type { AdvanceInput, TransitionPlan } from "../../contracts/flow-engine.ts";
+import { FLOW_EFFECT, FLOW_WAIT_REASON, REACT_FLOW_STATE } from "../../contracts/react-flow-values.ts";
 
 // FE-CON-1 封闭字段结构；语义绑定和预算由 InputGuard / Resolver 检查。
 function record(value: unknown): value is Record<string, unknown> {
@@ -36,7 +37,7 @@ function checkWaitReason(value: unknown): boolean {
 		(record(value) &&
 			Object.keys(value).length === 3 &&
 			Object.hasOwn(value, "kind") &&
-			value.kind === "approval" &&
+			value.kind === FLOW_WAIT_REASON.APPROVAL &&
 			Object.hasOwn(value, "approvalRef") &&
 			checkRef(value.approvalRef) &&
 			Object.hasOwn(value, "proposalId") &&
@@ -44,7 +45,7 @@ function checkWaitReason(value: unknown): boolean {
 		(record(value) &&
 			Object.keys(value).length === 3 &&
 			Object.hasOwn(value, "kind") &&
-			value.kind === "tool_unknown" &&
+			value.kind === FLOW_WAIT_REASON.TOOL_UNKNOWN &&
 			Object.hasOwn(value, "toolCommandId") &&
 			checkRef(value.toolCommandId) &&
 			Object.hasOwn(value, "incidentRef") &&
@@ -52,7 +53,7 @@ function checkWaitReason(value: unknown): boolean {
 		(record(value) &&
 			Object.keys(value).length === 3 &&
 			Object.hasOwn(value, "kind") &&
-			value.kind === "model_unknown" &&
+			value.kind === FLOW_WAIT_REASON.MODEL_UNKNOWN &&
 			Object.hasOwn(value, "modelCommandId") &&
 			checkRef(value.modelCommandId) &&
 			Object.hasOwn(value, "incidentRef") &&
@@ -102,17 +103,20 @@ function checkFlowErrorCode(value: unknown): boolean {
 
 function checkFlowPosition(value: unknown): boolean {
 	return (
-		(record(value) && Object.keys(value).length === 1 && Object.hasOwn(value, "kind") && value.kind === "Ready") ||
+		(record(value) &&
+			Object.keys(value).length === 1 &&
+			Object.hasOwn(value, "kind") &&
+			value.kind === REACT_FLOW_STATE.READY) ||
 		(record(value) &&
 			Object.keys(value).length === 2 &&
 			Object.hasOwn(value, "kind") &&
-			value.kind === "AwaitingModel" &&
+			value.kind === REACT_FLOW_STATE.AWAITING_MODEL &&
 			Object.hasOwn(value, "commandId") &&
 			checkRef(value.commandId)) ||
 		(record(value) &&
 			Object.keys(value).length === 3 &&
 			Object.hasOwn(value, "kind") &&
-			value.kind === "AwaitingPermission" &&
+			value.kind === REACT_FLOW_STATE.AWAITING_PERMISSION &&
 			Object.hasOwn(value, "proposalId") &&
 			checkRef(value.proposalId) &&
 			Object.hasOwn(value, "commandId") &&
@@ -120,7 +124,7 @@ function checkFlowPosition(value: unknown): boolean {
 		(record(value) &&
 			Object.keys(value).length === 3 &&
 			Object.hasOwn(value, "kind") &&
-			value.kind === "AwaitingTool" &&
+			value.kind === REACT_FLOW_STATE.AWAITING_TOOL &&
 			Object.hasOwn(value, "proposalId") &&
 			checkRef(value.proposalId) &&
 			Object.hasOwn(value, "commandId") &&
@@ -128,7 +132,7 @@ function checkFlowPosition(value: unknown): boolean {
 		(record(value) &&
 			Object.keys(value).length === 3 &&
 			Object.hasOwn(value, "kind") &&
-			value.kind === "AwaitingChild" &&
+			value.kind === REACT_FLOW_STATE.AWAITING_CHILD &&
 			Object.hasOwn(value, "childId") &&
 			checkRef(value.childId) &&
 			Object.hasOwn(value, "commandId") &&
@@ -136,25 +140,25 @@ function checkFlowPosition(value: unknown): boolean {
 		(record(value) &&
 			Object.keys(value).length === 2 &&
 			Object.hasOwn(value, "kind") &&
-			value.kind === "Suspended" &&
+			value.kind === REACT_FLOW_STATE.SUSPENDED &&
 			Object.hasOwn(value, "reason") &&
 			checkWaitReason(value.reason)) ||
 		(record(value) &&
 			Object.keys(value).length === 2 &&
 			Object.hasOwn(value, "kind") &&
-			value.kind === "Completed" &&
+			value.kind === REACT_FLOW_STATE.COMPLETED &&
 			Object.hasOwn(value, "outputRef") &&
 			checkArtifactRef(value.outputRef)) ||
 		(record(value) &&
 			Object.keys(value).length === 2 &&
 			Object.hasOwn(value, "kind") &&
-			value.kind === "Failed" &&
+			value.kind === REACT_FLOW_STATE.FAILED &&
 			Object.hasOwn(value, "code") &&
 			checkFlowErrorCode(value.code)) ||
 		(record(value) &&
 			Object.keys(value).length === 2 &&
 			Object.hasOwn(value, "kind") &&
-			value.kind === "Cancelled" &&
+			value.kind === REACT_FLOW_STATE.CANCELLED &&
 			Object.hasOwn(value, "reason") &&
 			(value.reason === "requested" || value.reason === "deadline"))
 	);
@@ -325,7 +329,12 @@ function checkModelOutput(value: unknown): boolean {
 }
 
 function checkEffect(value: unknown): boolean {
-	return value === "NONE" || value === "KNOWN_NOT_APPLIED" || value === "KNOWN_APPLIED" || value === "UNKNOWN";
+	return (
+		value === FLOW_EFFECT.NONE ||
+		value === FLOW_EFFECT.KNOWN_NOT_APPLIED ||
+		value === FLOW_EFFECT.KNOWN_APPLIED ||
+		value === FLOW_EFFECT.UNKNOWN
+	);
 }
 
 function checkRuntimePayload(value: unknown): boolean {

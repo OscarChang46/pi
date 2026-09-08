@@ -7,13 +7,13 @@ import type {
 	RuntimePayload,
 	TransitionPlan,
 } from "../../src/contracts/flow-engine.ts";
-import { DecisionFactory } from "../../src/control/flow-engine/decision-factory.ts";
-import { FlowEngine } from "../../src/control/flow-engine/flow-engine.ts";
-import { FLOW_TRANSITIONS } from "../../src/control/flow-engine/flow-transitions.ts";
-import { InputGuard } from "../../src/control/flow-engine/input-guard.ts";
-import { defineTransition } from "../../src/control/flow-engine/transition-definition.ts";
-import { TransitionResolver } from "../../src/control/flow-engine/transition-resolver.ts";
-import { createVariantMatcher } from "../../src/control/flow-engine/variant-matcher.ts";
+import { DecisionFactory } from "../../src/control/react-flow/decision-factory.ts";
+import { FLOW_TRANSITIONS } from "../../src/control/react-flow/flow-transitions.ts";
+import { InputGuard } from "../../src/control/react-flow/input-guard.ts";
+import { ReActFlowPolicy as FlowEngine } from "../../src/control/react-flow/react-flow-policy.ts";
+import { defineTransition } from "../../src/control/react-flow/transition-definition.ts";
+import { TransitionResolver } from "../../src/control/react-flow/transition-resolver.ts";
+import { createVariantMatcher } from "../../src/control/variant-matcher.ts";
 import { flowInput, withEvent } from "../support/flow-engine-fixtures.ts";
 
 const engine = new FlowEngine();

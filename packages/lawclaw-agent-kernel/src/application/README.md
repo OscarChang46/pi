@@ -10,7 +10,7 @@
 
 ## 接口、依赖与生命周期
 
-composition-root.ts 返回 AgentSystem；tool-composition.ts 装配工具链；run-kernel.ts 是可执行本地 Faux 入口。具体 Adapter 只在装配边界创建。
+composition-root.ts 返回 AgentSystem；flow-composition.ts 装配耐久Flow服务；flow-http-server.ts 负责HTTP传输与生命周期，flow-http-routes.ts 按用例处理请求，后台调度在控制层。具体Adapter仅在装配边界创建。
 
 ## 文件与子目录
 
@@ -18,6 +18,11 @@ composition-root.ts 返回 AgentSystem；tool-composition.ts 装配工具链；r
 - [index.ts](index.ts)
 - [run-kernel.ts](run-kernel.ts)
 - [tool-composition.ts](tool-composition.ts)
+
+- [flow-composition.ts](flow-composition.ts)
+- [flow-http-routes.ts](flow-http-routes.ts)
+- [flow-http-server.ts](flow-http-server.ts)
+- [run-flow-server.ts](run-flow-server.ts)
 
 ## 设计依据
 

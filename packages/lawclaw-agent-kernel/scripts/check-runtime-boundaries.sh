@@ -107,3 +107,4 @@ node -e '
 echo "运行时依赖与职责边界检查通过。"
 
 node "${SCRIPT_DIR}/check-source-boundaries.mjs"
+node "${SCRIPT_DIR}/check-flow-state-constants.mjs"

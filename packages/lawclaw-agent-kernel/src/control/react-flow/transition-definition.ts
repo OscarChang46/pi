@@ -5,12 +5,17 @@ import type {
 	TransitionPlan,
 	WaitReason,
 } from "../../contracts/flow-engine.ts";
+import { REACT_FLOW_STATE } from "../../contracts/react-flow-values.ts";
 import { reject } from "./input-guard.ts";
 
 /** 显式展开挂起子状态，避免审批和未知结果共享隐含迁移。 */
-export type StateKey = Exclude<FlowPosition["kind"], "Suspended"> | `Suspended.${WaitReason["kind"]}`;
-type PositionFor<S extends StateKey> = S extends `Suspended.${infer R}`
-	? Extract<FlowPosition, { kind: "Suspended" }> & { readonly reason: Extract<WaitReason, { kind: R }> }
+export type StateKey =
+	| Exclude<FlowPosition["kind"], typeof REACT_FLOW_STATE.SUSPENDED>
+	| `${typeof REACT_FLOW_STATE.SUSPENDED}.${WaitReason["kind"]}`;
+type PositionFor<S extends StateKey> = S extends `${typeof REACT_FLOW_STATE.SUSPENDED}.${infer R}`
+	? Extract<FlowPosition, { kind: typeof REACT_FLOW_STATE.SUSPENDED }> & {
+			readonly reason: Extract<WaitReason, { kind: R }>;
+		}
 	: Extract<FlowPosition, { kind: S }>;
 type PayloadFor<E extends RuntimePayload["kind"]> = Extract<RuntimePayload, { kind: E }>;
 /** 迁移动作接收已收窄的状态与事件类型。 */
@@ -42,7 +47,9 @@ export interface TransitionDefinition {
 
 /** 将持久状态映射到状态机节点，展开Suspended的三个子状态。 */
 export function stateKey(position: FlowPosition | TransitionPlan["next"]["position"]): StateKey {
-	return position.kind === "Suspended" ? `Suspended.${position.reason.kind}` : position.kind;
+	return position.kind === REACT_FLOW_STATE.SUSPENDED
+		? `${REACT_FLOW_STATE.SUSPENDED}.${position.reason.kind}`
+		: position.kind;
 }
 
 /** 绑定源状态、事件、目标集合及类型安全动作；注册后不可修改。 */

@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import type { AdvanceInput, RuntimePayload } from "../../src/contracts/flow-engine.ts";
-import { flowDigest, flowId } from "../../src/control/flow-engine/canonical.ts";
-import { isAdvanceInput } from "../../src/control/flow-engine/input-schema.ts";
+import { flowDigest, flowId } from "../../src/contracts/flow-value.ts";
+import { isAdvanceInput } from "../../src/control/react-flow/input-schema.ts";
 
 const data: {
 	cases: { id: string; input: unknown; expected: unknown }[];

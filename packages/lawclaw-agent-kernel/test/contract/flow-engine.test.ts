@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { canonicalize, flowDigest } from "../../src/control/flow-engine/canonical.ts";
-import { FlowEngine } from "../../src/control/flow-engine/flow-engine.ts";
+import { canonicalize, flowDigest } from "../../src/contracts/flow-value.ts";
+import { ReActFlowPolicy as FlowEngine } from "../../src/control/react-flow/react-flow-policy.ts";
 import { flowExamples, flowInput } from "../support/flow-engine-fixtures.ts";
 
 test("[AK-FE-001] FE-CON-1八个独立设计向量与实际Core完整输出一致", () => {

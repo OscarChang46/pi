@@ -14,23 +14,12 @@ import {
 	type ToolDescriptor,
 	type ToolInvocation,
 } from "../contracts/index.ts";
+import { FLOW_COMMAND_STATUS } from "../contracts/react-flow-values.ts";
 import { assertRequestContext } from "../contracts/request-context-guard.ts";
 import type { ToolCoordinatorPort } from "../contracts/tool-runtime.ts";
 import type { ToolExecutionScope } from "../contracts/tool-scope.ts";
 import type { AgentLoopLifecyclePort } from "./agent-loop.ts";
-
-const delegationToolDescriptorBase = {
-	name: "lawclaw_delegate",
-	version: "1.0.0",
-	description: "把单一技术分析目标委派给受限、只读、不可递归的子 Agent。",
-	risk: "read_only" as const,
-	inputSchema: {
-		type: "object" as const,
-		properties: { task: { type: "string", description: "有界的技术委派目标" } },
-		required: ["task"],
-		additionalProperties: false,
-	},
-} as const;
+import { createDelegationToolDescriptor } from "./delegation-tool-descriptor.ts";
 
 /**
  * Kernel 拥有的有界 Agent Loop。
@@ -64,10 +53,7 @@ export class RunFlow {
 		this.#delegationEngine = delegationEngine;
 		this.#runLimits = runLimits;
 		this.#timePort = timePort;
-		this.#delegationToolDescriptor = Object.freeze({
-			...delegationToolDescriptorBase,
-			maxResultBytes: delegationToolMaxResultBytes,
-		});
+		this.#delegationToolDescriptor = createDelegationToolDescriptor(delegationToolMaxResultBytes);
 	}
 
 	/** 执行一次有界 Agent Run，并返回规范化事件、输出和最后一个 ContextFrame。 */
@@ -138,7 +124,9 @@ export class RunFlow {
 			Math.max(1, Math.min(command.budget.maxDurationMs, remainingOperationMs)),
 		);
 		const signal = AbortSignal.any([externalSignal, deadlineSignal]);
-		const finishActiveLoop = (status: "COMPLETED" | "FAILED" | "CANCELLED"): void => {
+		const finishActiveLoop = (
+			status: "COMPLETED" | typeof FLOW_COMMAND_STATUS.FAILED | typeof FLOW_COMMAND_STATUS.CANCELLED,
+		): void => {
 			if (activeLoopOrdinal === undefined) return;
 			lifecycle?.loopFinished(activeLoopOrdinal, status, this.#timePort.now().isoUtc);
 			activeLoopOrdinal = undefined;
@@ -299,7 +287,7 @@ export class RunFlow {
 			}
 		} catch (error) {
 			if (signal.aborted) {
-				finishActiveLoop("CANCELLED");
+				finishActiveLoop(FLOW_COMMAND_STATUS.CANCELLED);
 				appendEvent("RunCancelled", { reason: "deadline_or_cancellation" });
 				return {
 					runId: command.runId,
@@ -311,7 +299,7 @@ export class RunFlow {
 					lastFrame: frame,
 				};
 			}
-			finishActiveLoop("FAILED");
+			finishActiveLoop(FLOW_COMMAND_STATUS.FAILED);
 			const normalized =
 				error instanceof KernelError ? error : new KernelError("ADAPTER_PROTOCOL_ERROR", "Run 执行失败。", true);
 			appendEvent("RunFailed", { errorCode: normalized.code, retryable: normalized.retryable });

@@ -1,3 +1,4 @@
+import type { FLOW_COMMAND_STATUS, FLOW_EFFECT, FLOW_WAIT_REASON, REACT_FLOW_STATE } from "./react-flow-values.ts";
 /** 不透明引用，限128个ASCII标识字符；不得作为访问授权。 */
 export type Ref = string;
 
@@ -11,7 +12,7 @@ export type Counter = number;
 export type Millis = number;
 
 /** 执行端报告的副作用事实；UNKNOWN禁止盲目重发。 */
-export type Effect = "NONE" | "KNOWN_NOT_APPLIED" | "KNOWN_APPLIED" | "UNKNOWN";
+export type Effect = (typeof FLOW_EFFECT)[keyof typeof FLOW_EFFECT];
 
 /** FE-CON-1 的 ArtifactRef 数据结构。 */
 export interface ArtifactRef {
@@ -122,7 +123,7 @@ export interface ChildSpec {
 export type WaitReason =
 	| {
 			/** 协议字段 kind；必填，取值及空值语义遵循 FE-CON-1。 */
-			readonly kind: "approval";
+			readonly kind: typeof FLOW_WAIT_REASON.APPROVAL;
 
 			/** 协议字段 approvalRef；必填，取值及空值语义遵循 FE-CON-1。 */
 			readonly approvalRef: Ref;
@@ -132,7 +133,7 @@ export type WaitReason =
 	  }
 	| {
 			/** 协议字段 kind；必填，取值及空值语义遵循 FE-CON-1。 */
-			readonly kind: "tool_unknown";
+			readonly kind: typeof FLOW_WAIT_REASON.TOOL_UNKNOWN;
 
 			/** 协议字段 toolCommandId；必填，取值及空值语义遵循 FE-CON-1。 */
 			readonly toolCommandId: Ref;
@@ -142,7 +143,7 @@ export type WaitReason =
 	  }
 	| {
 			/** 协议字段 kind；必填，取值及空值语义遵循 FE-CON-1。 */
-			readonly kind: "model_unknown";
+			readonly kind: typeof FLOW_WAIT_REASON.MODEL_UNKNOWN;
 
 			/** 协议字段 modelCommandId；必填，取值及空值语义遵循 FE-CON-1。 */
 			readonly modelCommandId: Ref;
@@ -155,18 +156,18 @@ export type WaitReason =
 export type FlowPosition =
 	| {
 			/** 协议字段 kind；必填，取值及空值语义遵循 FE-CON-1。 */
-			readonly kind: "Ready";
+			readonly kind: typeof REACT_FLOW_STATE.READY;
 	  }
 	| {
 			/** 协议字段 kind；必填，取值及空值语义遵循 FE-CON-1。 */
-			readonly kind: "AwaitingModel";
+			readonly kind: typeof REACT_FLOW_STATE.AWAITING_MODEL;
 
 			/** 协议字段 commandId；必填，取值及空值语义遵循 FE-CON-1。 */
 			readonly commandId: Ref;
 	  }
 	| {
 			/** 协议字段 kind；必填，取值及空值语义遵循 FE-CON-1。 */
-			readonly kind: "AwaitingPermission";
+			readonly kind: typeof REACT_FLOW_STATE.AWAITING_PERMISSION;
 
 			/** 协议字段 proposalId；必填，取值及空值语义遵循 FE-CON-1。 */
 			readonly proposalId: Ref;
@@ -176,7 +177,7 @@ export type FlowPosition =
 	  }
 	| {
 			/** 协议字段 kind；必填，取值及空值语义遵循 FE-CON-1。 */
-			readonly kind: "AwaitingTool";
+			readonly kind: typeof REACT_FLOW_STATE.AWAITING_TOOL;
 
 			/** 协议字段 proposalId；必填，取值及空值语义遵循 FE-CON-1。 */
 			readonly proposalId: Ref;
@@ -186,7 +187,7 @@ export type FlowPosition =
 	  }
 	| {
 			/** 协议字段 kind；必填，取值及空值语义遵循 FE-CON-1。 */
-			readonly kind: "AwaitingChild";
+			readonly kind: typeof REACT_FLOW_STATE.AWAITING_CHILD;
 
 			/** 协议字段 childId；必填，取值及空值语义遵循 FE-CON-1。 */
 			readonly childId: Ref;
@@ -196,35 +197,35 @@ export type FlowPosition =
 	  }
 	| {
 			/** 协议字段 kind；必填，取值及空值语义遵循 FE-CON-1。 */
-			readonly kind: "Suspended";
+			readonly kind: typeof REACT_FLOW_STATE.SUSPENDED;
 
 			/** 协议字段 reason；必填，取值及空值语义遵循 FE-CON-1。 */
 			readonly reason: WaitReason;
 	  }
 	| {
 			/** 协议字段 kind；必填，取值及空值语义遵循 FE-CON-1。 */
-			readonly kind: "Completed";
+			readonly kind: typeof REACT_FLOW_STATE.COMPLETED;
 
 			/** 协议字段 outputRef；必填，取值及空值语义遵循 FE-CON-1。 */
 			readonly outputRef: ArtifactRef;
 	  }
 	| {
 			/** 协议字段 kind；必填，取值及空值语义遵循 FE-CON-1。 */
-			readonly kind: "Failed";
+			readonly kind: typeof REACT_FLOW_STATE.FAILED;
 
 			/** 协议字段 code；必填，取值及空值语义遵循 FE-CON-1。 */
 			readonly code: FlowErrorCode;
 	  }
 	| {
 			/** 协议字段 kind；必填，取值及空值语义遵循 FE-CON-1。 */
-			readonly kind: "Cancelled";
+			readonly kind: typeof REACT_FLOW_STATE.CANCELLED;
 
 			/** 协议字段 reason；必填，取值及空值语义遵循 FE-CON-1。 */
 			readonly reason: "requested" | "deadline";
 	  };
 
-/** 权威Run快照；提交必须验证version与cancelEpoch。 */
-export interface RunSnapshot {
+/** AgentRun业务快照；与FlowRun四态视图独立。提交验证version与cancelEpoch。 */
+export interface AgentRunSnapshot {
 	/** 协议字段 runId；必填，取值及空值语义遵循 FE-CON-1。 */
 	readonly runId: Ref;
 
@@ -527,8 +528,8 @@ export interface AdvanceInput {
 	/** 协议字段 protocolVersion；必填，取值及空值语义遵循 FE-CON-1。 */
 	readonly protocolVersion: "1.0.0";
 
-	/** 协议字段 run；必填，取值及空值语义遵循 FE-CON-1。 */
-	readonly run: RunSnapshot;
+	/** v1序列化字段run只承载AgentRunSnapshot；业务局部变量命名agentRun。 */
+	readonly run: AgentRunSnapshot;
 
 	/** 协议字段 session；必填，取值及空值语义遵循 FE-CON-1。 */
 	readonly session: SessionSnapshot;
@@ -707,14 +708,14 @@ export type PlannedPosition =
 	  >
 	| {
 			/** 协议字段 kind；必填，取值及空值语义遵循 FE-CON-1。 */
-			readonly kind: "AwaitingModel";
+			readonly kind: typeof REACT_FLOW_STATE.AWAITING_MODEL;
 
 			/** 协议字段 commandOrdinal；必填，取值及空值语义遵循 FE-CON-1。 */
 			readonly commandOrdinal: Counter;
 	  }
 	| {
 			/** 协议字段 kind；必填，取值及空值语义遵循 FE-CON-1。 */
-			readonly kind: "AwaitingPermission" | "AwaitingTool";
+			readonly kind: typeof REACT_FLOW_STATE.AWAITING_PERMISSION | typeof REACT_FLOW_STATE.AWAITING_TOOL;
 
 			/** 协议字段 proposalId；必填，取值及空值语义遵循 FE-CON-1。 */
 			readonly proposalId: Ref;
@@ -724,7 +725,7 @@ export type PlannedPosition =
 	  }
 	| {
 			/** 协议字段 kind；必填，取值及空值语义遵循 FE-CON-1。 */
-			readonly kind: "AwaitingChild";
+			readonly kind: typeof REACT_FLOW_STATE.AWAITING_CHILD;
 
 			/** 协议字段 childId；必填，取值及空值语义遵循 FE-CON-1。 */
 			readonly childId: Ref;
@@ -896,7 +897,7 @@ export type CommitQuery =
 	  };
 
 /** FE-CON-1 的 CommandStatus 数据结构。 */
-export type CommandStatus = "PENDING" | "CLAIMED" | "ACCEPTED" | "SUCCEEDED" | "FAILED" | "UNKNOWN" | "CANCELLED";
+export type CommandStatus = (typeof FLOW_COMMAND_STATUS)[keyof typeof FLOW_COMMAND_STATUS];
 
 /** FE-CON-1 的 CommandRecord 数据结构。 */
 export interface CommandRecord {

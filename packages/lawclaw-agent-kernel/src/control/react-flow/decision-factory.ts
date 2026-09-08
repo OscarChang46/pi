@@ -5,7 +5,7 @@ import type {
 	FlowPosition,
 	TransitionPlan,
 } from "../../contracts/flow-engine.ts";
-import { canonicalize, flowDigest, flowId, freezeDecision } from "./canonical.ts";
+import { canonicalize, flowDigest, flowId, freezeDecision } from "../../contracts/flow-value.ts";
 import { reject } from "./input-guard.ts";
 import { isTransitionPlan } from "./input-schema.ts";
 import { validatePlan } from "./plan-validation.ts";

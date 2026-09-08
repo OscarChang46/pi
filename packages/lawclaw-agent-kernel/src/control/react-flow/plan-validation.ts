@@ -8,8 +8,9 @@ import type {
 	TransitionPlan,
 	WaitReason,
 } from "../../contracts/flow-engine.ts";
-import { canonicalize } from "./canonical.ts";
-import { createVariantMatcher } from "./variant-matcher.ts";
+import { canonicalize } from "../../contracts/flow-value.ts";
+import { FLOW_WAIT_REASON, isTerminalReActState, REACT_FLOW_STATE } from "../../contracts/react-flow-values.ts";
+import { createVariantMatcher } from "../variant-matcher.ts";
 
 type ValidationContext = { input: AdvanceInput; plan: TransitionPlan };
 type WaitingPosition = Extract<PlannedPosition, { commandOrdinal: number }>;
@@ -42,27 +43,29 @@ function reconciliationMatches(target: string, incident: string, commands: reado
 }
 
 const validateWait = createVariantMatcher<WaitReason, ValidationContext, boolean>({
-	approval: (_reason, { plan }) => plan.commands.length === 0,
-	tool_unknown: (reason, { plan }) => reconciliationMatches(reason.toolCommandId, reason.incidentRef, plan.commands),
-	model_unknown: (reason, { plan }) => reconciliationMatches(reason.modelCommandId, reason.incidentRef, plan.commands),
+	[FLOW_WAIT_REASON.APPROVAL]: (_reason, { plan }) => plan.commands.length === 0,
+	[FLOW_WAIT_REASON.TOOL_UNKNOWN]: (reason, { plan }) =>
+		reconciliationMatches(reason.toolCommandId, reason.incidentRef, plan.commands),
+	[FLOW_WAIT_REASON.MODEL_UNKNOWN]: (reason, { plan }) =>
+		reconciliationMatches(reason.modelCommandId, reason.incidentRef, plan.commands),
 });
 
 // 这是计划完整性约束，不选择下一状态；新增状态必须声明其命令关系。
 const validatePosition = createVariantMatcher<PlannedPosition, ValidationContext, boolean>({
-	Ready: (_position, { plan }) => plan.commands.length === 0,
-	AwaitingModel: (position, { plan }) => waiting(position, plan.commands, "InvokeModel"),
-	AwaitingPermission: (position, { plan }) =>
+	[REACT_FLOW_STATE.READY]: (_position, { plan }) => plan.commands.length === 0,
+	[REACT_FLOW_STATE.AWAITING_MODEL]: (position, { plan }) => waiting(position, plan.commands, "InvokeModel"),
+	[REACT_FLOW_STATE.AWAITING_PERMISSION]: (position, { plan }) =>
 		waiting(position, plan.commands, "RequestPermission") && proposalMatches(position, plan),
-	AwaitingTool: (position, { plan }) =>
+	[REACT_FLOW_STATE.AWAITING_TOOL]: (position, { plan }) =>
 		waiting(position, plan.commands, "DispatchTool") && proposalMatches(position, plan),
-	AwaitingChild: (position, { plan }) =>
+	[REACT_FLOW_STATE.AWAITING_CHILD]: (position, { plan }) =>
 		waiting(position, plan.commands, "CreateChildRun") &&
 		plan.commands[0].kind === "CreateChildRun" &&
 		position.childId === plan.commands[0].childId,
-	Suspended: (position, context) => validateWait(position.reason, context),
-	Completed: () => true,
-	Failed: () => true,
-	Cancelled: (_position, { input, plan }) =>
+	[REACT_FLOW_STATE.SUSPENDED]: (position, context) => validateWait(position.reason, context),
+	[REACT_FLOW_STATE.COMPLETED]: () => true,
+	[REACT_FLOW_STATE.FAILED]: () => true,
+	[REACT_FLOW_STATE.CANCELLED]: (_position, { input, plan }) =>
 		plan.commands.length === 1 &&
 		plan.commands[0].kind === "CancelOutstanding" &&
 		plan.commands[0].cancelEpoch === input.run.cancelEpoch,
@@ -85,7 +88,7 @@ export function validatePlan(input: AdvanceInput, plan: TransitionPlan): boolean
 	const { run, event } = input;
 	const { position, usage, pendingActions, transcriptAppend } = plan.next;
 	const commands = plan.commands;
-	const terminal = ["Completed", "Failed", "Cancelled"].includes(position.kind);
+	const terminal = isTerminalReActState(position.kind);
 	if (
 		commands.length > (terminal ? 2 : 1) ||
 		pendingActions.length > 8 ||

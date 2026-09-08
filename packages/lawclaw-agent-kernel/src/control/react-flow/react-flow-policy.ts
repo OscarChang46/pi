@@ -1,11 +1,11 @@
 import type { AdvanceInput, AdvanceResult, FlowAdvancePort } from "../../contracts/flow-engine.ts";
-import { freezeDecision } from "./canonical.ts";
+import { freezeDecision } from "../../contracts/flow-value.ts";
 import { DecisionFactory } from "./decision-factory.ts";
 import { InputGuard } from "./input-guard.ts";
 import { TransitionResolver } from "./transition-resolver.ts";
 
 /** FE-CON-1 无状态推进核心；同实例可交错处理多个 Run。 */
-export class FlowEngine implements FlowAdvancePort {
+export class ReActFlowPolicy implements FlowAdvancePort {
 	readonly #guard: InputGuard;
 	readonly #resolver: TransitionResolver;
 	readonly #factory: DecisionFactory;

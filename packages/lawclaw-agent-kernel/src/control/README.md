@@ -2,15 +2,15 @@
 
 ## 职责
 
-AgentSystem 是本地入口；RunRegistry 独立持有 Run，Session 只保存关联 ID。RunFlow 在轮次间推进上下文、工具和委派。
+FlowEngine在flow-system中仅处理四态、Activity与任务图；ReActFlowHost适配业务驱动和独立业务持久化。AgentSystem 是既有内存入口；RunRegistry 独立持有 Run，Session 只保存关联 ID。RunFlow 在轮次间推进上下文、工具和委派。
 
 ## 边界与非职责
 
-不持有 Pi 原生对象，不直接执行 Sandbox/Provider；不实现持久化 Scheduler。
+不持有Pi原生对象，不直接访问SQLite或执行Sandbox/Provider。FlowScheduler通过耐久端口重新发现Run；FlowDriver推进已提交事件，FlowCommandDispatcher管理派发与恢复策略。
 
 ## 接口、依赖与生命周期
 
-通过 AgentAdapter、ContextEnginePort、DelegationPort、ToolCoordinatorPort 与 ToolRuntimePort 调用。Run 的内存状态由 AgentRun 维护；活动 Session 关联在 finally 释放。
+通过 AgentAdapter、ContextEnginePort、DelegationPort、ToolCoordinatorPort 与 ToolRuntimePort 调用。既有Loop的内存状态由AgentRun维护；耐久Flow通过DurableFlowStore访问快照、命令和事件。两种入口共用ContextEngine、Pi Adapter与PDP/PEP。
 
 ## 文件与子目录
 
@@ -25,6 +25,21 @@ AgentSystem 是本地入口；RunRegistry 独立持有 Run，Session 只保存�
 - [run-flow.ts](run-flow.ts)
 - [run-registry.ts](run-registry.ts)
 - [tool-coordinator.ts](tool-coordinator.ts)
+
+- [flow-child-coordinator.ts](flow-child-coordinator.ts)
+- [flow-command-dispatcher.ts](flow-command-dispatcher.ts)
+- [flow-context.ts](flow-context.ts)
+- [flow-driver.ts](flow-driver.ts)
+- [flow-events.ts](flow-events.ts)
+- [flow-model-executor.ts](flow-model-executor.ts)
+- [flow-scheduler.ts](flow-scheduler.ts)
+- [flow-tool-executor.ts](flow-tool-executor.ts)
+- [delegation-tool-descriptor.ts](delegation-tool-descriptor.ts)：既有Loop与耐久Flow共用的委派契约。
+
+- [flow-system](flow-system/README.md)：通用系统执行框架。
+- [react-flow](react-flow/README.md)：ReAct业务状态策略。
+- [react-flow-host.ts](react-flow-host.ts)：业务宿主与系统Activity桥接。
+- [variant-matcher.ts](variant-matcher.ts)：穷尽策略分派。
 
 ## 设计依据
 

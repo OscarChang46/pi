@@ -1,4 +1,5 @@
 import type { AdvanceInput } from "../../contracts/flow-engine.ts";
+import { REACT_FLOW_STATE } from "../../contracts/react-flow-values.ts";
 import { reject } from "./input-guard.ts";
 import { transitionContext } from "./transition-context.ts";
 import type { Resolution } from "./transition-definition.ts";
@@ -14,7 +15,7 @@ const PRECONDITIONS: readonly Precondition[] = [
 		matches: ({ run }) => run.cancellationRequested,
 		resolve: (input) =>
 			transitionContext(input).plan(
-				{ kind: "Cancelled", reason: "requested" },
+				{ kind: REACT_FLOW_STATE.CANCELLED, reason: "requested" },
 				[{ kind: "CancelOutstanding", cancelEpoch: input.run.cancelEpoch }],
 				[],
 				[],
@@ -24,7 +25,7 @@ const PRECONDITIONS: readonly Precondition[] = [
 		matches: ({ operation }) => operation.nowMs >= operation.deadlineAtMs,
 		resolve: (input) =>
 			transitionContext(input).plan(
-				{ kind: "Cancelled", reason: "deadline" },
+				{ kind: REACT_FLOW_STATE.CANCELLED, reason: "deadline" },
 				[{ kind: "CancelOutstanding", cancelEpoch: input.run.cancelEpoch }],
 				[],
 				[],
@@ -33,14 +34,15 @@ const PRECONDITIONS: readonly Precondition[] = [
 	{
 		matches: ({ contextFailure, run, event }) =>
 			contextFailure !== null &&
-			(run.position.kind !== "Ready" ||
+			(run.position.kind !== REACT_FLOW_STATE.READY ||
 				run.pendingActions.length !== 0 ||
 				event.payload.kind !== "AdvanceRequested"),
 		resolve: () => reject("FLOW_INPUT_INVALID", "contextFailure"),
 	},
 	{
 		matches: ({ run }) =>
-			(run.position.kind === "AwaitingPermission" || run.position.kind === "AwaitingTool") &&
+			(run.position.kind === REACT_FLOW_STATE.AWAITING_PERMISSION ||
+				run.position.kind === REACT_FLOW_STATE.AWAITING_TOOL) &&
 			run.pendingActions[0]?.proposalId !== run.position.proposalId,
 		resolve: () => reject("FLOW_INPUT_INVALID", "run.pendingActions"),
 	},

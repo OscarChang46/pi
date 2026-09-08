@@ -1,4 +1,5 @@
 import type { AdvanceInput } from "../../contracts/flow-engine.ts";
+import { isTerminalReActState } from "../../contracts/react-flow-values.ts";
 import { FLOW_TRANSITIONS } from "./flow-transitions.ts";
 import { reject } from "./input-guard.ts";
 import { type Resolution, stateKey, type TransitionDefinition } from "./transition-definition.ts";
@@ -16,11 +17,7 @@ export class TransitionResolver {
 		const table = new Map<string, TransitionDefinition>();
 		for (const definition of definitions) {
 			const key = `${definition.from}:${definition.on}`;
-			if (
-				table.has(key) ||
-				["Completed", "Failed", "Cancelled"].includes(definition.from) ||
-				definition.targets.length === 0
-			)
+			if (table.has(key) || isTerminalReActState(definition.from) || definition.targets.length === 0)
 				throw new TypeError("FLOW_TRANSITION_DEFINITION_INVALID");
 			table.set(key, Object.freeze({ ...definition, targets: Object.freeze([...definition.targets]) }));
 		}

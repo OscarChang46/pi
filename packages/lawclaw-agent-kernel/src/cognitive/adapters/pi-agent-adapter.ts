@@ -10,6 +10,7 @@ import {
 	type Tool,
 	Type,
 } from "@earendil-works/pi-ai";
+import type { AdapterMessageStore } from "../../contracts/flow-artifacts.ts";
 import {
 	type AgentAdapter,
 	type AgentTurnRequest,
@@ -69,6 +70,7 @@ export class PiAgentAdapter implements AgentAdapter {
 		readonly maxRetries: number;
 	};
 	readonly #timePort: TimePort;
+	readonly #messageStore: AdapterMessageStore | undefined;
 
 	/** 创建单模型 Adapter；私有消息容量和底层重试均由装配配置注入。 */
 	public constructor(
@@ -79,11 +81,13 @@ export class PiAgentAdapter implements AgentAdapter {
 			readonly maxRetries: number;
 		},
 		timePort: TimePort,
+		messageStore?: AdapterMessageStore,
 	) {
 		this.#model = model;
 		this.#stream = stream;
 		this.#options = options;
 		this.#timePort = timePort;
+		this.#messageStore = messageStore;
 	}
 
 	/** 执行一个 Pi 模型 Turn，流式输出规范化候选事件；不在 Adapter 内执行工具。 */
@@ -134,6 +138,11 @@ export class PiAgentAdapter implements AgentAdapter {
 
 	#normalizeAssistant(message: AssistantMessage, tenantId: string): KernelAssistantMessage {
 		const runtimeMessageRef = randomUUID();
+		this.#messageStore?.put(tenantId, runtimeMessageRef, {
+			modelId: this.#model.id,
+			provider: this.#model.provider,
+			message,
+		});
 		if (this.#nativeMessages.size >= this.#options.maxPrivateMessages) {
 			const oldest = this.#nativeMessages.keys().next().value;
 			if (oldest !== undefined) this.#nativeMessages.delete(oldest);
@@ -175,7 +184,33 @@ export class PiAgentAdapter implements AgentAdapter {
 				timestamp: this.#timePort.now().epochMilliseconds,
 			};
 		}
-		const native = this.#nativeMessages.get(message.runtimeMessageRef);
+		let native = this.#nativeMessages.get(message.runtimeMessageRef);
+		if (!native && this.#messageStore) {
+			const stored = this.#messageStore.get(tenantId, message.runtimeMessageRef);
+			if (
+				typeof stored === "object" &&
+				stored !== null &&
+				"modelId" in stored &&
+				stored.modelId === this.#model.id &&
+				"provider" in stored &&
+				stored.provider === this.#model.provider &&
+				"message" in stored
+			) {
+				const restored = stored.message;
+				if (
+					typeof restored === "object" &&
+					restored !== null &&
+					"role" in restored &&
+					restored.role === "assistant" &&
+					"content" in restored &&
+					Array.isArray(restored.content) &&
+					"stopReason" in restored &&
+					"usage" in restored
+				) {
+					native = { tenantId, message: restored as AssistantMessage };
+				}
+			}
+		}
 		if (!native) {
 			throw new KernelError("ADAPTER_PROTOCOL_ERROR", "Pi 私有消息引用已失效；当前内存会话无法跨进程恢复。", false);
 		}

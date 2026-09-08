@@ -6,6 +6,7 @@ import type {
 	TranscriptEntry,
 	TransitionPlan,
 } from "../../contracts/flow-engine.ts";
+import { REACT_FLOW_STATE } from "../../contracts/react-flow-values.ts";
 import { reject } from "./input-guard.ts";
 
 /** 为单次迁移动作提供纯计划构造函数，不保存Run状态。 */
@@ -23,7 +24,7 @@ export function transitionContext(input: AdvanceInput) {
 		commands,
 	});
 	const failed = (code: FlowErrorCode, append: readonly TranscriptEntry[] = []): TransitionPlan =>
-		plan({ kind: "Failed", code }, [], append, []);
+		plan({ kind: REACT_FLOW_STATE.FAILED, code }, [], append, []);
 	const entry = (
 		kind: TranscriptEntry["kind"],
 		artifact: ArtifactRef,

@@ -10,7 +10,7 @@
 
 ## 接口、依赖与生命周期
 
-应用只调用 createPiAdapter 获取 AgentAdapter；配置只用于私有工厂装配。私有消息缓存有容量上限，不支持跨进程恢复。
+既有入口调用createPiAdapter；耐久Flow调用createConfiguredFlowModel。原生消息仍封装在Adapter内，通过AdapterMessageStore保存并按租户、模型校验后恢复；未注入该端口时仍只有有界进程内缓存。
 
 ## 文件与子目录
 
