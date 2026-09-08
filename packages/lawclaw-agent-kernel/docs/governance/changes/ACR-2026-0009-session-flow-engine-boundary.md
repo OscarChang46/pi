@@ -1,7 +1,7 @@
 # ACR-2026-0009：Session、FlowEngine 与 Multi-agent 边界修订
 
 > 状态：REVIEWING
-> 评审门禁：1/5 REOPENED
+> 评审门禁：1/5 REVIEWING
 > 日期：2026-09-04
 > 基于：`ACR-2026-0008` / `AKB-2026-09-03-09`
 
@@ -30,11 +30,20 @@
 
 ## 4. 评审影响
 
-本变更修改已在 `ACR-2026-0008` 步骤一确认的系统职责，因此步骤一重新进入 REVIEWING。步骤一重新确认前，不冻结步骤二接口；步骤五以前仍不得修改运行代码、Schema 和数据库迁移。
+本变更修改 `ACR-2026-0008` 的步骤一系统职责结论，因此当前整体评审停留在步骤一 REVIEWING。步骤一确认前，不冻结步骤二接口；步骤五以前仍不得修改运行代码、Schema 和数据库迁移。文档组织遵循 [ACR-2026-0010](ACR-2026-0010-layered-design-documentation.md)。
 
 ## 5. 设计证据
 
-- [AgentSession、FlowEngine 与本地资源调度](../../design/session-flow-engine-resource-subsystem-design.md)
-- [Operations 与 Infrastructure 最小能力](../../design/operations-infrastructure-minimum-design.md)
 - [总体设计](../../design/agent-kernel-design.md)
-- [C4 边界协议](../../design/c4-boundary-protocols.md)
+- [L1 Control 层设计](../../design/layers/l1-control/README.md)
+- [FlowEngine 组件设计](../../design/layers/l1-control/components/flow-engine.md)
+- [SessionManager 组件设计](../../design/layers/l1-control/components/session-manager.md)
+- [SubagentCoordinator 组件设计](../../design/layers/l1-control/components/subagent-coordinator.md)
+- [Operations Plane 层设计](../../design/layers/operations-plane/README.md)
+- [Infrastructure Plane 层设计](../../design/layers/infrastructure-plane/README.md)
+- [边界契约导览](../../design/contracts/README.md)
+- [Local-first 部署档案](../../design/deployment/local-first-profile.md)
+- [System SFMEA](../../verification/system-sfmea.md)
+- [文档清单](../../design/document-manifest.yaml)
+
+正式图形共 19 张，按 `docs/design/diagrams/{system,layers,components,contracts,scenarios,deployment}/` 分类；主题文件不计入架构图数量。

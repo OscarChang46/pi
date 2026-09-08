@@ -52,17 +52,17 @@ export interface ContextEngineConfig {
 	readonly contextItemOverheadTokens: number;
 }
 
-/** ToolRuntime 的目录容量配置。 */
+/** ToolCoordinator 的目录容量配置。 */
 export interface ToolRuntimeConfig {
 	/** 单个 Runtime 可注册的最大工具数。 */
 	readonly maxRegisteredTools: number;
 }
 
-/** Runtime、Session、AgentRun、Loop 四对象模型的容量配置。 */
+/** 控制入口的会话和关联 Run 容量配置；键名沿用现有配置。 */
 export interface AgentObjectModelConfig {
-	/** 单个 Runtime 内存中最多管理的 Session 数。 */
+	/** 控制入口在内存中最多管理的 Session 数。 */
 	readonly maxSessions: number;
-	/** 单个 Session 内存中最多保留的 AgentRun 数。 */
+	/** 单个 Session 最多关联的 Run 数；Run 由独立目录持有。 */
 	readonly maxRunsPerSession: number;
 }
 
@@ -84,7 +84,7 @@ export interface PiAdapterConfig {
 
 /** Kernel 内部组件的可调运行配置。 */
 export interface KernelRuntimeConfig {
-	/** 四对象聚合层级的容量上限。 */
+	/** 控制入口会话与 Run 关联数量的容量上限。 */
 	readonly objectModel: AgentObjectModelConfig;
 	/** Context 估算参数。 */
 	readonly context: ContextEngineConfig;
@@ -228,6 +228,7 @@ export interface RuntimeConfig {
 
 /** 配置加载失败；错误消息不得包含 Prompt 正文或凭据。 */
 export class RuntimeConfigurationError extends Error {
+	/** 创建配置错误；message 必须为不含配置正文或凭据的安全摘要。 */
 	public constructor(message: string) {
 		super(message);
 		this.name = "RuntimeConfigurationError";
@@ -238,6 +239,7 @@ export class RuntimeConfigurationError extends Error {
 export class PromptCatalog {
 	readonly #prompts: ReadonlyMap<string, string>;
 
+	/** 复制提示词映射作为只读目录；调用方后续修改原 Map 不影响目录。 */
 	public constructor(prompts: ReadonlyMap<string, string>) {
 		this.#prompts = new Map(prompts);
 	}

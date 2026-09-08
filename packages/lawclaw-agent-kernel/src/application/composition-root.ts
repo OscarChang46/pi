@@ -1,27 +1,22 @@
-import { createModels, fauxAssistantMessage, fauxProvider, fauxText, fauxToolCall } from "@earendil-works/pi-ai";
-import { builtinModels } from "@earendil-works/pi-ai/providers/all";
-import {
-	FakeDelegationProvider,
-	InMemoryPermissionSnapshots,
-	InProcessReadOnlySandbox,
-	PiAgentAdapter,
-	ReadOnlyToolProvider,
-	SystemTimeAdapter,
-} from "../adapters/index.ts";
-import { loadRuntimeSettings, RuntimeConfigurationError, type RuntimeSettings } from "../config/index.ts";
+import { createPiAdapter } from "../cognitive/adapters/pi-adapter-factory.ts";
+import { AgentRuntime } from "../cognitive/agent-runtime.ts";
+import { loadRuntimeSettings, type RuntimeSettings } from "../config/index.ts";
 import type { RequestContext, StartAgentRunCommand, TimePort } from "../contracts/index.ts";
-import {
-	AgentLoopEngine,
-	AgentRuntime,
-	ContextEngine,
-	computeWorkspaceResourceId,
-	createReadOnlyPermissionCeiling,
-	DelegationEngine,
-	InMemoryKillSwitch,
-	PermissionApprovalService,
-	SandboxPlanner,
-	ToolRuntime,
-} from "../kernel/index.ts";
+import { AgentSystem } from "../control/agent-system.ts";
+import { ContextEngine } from "../control/context-engine.ts";
+import { DelegationEngine } from "../control/delegation-engine.ts";
+import { computeWorkspaceResourceId, createReadOnlyPermissionCeiling } from "../control/permission-scope.ts";
+import { RunFlow } from "../control/run-flow.ts";
+import { RunRegistry } from "../control/run-registry.ts";
+import { InProcessReadOnlySandbox } from "../execution/adapters/in-process-read-only-sandbox.ts";
+import { ReadOnlyToolProvider } from "../execution/adapters/read-only-tool-provider.ts";
+import { SandboxPlanner } from "../execution/sandbox-planner.ts";
+import { FakeDelegationProvider } from "../infrastructure/adapters/fake-delegation-provider.ts";
+import { InMemoryPermissionSnapshots } from "../infrastructure/adapters/in-memory-permission-snapshots.ts";
+import { SystemTimeAdapter } from "../infrastructure/adapters/system-time-adapter.ts";
+import { InMemoryKillSwitch } from "../security/kill-switch.ts";
+import { PermissionApprovalService } from "../security/permission-approval.ts";
+import { createToolCoordinator } from "./tool-composition.ts";
 
 /** 创建配置化的本地调用上下文；服务接入时必须改由 Backend 签发可信上下文。 */
 export function createRequestContext(
@@ -76,52 +71,10 @@ export function createRunCommand(
 export async function createAgentKernel(
 	workspaceRoot: string,
 	settings: RuntimeSettings = loadRuntimeSettings(),
-): Promise<AgentRuntime> {
+): Promise<AgentSystem> {
 	const timePort = new SystemTimeAdapter();
-	let adapter: PiAgentAdapter;
-	const selection = settings.config.model;
+	const adapter = new AgentRuntime(createPiAdapter(settings, timePort));
 	const scenario = settings.config.runtime.fauxScenario;
-
-	if (selection.source === "faux") {
-		const faux = fauxProvider({
-			api: `${selection.providerId}-api`,
-			provider: selection.providerId,
-			models: [{ id: selection.modelId }],
-			tokenSize: { min: scenario.tokenSizeMin, max: scenario.tokenSizeMax },
-		});
-		faux.setResponses([
-			fauxAssistantMessage(
-				[
-					fauxText(scenario.beforeReadText),
-					fauxToolCall("lawclaw_read_text", { path: scenario.readPath }, { id: crypto.randomUUID() }),
-				],
-				{ stopReason: "toolUse" },
-			),
-			fauxAssistantMessage(
-				[
-					fauxText(scenario.beforeDelegationText),
-					fauxToolCall("lawclaw_delegate", { task: scenario.delegationTask }, { id: crypto.randomUUID() }),
-				],
-				{ stopReason: "toolUse" },
-			),
-			fauxAssistantMessage(scenario.finalResponse),
-		]);
-		const models = createModels();
-		models.setProvider(faux.provider);
-		adapter = new PiAgentAdapter(
-			faux.getModel(),
-			models.streamSimple.bind(models),
-			settings.config.kernel.piAdapter,
-			timePort,
-		);
-	} else {
-		const models = builtinModels();
-		const model = models.getModel(selection.providerId, selection.modelId);
-		if (!model) {
-			throw new RuntimeConfigurationError(`模型目录中不存在配置项 ${selection.providerId}/${selection.modelId}。`);
-		}
-		adapter = new PiAgentAdapter(model, models.streamSimple.bind(models), settings.config.kernel.piAdapter, timePort);
-	}
 
 	const readOnlyProvider = await ReadOnlyToolProvider.create(workspaceRoot, settings.config.tools.readOnly, timePort);
 	const workspaceResourceId = computeWorkspaceResourceId(workspaceRoot);
@@ -138,7 +91,7 @@ export async function createAgentKernel(
 		subjectId: configuredContext.subjectId,
 		ceiling: permissionCeiling,
 	});
-	const toolRuntime = new ToolRuntime(
+	const toolRuntime = createToolCoordinator(
 		[readOnlyProvider],
 		settings.config.kernel.toolRuntime.maxRegisteredTools,
 		timePort,
@@ -159,7 +112,7 @@ export async function createAgentKernel(
 		settings.config.kernel.delegation.maxTrackedParents,
 		timePort,
 	);
-	const loopEngine = new AgentLoopEngine(
+	const loopEngine = new RunFlow(
 		adapter,
 		new ContextEngine(settings.config.kernel.context),
 		toolRuntime,
@@ -168,11 +121,12 @@ export async function createAgentKernel(
 		settings.config.kernel.delegation.delegationToolMaxResultBytes,
 		timePort,
 	);
-	return new AgentRuntime(
+	return new AgentSystem(
 		`runtime:${configuredContext.tenantId}`,
 		"agent:kernel-default",
 		loopEngine,
 		settings.config.kernel.objectModel,
 		permissionCeiling,
+		new RunRegistry(),
 	);
 }

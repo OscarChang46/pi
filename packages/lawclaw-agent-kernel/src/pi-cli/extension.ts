@@ -1,18 +1,20 @@
 import { fileURLToPath } from "node:url";
 import { type Static, Type } from "@earendil-works/pi-ai";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
-import { InMemoryPermissionSnapshots } from "../adapters/in-memory-permission-snapshots.ts";
-import { InProcessReadOnlySandbox } from "../adapters/in-process-read-only-sandbox.ts";
-import { PiCliDelegationProvider } from "../adapters/pi-cli-delegation-provider.ts";
-import { ReadOnlyToolProvider } from "../adapters/read-only-tool-provider.ts";
-import { SystemTimeAdapter } from "../adapters/system-time-adapter.ts";
+import { createToolCoordinator } from "../application/tool-composition.ts";
 import { loadRuntimeSettings, type RequestContextConfig, type RuntimeSettings } from "../config/index.ts";
 import type { RequestContext, TimePort, ToolInvocation } from "../contracts/index.ts";
-import { DelegationEngine } from "../kernel/delegation-engine.ts";
-import { InMemoryKillSwitch } from "../kernel/kill-switch.ts";
-import { PermissionApprovalService } from "../kernel/permission-approval.ts";
-import { SandboxPlanner } from "../kernel/sandbox-planner.ts";
-import { computeWorkspaceResourceId, createReadOnlyPermissionCeiling, ToolRuntime } from "../kernel/tool-runtime.ts";
+import { DelegationEngine } from "../control/delegation-engine.ts";
+import { computeWorkspaceResourceId, createReadOnlyPermissionCeiling } from "../control/permission-scope.ts";
+import type { ToolCoordinator } from "../control/tool-coordinator.ts";
+import { InProcessReadOnlySandbox } from "../execution/adapters/in-process-read-only-sandbox.ts";
+import { ReadOnlyToolProvider } from "../execution/adapters/read-only-tool-provider.ts";
+import { SandboxPlanner } from "../execution/sandbox-planner.ts";
+import { InMemoryPermissionSnapshots } from "../infrastructure/adapters/in-memory-permission-snapshots.ts";
+import { SystemTimeAdapter } from "../infrastructure/adapters/system-time-adapter.ts";
+import { InMemoryKillSwitch } from "../security/kill-switch.ts";
+import { PermissionApprovalService } from "../security/permission-approval.ts";
+import { PiCliDelegationProvider } from "./adapters/pi-cli-delegation-provider.ts";
 
 function requestContext(config: RequestContextConfig, timePort: TimePort): RequestContext {
 	const now = timePort.now();
@@ -41,7 +43,7 @@ async function runtimeFor(
 	settings: RuntimeSettings,
 	timePort: TimePort,
 	context: RequestContext,
-): Promise<ToolRuntime> {
+): Promise<ToolCoordinator> {
 	const provider = await ReadOnlyToolProvider.create(cwd, settings.config.tools.readOnly, timePort);
 	const ceiling = createReadOnlyPermissionCeiling(
 		settings.config.cli.toolPolicy,
@@ -55,7 +57,7 @@ async function runtimeFor(
 		subjectId: context.tenant.subjectId,
 		ceiling,
 	});
-	const runtime = new ToolRuntime([provider], settings.config.kernel.toolRuntime.maxRegisteredTools, timePort, {
+	const runtime = createToolCoordinator([provider], settings.config.kernel.toolRuntime.maxRegisteredTools, timePort, {
 		permissionApproval: new PermissionApprovalService(
 			snapshots,
 			snapshots,

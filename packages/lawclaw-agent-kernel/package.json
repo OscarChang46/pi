@@ -16,15 +16,30 @@
     "node": ">=22.19.0"
   },
   "scripts": {
-    "build": "tsgo -p tsconfig.build.json",
-    "typecheck": "tsgo -p tsconfig.json",
-    "test": "node --import tsx --test test/*.test.ts",
+    "build": "node scripts/compile.mjs --build",
+    "typecheck": "node scripts/compile.mjs --typecheck",
+    "test": "node scripts/verify.mjs",
+    "test:all": "node scripts/test-all.mjs",
+    "test:all:tooling": "node --test scripts/test-all-summary.test.mjs",
     "start": "tsx src/application/run-kernel.ts",
     "pi": "bash scripts/run-pi-cli.sh",
     "pi:smoke": "node scripts/pi-cli-smoke.mjs",
     "check:comments": "node scripts/check-public-contract-comments.mjs",
-    "check:architecture": "bash scripts/check-architecture-governance.sh && bash scripts/check-architecture-conformance.sh && bash scripts/check-runtime-boundaries.sh && npm run check:comments",
-    "check": "npm run typecheck && npm test && npm start && npm run pi:smoke && npm run check:architecture && npm audit --audit-level=high"
+    "check:architecture": "bash scripts/check-architecture-governance.sh && bash scripts/check-architecture-conformance.sh && bash scripts/check-runtime-boundaries.sh && npm run check:comments && npm run check:docs",
+    "check": "npm run verify",
+    "check:boundaries": "bash scripts/check-runtime-boundaries.sh",
+    "check:docs": "node scripts/check-framework-docs.mjs",
+    "test:coverage": "node scripts/coverage.mjs --mode report",
+    "test:coverage:gate": "node scripts/coverage.mjs --mode gate",
+    "test:coverage:tooling": "node --test scripts/coverage-tooling.test.mjs",
+    "verify": "node scripts/verify.mjs --checks",
+    "test:ut": "node scripts/verify.mjs --level ut",
+    "test:dt": "node scripts/verify.mjs --level dt",
+    "test:contract": "node scripts/verify.mjs --level contract",
+    "test:integration": "node scripts/verify.mjs --level integration",
+    "test:system": "node scripts/verify.mjs --level system",
+    "test:list": "node scripts/verify.mjs --list",
+    "audit:dependencies": "npm audit --audit-level=high"
   },
   "dependencies": {
     "@earendil-works/pi-ai": "^0.84.4",
@@ -34,6 +49,7 @@
   "devDependencies": {
     "@types/node": "22.19.19",
     "@typescript/native-preview": "7.0.0-dev.20260120.1",
+    "c8": "12.0.0",
     "tsx": "4.22.1",
     "typescript": "5.9.3"
   }

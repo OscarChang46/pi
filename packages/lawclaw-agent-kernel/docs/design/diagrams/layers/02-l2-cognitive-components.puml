@@ -1,0 +1,29 @@
+@startuml
+!include ../theme.puml
+title L2 认知运行层组件图
+left to right direction
+
+rectangle "L1 RuntimePool / FlowEngine" as L1 LC_EXTERNAL
+package "L2 Cognitive Runtime" LC_KERNEL {
+  component "AgentRuntime / AgentLoop" as LOOP
+  component "ParserNormalizer" as PARSER
+  component "AgentAdapter Boundary" as ADAPTER_BOUNDARY
+  component "PiAgentAdapter" as PI
+}
+rectangle "Model Provider" as MODEL LC_EXTERNAL
+rectangle "Operations Plane" as OPS LC_OPERATIONS
+
+L1 --> LOOP : BND-L12-001\nRuntimeControlPort
+LOOP --> ADAPTER_BOUNDARY : AgentAdapterPort
+ADAPTER_BOUNDARY --> PI : Adapter 私有映射
+PI --> MODEL : BND-MOD-001\n私有 Provider 协议
+PI --> PARSER : 规范化 AgentEvent
+PARSER ..> LOOP : 已校验 RuntimeEvent
+LOOP ..> L1 : RuntimeEventPort\nToolCallCandidate / Progress
+LOOP ..> OPS : BND-OPS-001
+
+note bottom of PARSER
+  Provider 私有解析留在 Adapter；
+  本组件只校验规范化事件。
+end note
+@enduml

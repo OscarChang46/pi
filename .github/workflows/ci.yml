@@ -35,6 +35,18 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Agent kernel acceptance
+        id: kernel-acceptance
+        run: npm run verify --workspace=lawclaw-agent-kernel -- --report-dir .artifacts/verification-ci
+
+      - name: Archive agent kernel acceptance
+        if: ${{ always() && steps.kernel-acceptance.outcome != 'skipped' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: lawclaw-kernel-acceptance
+          path: packages/lawclaw-agent-kernel/.artifacts/verification-ci
+          if-no-files-found: error
+
       - name: Check
         run: npm run check
 

@@ -1,0 +1,88 @@
+@startuml
+!include ../../drawio-theme.puml
+title Subagent 生命周期与上层 Multi-agent 边界
+left to right direction
+
+class "AgentRuntime" as Runtime <<external_subdomain>>
+class "业务编排 / Multi-agent Builder" as BusinessMultiAgent <<external_subdomain>>
+class "Run Domain" as RunDomain <<external_subdomain>>
+class "Permission System" as Permission <<external_subdomain>>
+class "Session Domain" as SessionDomain <<external_subdomain>>
+
+package "Agent Kernel System" as Kernel <<bounded_context>> {
+  package "Structured Subagent" as SubagentModule <<domain_module>> {
+    interface ChildRunPort <<inbound_port>> {
+      +submitChild(parentRunId, spec, envelopeRef): ChildRunRef
+      +join(parentRunId, childRunIds): JoinResultRef
+      +cancelTree(scopeId, reason)
+    }
+    interface RunSchedulerPort <<outbound_port>> {
+      +enqueueChild(parentRunId, spec, envelopeRef): RunId
+      +cancelTree(scopeId, reason)
+      +queryTerminal(runIds): RunSnapshot[]
+    }
+    interface SessionBranchPort <<outbound_port>> {
+      +branch(parentSessionId, contextSelection): SessionId
+    }
+    interface PermissionDecisionPort <<outbound_port>> {
+      +authorizeDelegation(proposal, envelopeRef): PermissionDecision
+    }
+    interface PermitValidationPort <<outbound_port>> {
+      +validateAndConsume(permitRef, actionDigest, envelopeRef): ConsumeResult
+    }
+
+    class SubagentCoordinator <<application_service>>
+    class AgentExecutionScope <<aggregate_root>> {
+      +scopeId: ExecutionScopeId
+      +rootRunId: RunId
+      +status: OPEN|DRAINING|CLOSED
+      +activeChildCount: int
+      +version: long
+    }
+    class DelegationPolicy <<value_object>> {
+      +maxDepth: int
+      +maxChildren: int
+      +maxConcurrency: int
+    }
+    class DelegationSpec <<value_object>> {
+      +agentDefinitionRef: AgentDefinitionRef
+      +contextSelection: ContextSelection
+      +budgetSubset: RunBudget
+      +deadlineAt: Instant
+      +isolatedSession: boolean
+    }
+    class ParentChildRunLink <<entity>> {
+      +parentRunId: RunId
+      +childRunId: RunId
+      +childSessionId: SessionId?
+      +status: CREATED|RUNNING|JOINED|CANCELLED|TRANSFERRED
+      +resultRef: ArtifactReference?
+    }
+
+    ChildRunPort <|.. SubagentCoordinator
+    SubagentCoordinator --> AgentExecutionScope
+    SubagentCoordinator --> RunSchedulerPort
+    SubagentCoordinator --> SessionBranchPort
+    SubagentCoordinator --> PermissionDecisionPort
+    SubagentCoordinator --> PermitValidationPort
+    AgentExecutionScope *-- DelegationPolicy
+    AgentExecutionScope *-- ParentChildRunLink
+    ParentChildRunLink *-- DelegationSpec
+  }
+}
+
+Runtime --> ChildRunPort : Fork / Join / Cancel
+RunSchedulerPort --> RunDomain : 统一创建与调度 Child Run
+SessionBranchPort --> SessionDomain : 仅需上下文隔离时创建 Child Session
+PermissionDecisionPort --> Permission : 权限、预算、Deadline 求交集
+PermitValidationPort --> Permission : 创建 Child 前消费 Permit
+
+BusinessMultiAgent --> RunDomain : 通用 Run/Session 接口\n组建多个独立 Agent
+BusinessMultiAgent -[#DC2626,dashed]-> SubagentModule : 禁止把 Team/Role/仲裁写入 Kernel
+
+note bottom of AgentExecutionScope
+  Kernel 只拥有结构化 Child Run 生命周期，不拥有 Multi-agent 团队模型。
+  Parent 终态前必须 Join、Cancel 或受控移交所有 Child。
+  Session 不对应进程；Child 仅在需要上下文隔离时派生 Session。
+end note
+@enduml

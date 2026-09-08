@@ -1,0 +1,44 @@
+@startuml
+!include ../theme.puml
+title 工具调用与异步审批（V3）
+
+participant "AgentRuntime" as Runtime
+participant "L1 Action Coordinator / PEP" as Control
+participant "ToolRuntime" as Tool
+participant "PermissionSystem" as Permission
+participant "Backend / 业务审批" as Approval
+participant "SandboxPort" as Sandbox
+participant "ToolProviderPort" as Provider
+participant "Run/Event Domain" as Events
+
+Runtime -> Control : RuntimeEventPort.publish(ToolCallCandidate)
+Control -> Tool : ToolRuntimePort.executeTool(candidate, envelopeRef)
+Tool -> Permission : PermissionDecisionPort.authorize(actionProposal, envelopeRef)
+alt Allow
+  Permission --> Tool : Allow + 一次性 ExecutionPermit
+else Ask
+  Permission -> Approval : ApprovalRequestPort.requestDecision(request)
+  Permission --> Tool : Ask + PermissionRequestRef
+  Tool -> Events : ToolCallWaitingForApproval
+  Approval -> Permission : ApprovalDecisionPort.submitDecision
+  Permission --> Tool : ExecutionPermit 或 Deny
+else Deny
+  Permission --> Tool : Deny(reasonCode)
+end
+
+opt 获得有效 ExecutionPermit
+  Tool -> Permission : consume(permitId, actionDigest)
+  Permission --> Tool : consumed
+  Tool -> Sandbox : SandboxPort.prepare(request subset of permit)
+  Sandbox --> Tool : sandboxHandle
+  Tool -> Provider : ToolProviderPort.execute(authorizedRequest)
+  Provider --> Tool : ToolResult
+  Tool -> Events : ToolCallCompleted / Failed
+  Tool --> Control : ToolResultRef
+  Control -> Runtime : RuntimeControlPort.resumeAttempt(ToolResultRef)
+end
+
+note over Tool,Provider
+  Candidate 不得直接进入 Provider；审批决定不能扩张原始 ActionProposal。
+end note
+@enduml

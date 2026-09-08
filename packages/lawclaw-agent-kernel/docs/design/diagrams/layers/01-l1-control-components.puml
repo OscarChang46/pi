@@ -1,0 +1,54 @@
+@startuml
+!include ../theme.puml
+title L1 统一控制层组件图
+left to right direction
+
+rectangle "Client / Backend\n可信 ExecutionEnvelopeRef" as CLIENT LC_EXTERNAL
+package "L1 Control & Orchestration" LC_KERNEL {
+  component "Protocol Facade" as FACADE
+  component "AgentSystemGateway" as GATEWAY
+  component "AgentRegistry" as REGISTRY
+  component "CapabilityRouter" as ROUTER
+  component "SessionManager" as SESSION
+  component "RunRegistry" as RUNS
+  component "RunScheduler" as SCHEDULER
+  component "FlowEngine\n无状态推进" as FLOW
+  component "ContextEngine" as CONTEXT
+  component "MemoryManager" as MEMORY
+  component "ResourceManager" as RESOURCE
+  component "RuntimePool" as POOL
+  component "SubagentCoordinator" as CHILD
+}
+rectangle "L2 Cognitive Runtime" as L2 LC_EXTERNAL
+rectangle "Security Plane" as SEC LC_EXTERNAL
+rectangle "L3 Tool Runtime" as L3 LC_EXTERNAL
+rectangle "Infrastructure Ports" as INFRA LC_INFRASTRUCTURE
+
+CLIENT --> FACADE : BND-EXT-001
+FACADE --> GATEWAY : AgentSystemGateway
+GATEWAY --> REGISTRY : Registry Port
+GATEWAY --> SESSION : Session Port
+GATEWAY --> RUNS : Run Command/Query Port
+REGISTRY --> ROUTER : 能力与适配档案
+RUNS --> SCHEDULER : RunSchedulingPort
+SCHEDULER --> RESOURCE : ResourceAdmissionPort
+RESOURCE --> POOL : RuntimeDispatchPort
+POOL --> L2 : BND-L12-001
+L2 ..> FLOW : RuntimeEventPort
+FLOW --> CONTEXT : ContextPort
+CONTEXT --> SESSION : SessionQueryPort
+CONTEXT --> MEMORY : BND-MEM-001
+FLOW --> SEC : BND-SEC-001\nActionProposal
+FLOW --> L3 : BND-L13-001\nAuthorizedToolRequest
+FLOW --> CHILD : ChildRunPort
+CHILD --> SCHEDULER : RunSchedulerPort
+SESSION --> INFRA : SessionRepositoryPort
+RUNS --> INFRA : RunRepositoryPort
+RESOURCE --> INFRA : ExecutionCapacityPort
+
+L2 -[#DC2626,dashed,bold]-> L3 : <color:#B91C1C>禁止绕过 L1</color>
+note bottom of FLOW
+  FlowEngine 只计算 NextAction；不持久化、
+  不判权限、不执行工具、不拥有业务 Workflow。
+end note
+@enduml

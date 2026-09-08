@@ -1,75 +1,44 @@
-import { promises as fs } from "node:fs";
+import fs from "node:fs";
 import path from "node:path";
-import process from "node:process";
 import ts from "typescript";
 
-const projectRoot = path.resolve(import.meta.dirname, "..");
-const publicApiRoots = [
-  path.join(projectRoot, "src", "contracts"),
-  path.join(projectRoot, "src", "config"),
-];
-const chineseText = /[\u3400-\u9fff]/u;
-
-async function listTypeScriptFiles(directory) {
-  const entries = await fs.readdir(directory, { withFileTypes: true });
-  const files = [];
-  for (const entry of entries) {
-    const entryPath = path.join(directory, entry.name);
-    if (entry.isDirectory()) files.push(...(await listTypeScriptFiles(entryPath)));
-    else if (entry.isFile() && entry.name.endsWith(".ts")) files.push(entryPath);
-  }
-  return files;
-}
-
-function hasChineseTsDoc(node, sourceFile) {
-  const leading = sourceFile.text.slice(node.getFullStart(), node.getStart(sourceFile));
-  const comments = leading.match(/\/\*\*[\s\S]*?\*\//gu) ?? [];
-  const closest = comments.at(-1);
-  return closest !== undefined && chineseText.test(closest);
-}
-
-function isExported(node) {
-  return node.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword) ?? false;
-}
-
-function displayName(node, sourceFile) {
-  if (node.name && ts.isIdentifier(node.name)) return node.name.text;
-  return node.getText(sourceFile).split(/[\s(:]/u, 1)[0] || "匿名成员";
-}
-
+const root = path.resolve(import.meta.dirname, "../src");
 const failures = [];
-const publicApiFiles = (await Promise.all(publicApiRoots.map((root) => listTypeScriptFiles(root)))).flat();
-for (const filePath of publicApiFiles) {
-  const sourceText = await fs.readFile(filePath, "utf8");
-  const sourceFile = ts.createSourceFile(filePath, sourceText, ts.ScriptTarget.Latest, true);
-  const relativePath = path.relative(projectRoot, filePath);
-
-  for (const statement of sourceFile.statements) {
-    const publicDeclaration =
-      ts.isInterfaceDeclaration(statement) ||
-      ts.isTypeAliasDeclaration(statement) ||
-      ts.isClassDeclaration(statement) ||
-      ts.isEnumDeclaration(statement);
-    if (!publicDeclaration || !isExported(statement)) continue;
-
-    if (!hasChineseTsDoc(statement, sourceFile)) {
-      failures.push(`${relativePath}:${sourceFile.getLineAndCharacterOfPosition(statement.getStart()).line + 1} 导出声明 ${displayName(statement, sourceFile)} 缺少中文 TSDoc`);
-    }
-
-    if (ts.isInterfaceDeclaration(statement)) {
-      for (const member of statement.members) {
-        if (!hasChineseTsDoc(member, sourceFile)) {
-          failures.push(`${relativePath}:${sourceFile.getLineAndCharacterOfPosition(member.getStart()).line + 1} 接口成员 ${statement.name.text}.${displayName(member, sourceFile)} 缺少中文 TSDoc`);
-        }
-      }
-    }
+function files(directory) {
+ return fs.readdirSync(directory, { withFileTypes: true }).flatMap(entry => entry.isDirectory()
+  ? files(path.join(directory, entry.name)) : entry.name.endsWith(".ts") ? [path.join(directory, entry.name)] : []);
+}
+for (const file of files(root)) {
+ const text = fs.readFileSync(file, "utf8");
+ const source = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true);
+ const privateMember = node => (node.name && ts.isPrivateIdentifier(node.name)) || node.modifiers?.some(modifier =>
+  modifier.kind === ts.SyntaxKind.PrivateKeyword || modifier.kind === ts.SyntaxKind.ProtectedKeyword);
+ function check(node) {
+  if (privateMember(node)) return;
+  const leading = text.slice(node.getFullStart(), node.getStart(source));
+  const doc = (leading.match(/\/\*\*[\s\S]*?\*\//gu) ?? []).at(-1);
+  if (!doc || !/[\u3400-\u9fff]/u.test(doc)) failures.push(`${path.relative(root,file)}:${source.getLineAndCharacterOfPosition(node.getStart(source)).line+1} 缺少中文 TSDoc`);
+ }
+ function nested(type) {
+  if (ts.isTypeLiteralNode(type)) {
+   for (const member of type.members) { check(member); if (member.type) nested(member.type); }
+  } else ts.forEachChild(type, nested);
+ }
+ for (const statement of source.statements) {
+  if (ts.isExportDeclaration(statement)) {
+   if (!statement.exportClause) failures.push(`${path.relative(root,file)} 禁止通配导出`);
+   continue;
   }
+  if (!statement.modifiers?.some(modifier => modifier.kind === ts.SyntaxKind.ExportKeyword)) continue;
+  check(statement);
+  if (ts.isClassDeclaration(statement) || ts.isInterfaceDeclaration(statement)) {
+   for (const member of statement.members) {
+    if (privateMember(member)) continue;
+    check(member); if (member.type) nested(member.type);
+   }
+  } else if (ts.isTypeAliasDeclaration(statement)) nested(statement.type);
+ }
+ if (path.basename(file) === "index.ts" && !/^\/\*\*[\s\S]*?[\u3400-\u9fff]/u.test(text)) failures.push(`${file} 缺少导出范围说明`);
 }
-
-if (failures.length > 0) {
-  console.error("错误：公共契约中文注释门禁未通过：");
-  for (const failure of failures) console.error(`- ${failure}`);
-  process.exit(1);
-}
-
-console.log("公共契约中文 TSDoc 覆盖检查通过。");
+if (failures.length) { console.error(failures.join("\n")); process.exit(1); }
+console.log("全部源码导出、公开成员、嵌套契约及显式导出注释检查通过。");

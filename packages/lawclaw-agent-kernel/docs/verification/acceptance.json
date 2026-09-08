@@ -1,0 +1,1633 @@
+{
+  "schemaVersion": 1,
+  "capabilities": [
+    {
+      "id": "control",
+      "title": "Run / Session 当前内存状态",
+      "status": "partial"
+    },
+    {
+      "id": "context",
+      "title": "上下文预算",
+      "status": "implemented"
+    },
+    {
+      "id": "delegation",
+      "title": "当前单层委派",
+      "status": "partial"
+    },
+    {
+      "id": "boundaries",
+      "title": "职责依赖与候选边界",
+      "status": "implemented"
+    },
+    {
+      "id": "security",
+      "title": "Grant 与停止开关",
+      "status": "partial"
+    },
+    {
+      "id": "entry",
+      "title": "公开入口与 Pi 纵切",
+      "status": "implemented"
+    },
+    {
+      "id": "tools",
+      "title": "工具协调与只读执行",
+      "status": "implemented"
+    },
+    {
+      "id": "config",
+      "title": "配置与装配",
+      "status": "implemented"
+    },
+    {
+      "id": "execution",
+      "title": "只读执行约束",
+      "status": "partial"
+    },
+    {
+      "id": "time",
+      "title": "UTC / IANA 时间",
+      "status": "implemented"
+    },
+    {
+      "id": "memory",
+      "title": "本地持久化 Memory",
+      "status": "planned"
+    },
+    {
+      "id": "package",
+      "title": "第三方 Package 隔离",
+      "status": "planned"
+    },
+    {
+      "id": "observability",
+      "title": "运维后端",
+      "status": "planned"
+    },
+    {
+      "id": "cognitive",
+      "title": "认知单轮契约",
+      "status": "implemented"
+    },
+    {
+      "id": "verification",
+      "title": "验收框架自身",
+      "status": "implemented"
+    },
+    {
+      "id": "flow-engine",
+      "title": "FE-CON-1纯Core及运行边界接入",
+      "status": "partial"
+    }
+  ],
+  "requirements": [
+    {
+      "id": "REQ-AK-RUN-001",
+      "capability": "control",
+      "status": "implemented",
+      "title": "控制入口独立持有 Run，Session 只关联 Run 标识",
+      "risk": "当前 control 行为违反其边界或结果语义",
+      "levels": [
+        "dt"
+      ],
+      "cases": [
+        {
+          "id": "AK-RUN-001",
+          "level": "dt",
+          "file": "test/dt/agent-object-model.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-RUN-002",
+      "capability": "control",
+      "status": "implemented",
+      "title": "Runtime 和 Session 拒绝跨租户复用、重复 Run 与容量扩张",
+      "risk": "当前 control 行为违反其边界或结果语义",
+      "levels": [
+        "dt"
+      ],
+      "cases": [
+        {
+          "id": "AK-RUN-002",
+          "level": "dt",
+          "file": "test/dt/agent-object-model.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-CTX-001",
+      "capability": "context",
+      "status": "implemented",
+      "title": "ContextEngine 保留必选项并按优先级裁剪可选项",
+      "risk": "当前 context 行为违反其边界或结果语义",
+      "levels": [
+        "ut"
+      ],
+      "cases": [
+        {
+          "id": "AK-CTX-001",
+          "level": "ut",
+          "file": "test/ut/context-engine.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-CTX-002",
+      "capability": "context",
+      "status": "implemented",
+      "title": "ContextEngine 拒绝内联 Secret",
+      "risk": "当前 context 行为违反其边界或结果语义",
+      "levels": [
+        "ut"
+      ],
+      "cases": [
+        {
+          "id": "AK-CTX-002",
+          "level": "ut",
+          "file": "test/ut/context-engine.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-DEL-001",
+      "capability": "delegation",
+      "status": "implemented",
+      "title": "DelegationEngine 允许父 Run 创建一个子 Run",
+      "risk": "当前 delegation 行为违反其边界或结果语义",
+      "levels": [
+        "dt"
+      ],
+      "cases": [
+        {
+          "id": "AK-DEL-001",
+          "level": "dt",
+          "file": "test/dt/delegation-engine.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-DEL-002",
+      "capability": "delegation",
+      "status": "implemented",
+      "title": "DelegationEngine 拒绝递归子 Agent",
+      "risk": "当前 delegation 行为违反其边界或结果语义",
+      "levels": [
+        "dt"
+      ],
+      "cases": [
+        {
+          "id": "AK-DEL-002",
+          "level": "dt",
+          "file": "test/dt/delegation-engine.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-BND-001",
+      "capability": "boundaries",
+      "status": "implemented",
+      "title": "认知候选交回控制层，工具结果进入下一轮上下文",
+      "risk": "当前 boundaries 行为违反其边界或结果语义",
+      "levels": [
+        "integration"
+      ],
+      "cases": [
+        {
+          "id": "AK-BND-001",
+          "level": "integration",
+          "file": "test/integration/framework-boundaries.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-BND-002",
+      "capability": "boundaries",
+      "status": "implemented",
+      "title": "认知层在工具候选之后收到取消，不向控制层交付可执行完成结果",
+      "risk": "当前 boundaries 行为违反其边界或结果语义",
+      "levels": [
+        "dt"
+      ],
+      "cases": [
+        {
+          "id": "AK-BND-002",
+          "level": "dt",
+          "file": "test/dt/framework-boundaries.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-BND-003",
+      "capability": "boundaries",
+      "status": "implemented",
+      "title": "源码门禁拒绝跨职责实现依赖和运行时环",
+      "risk": "当前 boundaries 行为违反其边界或结果语义",
+      "levels": [
+        "dt"
+      ],
+      "cases": [
+        {
+          "id": "AK-BND-003",
+          "level": "dt",
+          "file": "test/dt/framework-boundaries.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-KILL-001",
+      "capability": "security",
+      "status": "implemented",
+      "title": "Kill Switch 支持全部八种作用域且任一匹配项都会阻断",
+      "risk": "当前 security 行为违反其边界或结果语义",
+      "levels": [
+        "ut"
+      ],
+      "cases": [
+        {
+          "id": "AK-KILL-001",
+          "level": "ut",
+          "file": "test/ut/kill-switch.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-KILL-002",
+      "capability": "security",
+      "status": "implemented",
+      "title": "上层 active 会阻断下层目标但不会误伤其他租户",
+      "risk": "当前 security 行为违反其边界或结果语义",
+      "levels": [
+        "ut"
+      ],
+      "cases": [
+        {
+          "id": "AK-KILL-002",
+          "level": "ut",
+          "file": "test/ut/kill-switch.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-KILL-003",
+      "capability": "security",
+      "status": "implemented",
+      "title": "重复启停幂等且 epoch 只在实际状态变化时递增",
+      "risk": "当前 security 行为违反其边界或结果语义",
+      "levels": [
+        "ut"
+      ],
+      "cases": [
+        {
+          "id": "AK-KILL-003",
+          "level": "ut",
+          "file": "test/ut/kill-switch.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-KILL-004",
+      "capability": "security",
+      "status": "implemented",
+      "title": "watch 先返回快照并发布启停后的新 epoch",
+      "risk": "当前 security 行为违反其边界或结果语义",
+      "levels": [
+        "dt"
+      ],
+      "cases": [
+        {
+          "id": "AK-KILL-004",
+          "level": "dt",
+          "file": "test/dt/kill-switch.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-KILL-005",
+      "capability": "security",
+      "status": "implemented",
+      "title": "非法、跨租户或不完整目标默认拒绝",
+      "risk": "当前 security 行为违反其边界或结果语义",
+      "levels": [
+        "ut"
+      ],
+      "cases": [
+        {
+          "id": "AK-KILL-005",
+          "level": "ut",
+          "file": "test/ut/kill-switch.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-AUTH-001",
+      "capability": "security",
+      "status": "implemented",
+      "title": "只对五层权限交集内的调用返回不可变 ALLOW grant",
+      "risk": "当前 security 行为违反其边界或结果语义",
+      "levels": [
+        "dt"
+      ],
+      "cases": [
+        {
+          "id": "AK-AUTH-001",
+          "level": "dt",
+          "file": "test/dt/permission-approval.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-AUTH-002",
+      "capability": "security",
+      "status": "implemented",
+      "title": "任一上游权限收窄都不能增加最终 Grant",
+      "risk": "当前 security 行为违反其边界或结果语义",
+      "levels": [
+        "dt"
+      ],
+      "cases": [
+        {
+          "id": "AK-AUTH-002",
+          "level": "dt",
+          "file": "test/dt/permission-approval.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-AUTH-003",
+      "capability": "security",
+      "status": "implemented",
+      "title": "工具、网络、Secret 和预算分别按交集默认拒绝",
+      "risk": "当前 security 行为违反其边界或结果语义",
+      "levels": [
+        "dt"
+      ],
+      "cases": [
+        {
+          "id": "AK-AUTH-003",
+          "level": "dt",
+          "file": "test/dt/permission-approval.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-AUTH-004",
+      "capability": "security",
+      "status": "implemented",
+      "title": "端口异常、快照不匹配、人工确认和取消均失败关闭",
+      "risk": "当前 security 行为违反其边界或结果语义",
+      "levels": [
+        "dt"
+      ],
+      "cases": [
+        {
+          "id": "AK-AUTH-004",
+          "level": "dt",
+          "file": "test/dt/permission-approval.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-AUTH-005",
+      "capability": "security",
+      "status": "implemented",
+      "title": "revalidate 校验 digest、有效期和 policy/auth epoch",
+      "risk": "当前 security 行为违反其边界或结果语义",
+      "levels": [
+        "dt"
+      ],
+      "cases": [
+        {
+          "id": "AK-AUTH-005",
+          "level": "dt",
+          "file": "test/dt/permission-approval.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-AUTH-006",
+      "capability": "security",
+      "status": "implemented",
+      "title": "authorization epoch 变化使尚未过期的 Grant 失效",
+      "risk": "当前 security 行为违反其边界或结果语义",
+      "levels": [
+        "dt"
+      ],
+      "cases": [
+        {
+          "id": "AK-AUTH-006",
+          "level": "dt",
+          "file": "test/dt/permission-approval.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-FLOW-001",
+      "capability": "entry",
+      "status": "implemented",
+      "title": "Pi Adapter、Kernel Loop、只读工具和单层委派形成完整纵切",
+      "risk": "当前 entry 行为违反其边界或结果语义",
+      "levels": [
+        "system"
+      ],
+      "cases": [
+        {
+          "id": "AK-FLOW-001",
+          "level": "system",
+          "file": "test/system/pi-agent-loop.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-READ-001",
+      "capability": "tools",
+      "status": "implemented",
+      "title": "只读工具可以读取工作区文本并拒绝符号链接逃逸",
+      "risk": "当前 tools 行为违反其边界或结果语义",
+      "levels": [
+        "integration"
+      ],
+      "cases": [
+        {
+          "id": "AK-READ-001",
+          "level": "integration",
+          "file": "test/integration/read-only-tools.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-READ-002",
+      "capability": "tools",
+      "status": "implemented",
+      "title": "ToolCoordinator 默认拒绝未在政策中的工具",
+      "risk": "当前 tools 行为违反其边界或结果语义",
+      "levels": [
+        "integration"
+      ],
+      "cases": [
+        {
+          "id": "AK-READ-002",
+          "level": "integration",
+          "file": "test/integration/read-only-tools.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-READ-003",
+      "capability": "tools",
+      "status": "implemented",
+      "title": "ToolCoordinator 拒绝跨租户复用已初始化目录",
+      "risk": "当前 tools 行为违反其边界或结果语义",
+      "levels": [
+        "integration"
+      ],
+      "cases": [
+        {
+          "id": "AK-READ-003",
+          "level": "integration",
+          "file": "test/integration/read-only-tools.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-DOC-001",
+      "capability": "entry",
+      "status": "implemented",
+      "title": "README 公共入口示例可以完成本地 Faux 调用",
+      "risk": "当前 entry 行为违反其边界或结果语义",
+      "levels": [
+        "system"
+      ],
+      "cases": [
+        {
+          "id": "AK-DOC-001",
+          "level": "system",
+          "file": "test/system/readme-example.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-CFG-001",
+      "capability": "config",
+      "status": "implemented",
+      "title": "全部运行参数可从严格配置加载并用于 Faux 纵切",
+      "risk": "当前 config 行为违反其边界或结果语义",
+      "levels": [
+        "integration"
+      ],
+      "cases": [
+        {
+          "id": "AK-CFG-001",
+          "level": "integration",
+          "file": "test/integration/runtime-settings.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-CFG-002",
+      "capability": "config",
+      "status": "implemented",
+      "title": "运行配置对未知字段默认拒绝",
+      "risk": "当前 config 行为违反其边界或结果语义",
+      "levels": [
+        "dt"
+      ],
+      "cases": [
+        {
+          "id": "AK-CFG-002",
+          "level": "dt",
+          "file": "test/dt/runtime-settings.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-CFG-003",
+      "capability": "config",
+      "status": "implemented",
+      "title": "启动时校验所有系统提示词引用",
+      "risk": "当前 config 行为违反其边界或结果语义",
+      "levels": [
+        "dt"
+      ],
+      "cases": [
+        {
+          "id": "AK-CFG-003",
+          "level": "dt",
+          "file": "test/dt/runtime-settings.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-CFG-004",
+      "capability": "config",
+      "status": "implemented",
+      "title": "可配置参数不能突破绝对安全上限",
+      "risk": "当前 config 行为违反其边界或结果语义",
+      "levels": [
+        "dt"
+      ],
+      "cases": [
+        {
+          "id": "AK-CFG-004",
+          "level": "dt",
+          "file": "test/dt/runtime-settings.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-CFG-005",
+      "capability": "config",
+      "status": "implemented",
+      "title": "builtin 模型不存在时在模型调用前失败",
+      "risk": "当前 config 行为违反其边界或结果语义",
+      "levels": [
+        "integration"
+      ],
+      "cases": [
+        {
+          "id": "AK-CFG-005",
+          "level": "integration",
+          "file": "test/integration/runtime-settings.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-SBX-001",
+      "capability": "execution",
+      "status": "implemented",
+      "title": "SandboxPlanner 只生成 PermissionGrant 的确定性子集",
+      "risk": "当前 execution 行为违反其边界或结果语义",
+      "levels": [
+        "ut"
+      ],
+      "cases": [
+        {
+          "id": "AK-SBX-001",
+          "level": "ut",
+          "file": "test/ut/sandbox-security.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-SBX-002",
+      "capability": "execution",
+      "status": "implemented",
+      "title": "SandboxPlanner 拒绝资源、网络、Secret、预算和子进程扩权",
+      "risk": "当前 execution 行为违反其边界或结果语义",
+      "levels": [
+        "ut"
+      ],
+      "cases": [
+        {
+          "id": "AK-SBX-002",
+          "level": "ut",
+          "file": "test/ut/sandbox-security.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-SBX-003",
+      "capability": "execution",
+      "status": "implemented",
+      "title": "InProcessReadOnlySandbox 如实声明能力并传播协作取消",
+      "risk": "当前 execution 行为违反其边界或结果语义",
+      "levels": [
+        "contract"
+      ],
+      "cases": [
+        {
+          "id": "AK-SBX-003",
+          "level": "contract",
+          "file": "test/contract/sandbox-security.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-SBX-004",
+      "capability": "execution",
+      "status": "implemented",
+      "title": "InProcessReadOnlySandbox 对写入、网络、Secret、子进程和 OS 隔离要求失败关闭",
+      "risk": "当前 execution 行为违反其边界或结果语义",
+      "levels": [
+        "contract"
+      ],
+      "cases": [
+        {
+          "id": "AK-SBX-004",
+          "level": "contract",
+          "file": "test/contract/sandbox-security.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-TIME-001",
+      "capability": "time",
+      "status": "implemented",
+      "title": "TimePort 严格接受规范化 UTC 并拒绝隐式本地时间",
+      "risk": "当前 time 行为违反其边界或结果语义",
+      "levels": [
+        "contract"
+      ],
+      "cases": [
+        {
+          "id": "AK-TIME-001",
+          "level": "contract",
+          "file": "test/contract/time-port.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-TIME-002",
+      "capability": "time",
+      "status": "implemented",
+      "title": "TimePort 提供与墙上时间分离的进程内单调计时",
+      "risk": "当前 time 行为违反其边界或结果语义",
+      "levels": [
+        "contract"
+      ],
+      "cases": [
+        {
+          "id": "AK-TIME-002",
+          "level": "contract",
+          "file": "test/contract/time-port.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-TIME-003",
+      "capability": "time",
+      "status": "implemented",
+      "title": "TimePort 拒绝两个字段不一致的伪造 TimePoint",
+      "risk": "当前 time 行为违反其边界或结果语义",
+      "levels": [
+        "contract"
+      ],
+      "cases": [
+        {
+          "id": "AK-TIME-003",
+          "level": "contract",
+          "file": "test/contract/time-port.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-TIME-004",
+      "capability": "time",
+      "status": "implemented",
+      "title": "同一 UTC 时间点按 IANA 时区生成不同投影且不改变原时间",
+      "risk": "当前 time 行为违反其边界或结果语义",
+      "levels": [
+        "contract"
+      ],
+      "cases": [
+        {
+          "id": "AK-TIME-004",
+          "level": "contract",
+          "file": "test/contract/time-port.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-TIME-005",
+      "capability": "time",
+      "status": "implemented",
+      "title": "IANA 时区转换根据瞬间正确处理夏令时偏移",
+      "risk": "当前 time 行为违反其边界或结果语义",
+      "levels": [
+        "contract"
+      ],
+      "cases": [
+        {
+          "id": "AK-TIME-005",
+          "level": "contract",
+          "file": "test/contract/time-port.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-TIME-006",
+      "capability": "time",
+      "status": "implemented",
+      "title": "RequestContext 对未知时区默认拒绝",
+      "risk": "当前 time 行为违反其边界或结果语义",
+      "levels": [
+        "contract"
+      ],
+      "cases": [
+        {
+          "id": "AK-TIME-006",
+          "level": "contract",
+          "file": "test/contract/time-port.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-TOOL-001",
+      "capability": "tools",
+      "status": "implemented",
+      "title": "Permission Approval 拒绝后不会创建沙箱或调用 Provider",
+      "risk": "当前 tools 行为违反其边界或结果语义",
+      "levels": [
+        "integration"
+      ],
+      "cases": [
+        {
+          "id": "AK-TOOL-001",
+          "level": "integration",
+          "file": "test/integration/tool-security-integration.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-TOOL-002",
+      "capability": "tools",
+      "status": "implemented",
+      "title": "ToolCall 级 Kill Switch 在审批前阻断调用",
+      "risk": "当前 tools 行为违反其边界或结果语义",
+      "levels": [
+        "integration"
+      ],
+      "cases": [
+        {
+          "id": "AK-TOOL-002",
+          "level": "integration",
+          "file": "test/integration/tool-security-integration.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-TOOL-003",
+      "capability": "tools",
+      "status": "implemented",
+      "title": "等待权限判定时取消，不进入工具守卫或 Provider",
+      "risk": "当前 tools 行为违反其边界或结果语义",
+      "levels": [
+        "integration"
+      ],
+      "cases": [
+        {
+          "id": "AK-TOOL-003",
+          "level": "integration",
+          "file": "test/integration/tool-security-integration.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-TOOL-004",
+      "capability": "tools",
+      "status": "implemented",
+      "title": "已经取消的调用在权限判定前停止",
+      "risk": "当前 tools 行为违反其边界或结果语义",
+      "levels": [
+        "integration"
+      ],
+      "cases": [
+        {
+          "id": "AK-TOOL-004",
+          "level": "integration",
+          "file": "test/integration/tool-security-integration.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "FUTURE-SCHEDULER",
+      "capability": "control",
+      "status": "planned",
+      "title": "统一调度、资源公平性与 Root/Child 进度",
+      "risk": "统一调度、资源公平性与 Root/Child 进度",
+      "levels": [
+        "integration"
+      ],
+      "cases": []
+    },
+    {
+      "id": "FUTURE-MEMORY",
+      "capability": "memory",
+      "status": "planned",
+      "title": "本地 Memory 授权视图、版本及 SQLite 持久化",
+      "risk": "本地 Memory 授权视图、版本及 SQLite 持久化",
+      "levels": [
+        "integration"
+      ],
+      "cases": []
+    },
+    {
+      "id": "FUTURE-JOURNAL",
+      "capability": "control",
+      "status": "planned",
+      "title": "Journal、Attempt 与崩溃恢复",
+      "risk": "Journal、Attempt 与崩溃恢复",
+      "levels": [
+        "system"
+      ],
+      "cases": []
+    },
+    {
+      "id": "FUTURE-PERMIT",
+      "capability": "security",
+      "status": "planned",
+      "title": "一次性 Permit 原子消费及异步审批",
+      "risk": "一次性 Permit 原子消费及异步审批",
+      "levels": [
+        "integration"
+      ],
+      "cases": []
+    },
+    {
+      "id": "FUTURE-PACKAGE",
+      "capability": "package",
+      "status": "planned",
+      "title": "第三方 Package 准入、隔离、版本与回收",
+      "risk": "第三方 Package 准入、隔离、版本与回收",
+      "levels": [
+        "system"
+      ],
+      "cases": []
+    },
+    {
+      "id": "FUTURE-SANDBOX",
+      "capability": "execution",
+      "status": "planned",
+      "title": "生产操作系统隔离",
+      "risk": "生产操作系统隔离",
+      "levels": [
+        "system"
+      ],
+      "cases": []
+    },
+    {
+      "id": "FUTURE-OBSERVABILITY",
+      "capability": "observability",
+      "status": "planned",
+      "title": "运维后端、诊断和安全审计",
+      "risk": "运维后端、诊断和安全审计",
+      "levels": [
+        "integration"
+      ],
+      "cases": []
+    },
+    {
+      "id": "FUTURE-DELEGATION",
+      "capability": "delegation",
+      "status": "planned",
+      "title": "统一 Scheduler 下的 Child Run 与结构化恢复",
+      "risk": "孤儿执行、父子调度死锁",
+      "levels": [
+        "integration"
+      ],
+      "cases": []
+    },
+    {
+      "id": "REQ-AK-COG-001",
+      "capability": "cognitive",
+      "status": "implemented",
+      "title": "单轮契约在脚本 Adapter 和真实认知组件上均返回完整候选",
+      "risk": "认知单轮契约行为或验收证据失真",
+      "levels": [
+        "contract"
+      ],
+      "cases": [
+        {
+          "id": "AK-COG-001",
+          "level": "contract",
+          "file": "test/contract/cognitive.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-COG-002",
+      "capability": "cognitive",
+      "status": "implemented",
+      "title": "认知组件拒绝无完成帧、重复终态和失败候选",
+      "risk": "认知单轮契约行为或验收证据失真",
+      "levels": [
+        "contract"
+      ],
+      "cases": [
+        {
+          "id": "AK-COG-002",
+          "level": "contract",
+          "file": "test/contract/cognitive.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-COG-003",
+      "capability": "cognitive",
+      "status": "implemented",
+      "title": "已取消认知调用不进入 Adapter，缺失必需 Adapter 拒绝装配",
+      "risk": "认知单轮契约行为或验收证据失真",
+      "levels": [
+        "contract"
+      ],
+      "cases": [
+        {
+          "id": "AK-COG-003",
+          "level": "contract",
+          "file": "test/contract/cognitive.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-DEL-003",
+      "capability": "delegation",
+      "status": "implemented",
+      "title": "空任务、超长任务、禁用策略和已取消调用不进入子调用",
+      "risk": "委派行为或验收证据失真",
+      "levels": [
+        "dt"
+      ],
+      "cases": [
+        {
+          "id": "AK-DEL-003",
+          "level": "dt",
+          "file": "test/dt/delegation-engine.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-DEL-004",
+      "capability": "delegation",
+      "status": "implemented",
+      "title": "父取消传播到活动子调用且等待资源收敛",
+      "risk": "委派行为或验收证据失真",
+      "levels": [
+        "dt"
+      ],
+      "cases": [
+        {
+          "id": "AK-DEL-004",
+          "level": "dt",
+          "file": "test/dt/delegation-engine.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-DEL-005",
+      "capability": "delegation",
+      "status": "implemented",
+      "title": "子调用结果超限与父调用次数上限都被执行",
+      "risk": "委派行为或验收证据失真",
+      "levels": [
+        "dt"
+      ],
+      "cases": [
+        {
+          "id": "AK-DEL-005",
+          "level": "dt",
+          "file": "test/dt/delegation-engine.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-VER-001",
+      "capability": "verification",
+      "status": "implemented",
+      "title": "整体与分层发现集合一致，并支持精确 ID 筛选",
+      "risk": "验收框架自身行为或验收证据失真",
+      "levels": [
+        "dt"
+      ],
+      "cases": [
+        {
+          "id": "AK-VER-001",
+          "level": "dt",
+          "file": "test/dt/verification-runner.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-VER-002",
+      "capability": "verification",
+      "status": "implemented",
+      "title": "故意断言失败与必需用例跳过均阻断，报告不泄漏断言正文",
+      "risk": "验收框架自身行为或验收证据失真",
+      "levels": [
+        "dt"
+      ],
+      "cases": [
+        {
+          "id": "AK-VER-002",
+          "level": "dt",
+          "file": "test/dt/verification-runner.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-VER-003",
+      "capability": "verification",
+      "status": "implemented",
+      "title": "重复 ID、未登记用例、失效映射和零文件扫描均阻断",
+      "risk": "验收框架自身行为或验收证据失真",
+      "levels": [
+        "dt"
+      ],
+      "cases": [
+        {
+          "id": "AK-VER-003",
+          "level": "dt",
+          "file": "test/dt/verification-runner.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-VER-004",
+      "capability": "verification",
+      "status": "implemented",
+      "title": "未知层级、未知 ID、空选择及层级冲突均拒绝",
+      "risk": "验收框架自身行为或验收证据失真",
+      "levels": [
+        "dt"
+      ],
+      "cases": [
+        {
+          "id": "AK-VER-004",
+          "level": "dt",
+          "file": "test/dt/verification-runner.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-VER-005",
+      "capability": "verification",
+      "status": "implemented",
+      "title": "计划中能力不创建占位测试，也不计为验证通过",
+      "risk": "验收框架自身行为或验收证据失真",
+      "levels": [
+        "dt"
+      ],
+      "cases": [
+        {
+          "id": "AK-VER-005",
+          "level": "dt",
+          "file": "test/dt/verification-runner.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-VER-006",
+      "capability": "verification",
+      "status": "implemented",
+      "title": "测试失败后的清理钩子仍执行，子进程凭据隔离且网络默认拒绝",
+      "risk": "验收框架自身行为或验收证据失真",
+      "levels": [
+        "dt"
+      ],
+      "cases": [
+        {
+          "id": "AK-VER-006",
+          "level": "dt",
+          "file": "test/dt/verification-runner.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-VER-007",
+      "capability": "verification",
+      "status": "implemented",
+      "title": "加载阶段崩溃和未实际注册的用例不会被计为通过",
+      "risk": "验收框架自身行为或验收证据失真",
+      "levels": [
+        "dt"
+      ],
+      "cases": [
+        {
+          "id": "AK-VER-007",
+          "level": "dt",
+          "file": "test/dt/verification-runner.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-TOOL-005",
+      "capability": "tools",
+      "status": "implemented",
+      "title": "工具成功、Provider 异常和超大结果均回收沙箱且不重试",
+      "risk": "工具执行行为或验收证据失真",
+      "levels": [
+        "integration"
+      ],
+      "cases": [
+        {
+          "id": "AK-TOOL-005",
+          "level": "integration",
+          "file": "test/integration/tool-security-integration.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-TOOL-006",
+      "capability": "tools",
+      "status": "implemented",
+      "title": "执行中取消后拒绝迟到的 Provider 成功结果并回收资源",
+      "risk": "工具执行行为或验收证据失真",
+      "levels": [
+        "integration"
+      ],
+      "cases": [
+        {
+          "id": "AK-TOOL-006",
+          "level": "integration",
+          "file": "test/integration/tool-security-integration.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-CLI-001",
+      "capability": "entry",
+      "status": "implemented",
+      "title": "Pi CLI 离线启动并加载内部 LawClaw 扩展命令",
+      "risk": "公开入口行为或验收证据失真",
+      "levels": [
+        "system"
+      ],
+      "cases": [
+        {
+          "id": "AK-CLI-001",
+          "level": "system",
+          "file": "test/system/cli-smoke.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-CTX-003",
+      "capability": "context",
+      "status": "implemented",
+      "title": "输出余量占满预算或必选资料超限时明确失败",
+      "risk": "上下文行为或验收证据失真",
+      "levels": [
+        "ut"
+      ],
+      "cases": [
+        {
+          "id": "AK-CTX-003",
+          "level": "ut",
+          "file": "test/ut/context-engine.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-CTX-004",
+      "capability": "context",
+      "status": "implemented",
+      "title": "完整 Turn 超预算不改写原始 Frame",
+      "risk": "上下文行为或验收证据失真",
+      "levels": [
+        "ut"
+      ],
+      "cases": [
+        {
+          "id": "AK-CTX-004",
+          "level": "ut",
+          "file": "test/ut/context-engine.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-BND-004",
+      "capability": "boundaries",
+      "status": "implemented",
+      "title": "源码门禁拒绝目录缺失、空扫描和不可解析文件",
+      "risk": "当前行为或验收门禁未执行必要检查",
+      "levels": [
+        "dt"
+      ],
+      "cases": [
+        {
+          "id": "AK-BND-004",
+          "level": "dt",
+          "file": "test/dt/framework-boundaries.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-LIMIT-001",
+      "capability": "control",
+      "status": "implemented",
+      "title": "达到轮次预算后停止新模型调用，失败事件保持单调",
+      "risk": "当前行为或验收门禁未执行必要检查",
+      "levels": [
+        "integration"
+      ],
+      "cases": [
+        {
+          "id": "AK-LIMIT-001",
+          "level": "integration",
+          "file": "test/integration/run-limits.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-LIMIT-002",
+      "capability": "control",
+      "status": "implemented",
+      "title": "流式输出与工具次数超限不会继续执行",
+      "risk": "当前行为或验收门禁未执行必要检查",
+      "levels": [
+        "integration"
+      ],
+      "cases": [
+        {
+          "id": "AK-LIMIT-002",
+          "level": "integration",
+          "file": "test/integration/run-limits.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-LIMIT-003",
+      "capability": "control",
+      "status": "implemented",
+      "title": "用受控超时信号验证初始化后到期，模型调用为零",
+      "risk": "当前行为或验收门禁未执行必要检查",
+      "levels": [
+        "integration"
+      ],
+      "cases": [
+        {
+          "id": "AK-LIMIT-003",
+          "level": "integration",
+          "file": "test/integration/run-limits.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-VER-008",
+      "capability": "verification",
+      "status": "implemented",
+      "title": "进程执行器区分缺失环境、非零退出与超时，并回收被终止进程",
+      "risk": "当前行为或验收门禁未执行必要检查",
+      "levels": [
+        "dt"
+      ],
+      "cases": [
+        {
+          "id": "AK-VER-008",
+          "level": "dt",
+          "file": "test/dt/verification-runner.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-VER-009",
+      "capability": "verification",
+      "status": "implemented",
+      "title": "测试别名与动态注册被发现阶段拒绝",
+      "risk": "当前行为或验收门禁未执行必要检查",
+      "levels": [
+        "dt"
+      ],
+      "cases": [
+        {
+          "id": "AK-VER-009",
+          "level": "dt",
+          "file": "test/dt/verification-runner.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-FE-001",
+      "capability": "flow-engine",
+      "status": "implemented",
+      "title": "FE-CON-1八个独立设计向量与实际Core完整输出一致",
+      "risk": "纯推进产生错误状态、重复意图或不符合冻结数据契约",
+      "levels": [
+        "contract"
+      ],
+      "cases": [
+        {
+          "id": "AK-FE-001",
+          "level": "contract",
+          "file": "test/contract/flow-engine.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-FE-002",
+      "capability": "flow-engine",
+      "status": "implemented",
+      "title": "FE-C14N-1固定字节与摘要保持跨实现一致",
+      "risk": "纯推进产生错误状态、重复意图或不符合冻结数据契约",
+      "levels": [
+        "contract"
+      ],
+      "cases": [
+        {
+          "id": "AK-FE-002",
+          "level": "contract",
+          "file": "test/contract/flow-engine.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-FE-003",
+      "capability": "flow-engine",
+      "status": "implemented",
+      "title": "非JSON值与超界输入不能被规范化为合法摘要",
+      "risk": "纯推进产生错误状态、重复意图或不符合冻结数据契约",
+      "levels": [
+        "contract"
+      ],
+      "cases": [
+        {
+          "id": "AK-FE-003",
+          "level": "contract",
+          "file": "test/contract/flow-engine.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-FE-004",
+      "capability": "flow-engine",
+      "status": "implemented",
+      "title": "A-B-A交错推进稳定且输出不共享可变输入",
+      "risk": "纯推进产生错误状态、重复意图或不符合冻结数据契约",
+      "levels": [
+        "contract"
+      ],
+      "cases": [
+        {
+          "id": "AK-FE-004",
+          "level": "contract",
+          "file": "test/contract/flow-engine.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-FE-005",
+      "capability": "flow-engine",
+      "status": "implemented",
+      "title": "Guard拒绝未知字段作用域旧Attempt与非法事件载荷",
+      "risk": "纯推进产生错误状态、重复意图或不符合冻结数据契约",
+      "levels": [
+        "ut"
+      ],
+      "cases": [
+        {
+          "id": "AK-FE-005",
+          "level": "ut",
+          "file": "test/ut/flow-engine.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-FE-006",
+      "capability": "flow-engine",
+      "status": "implemented",
+      "title": "重复终态序号缺口按优先级短路且不调用ResolverFactory",
+      "risk": "纯推进产生错误状态、重复意图或不符合冻结数据契约",
+      "levels": [
+        "ut"
+      ],
+      "cases": [
+        {
+          "id": "AK-FE-006",
+          "level": "ut",
+          "file": "test/ut/flow-engine.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-FE-007",
+      "capability": "flow-engine",
+      "status": "implemented",
+      "title": "模型文本工具Child迁移保留完整转录并只预留新动作用量",
+      "risk": "纯推进产生错误状态、重复意图或不符合冻结数据契约",
+      "levels": [
+        "ut"
+      ],
+      "cases": [
+        {
+          "id": "AK-FE-007",
+          "level": "ut",
+          "file": "test/ut/flow-engine.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-FE-008",
+      "capability": "flow-engine",
+      "status": "implemented",
+      "title": "权限允许Ask拒绝不可用过期及预算零均有封闭结果",
+      "risk": "纯推进产生错误状态、重复意图或不符合冻结数据契约",
+      "levels": [
+        "ut"
+      ],
+      "cases": [
+        {
+          "id": "AK-FE-008",
+          "level": "ut",
+          "file": "test/ut/flow-engine.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-FE-009",
+      "capability": "flow-engine",
+      "status": "implemented",
+      "title": "UNKNOWN不重试且恢复必须匹配命令incident与结果种类",
+      "risk": "纯推进产生错误状态、重复意图或不符合冻结数据契约",
+      "levels": [
+        "ut"
+      ],
+      "cases": [
+        {
+          "id": "AK-FE-009",
+          "level": "ut",
+          "file": "test/ut/flow-engine.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-FE-010",
+      "capability": "flow-engine",
+      "status": "implemented",
+      "title": "Context失败预算边界与取消超时不依赖外部服务",
+      "risk": "纯推进产生错误状态、重复意图或不符合冻结数据契约",
+      "levels": [
+        "ut"
+      ],
+      "cases": [
+        {
+          "id": "AK-FE-010",
+          "level": "ut",
+          "file": "test/ut/flow-engine.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-FE-011",
+      "capability": "flow-engine",
+      "status": "implemented",
+      "title": "Factory拒绝终态业务命令错配下标及用量回退",
+      "risk": "纯推进产生错误状态、重复意图或不符合冻结数据契约",
+      "levels": [
+        "ut"
+      ],
+      "cases": [
+        {
+          "id": "AK-FE-011",
+          "level": "ut",
+          "file": "test/ut/flow-engine.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-FE-012",
+      "capability": "flow-engine",
+      "status": "implemented",
+      "title": "未声明状态事件组合均拒绝且错配回执不解除等待",
+      "risk": "纯推进产生错误状态、重复意图或不符合冻结数据契约",
+      "levels": [
+        "ut"
+      ],
+      "cases": [
+        {
+          "id": "AK-FE-012",
+          "level": "ut",
+          "file": "test/ut/flow-engine.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-FE-013",
+      "capability": "flow-engine",
+      "status": "implemented",
+      "title": "状态乘事件矩阵覆盖全部等待类型和终态封闭",
+      "risk": "纯推进产生错误状态、重复意图或不符合冻结数据契约",
+      "levels": [
+        "ut"
+      ],
+      "cases": [
+        {
+          "id": "AK-FE-013",
+          "level": "ut",
+          "file": "test/ut/flow-engine.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-FE-014",
+      "capability": "flow-engine",
+      "status": "implemented",
+      "title": "已知失败审批拒绝与输出超限不产生新业务命令",
+      "risk": "纯推进产生错误状态、重复意图或不符合冻结数据契约",
+      "levels": [
+        "ut"
+      ],
+      "cases": [
+        {
+          "id": "AK-FE-014",
+          "level": "ut",
+          "file": "test/ut/flow-engine.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "FUTURE-FLOW-RUNTIME",
+      "capability": "flow-engine",
+      "status": "planned",
+      "title": "FE-CON-1真实RunRegistry事务、耐久执行、Permit首次启动及Coordinator接入",
+      "risk": "纯Core正确不证明事务、授权执行和崩溃恢复正确",
+      "levels": [
+        "integration",
+        "system"
+      ],
+      "cases": []
+    },
+    {
+      "id": "REQ-AK-FE-015",
+      "capability": "flow-engine",
+      "status": "implemented",
+      "title": "迁移表拒绝重复出边终态出边及未声明目标",
+      "risk": "迁移定义冲突或扩展绕过既有安全优先级",
+      "levels": [
+        "ut"
+      ],
+      "cases": [
+        {
+          "id": "AK-FE-015",
+          "level": "ut",
+          "file": "test/ut/flow-engine.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-FE-016",
+      "capability": "flow-engine",
+      "status": "implemented",
+      "title": "新增迁移仅扩展定义且无法绕过公共取消优先级",
+      "risk": "迁移定义冲突或扩展绕过既有安全优先级",
+      "levels": [
+        "ut"
+      ],
+      "cases": [
+        {
+          "id": "AK-FE-016",
+          "level": "ut",
+          "file": "test/ut/flow-engine.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-FE-017",
+      "capability": "flow-engine",
+      "status": "implemented",
+      "title": "结果策略表穷尽类型并拒绝未知变体",
+      "risk": "新增结果类型遗漏处理器或运行时命中原型属性",
+      "levels": ["ut"],
+      "cases": [{"id": "AK-FE-017", "level": "ut", "file": "test/ut/flow-engine.test.ts"}]
+    },
+    {
+      "id": "REQ-AK-FE-018",
+      "capability": "flow-engine",
+      "status": "implemented",
+      "title": "计划状态策略拒绝错绑ProposalChild与转录角色",
+      "risk": "计划校验拆分后接受错误状态命令绑定",
+      "levels": ["ut"],
+      "cases": [{"id": "AK-FE-018", "level": "ut", "file": "test/ut/flow-engine.test.ts"}]
+    }
+  ]
+}

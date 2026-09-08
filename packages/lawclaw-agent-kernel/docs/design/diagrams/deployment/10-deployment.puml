@@ -1,0 +1,45 @@
+@startuml
+!include ../theme.puml
+title Agent Kernel System 部署关系（V3）
+left to right direction
+
+node "Python / Desktop Host" as HOST LC_ORCHESTRATION {
+  component "业务编排调用方" as CALLER
+  component "KernelHost\n执行约束编译 + Scoped Adapter 装配" as KH
+  CALLER --> KH : AgentSystemGateway
+}
+
+node "Bun Sidecar（macOS ARM64）" as SIDECAR LC_KERNEL {
+  component "JSONL Gateway" as JSONL
+  component "RunRegistry + Scheduler" as RUN
+  component "RuntimePool + AgentRuntime" as RUNTIME
+  component "Context / Memory / Permission / Tool / Multi-agent" as SERVICES
+  JSONL --> RUN
+  RUN --> RUNTIME
+  RUNTIME --> SERVICES
+}
+
+node "Adapter 进程内组件" as ADAPTERS LC_ADAPTER {
+  component "PiAgentAdapter" as PI
+  component "ToolProvider Adapters" as TP
+}
+
+node "Infrastructure" as INFRA LC_INFRASTRUCTURE {
+  database "SQLite Stores" as DB
+  folder "Artifacts" as ART
+  component "Sandbox / Process / Secret / Clock" as MECH
+}
+
+KH --> JSONL : JSONL IPC\ncommand + AgentExecutionEnvelopeRef
+RUNTIME --> PI : AgentAdapterPort
+SERVICES --> TP : ToolProviderPort
+RUN --> DB : Repository Ports
+SERVICES --> DB : Domain Repository Ports
+SERVICES --> ART : ArtifactPort
+SERVICES --> MECH : Infrastructure Ports
+
+note bottom of SIDECAR
+  部署单元可变，领域边界不随进程边界改变。
+  父子 Run 与 Multi-agent 都走统一调度、权限和记忆 Port。
+end note
+@enduml

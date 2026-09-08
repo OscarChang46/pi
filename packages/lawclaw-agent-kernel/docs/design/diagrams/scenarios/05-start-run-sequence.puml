@@ -1,0 +1,37 @@
+@startuml
+!include ../theme.puml
+title 启动 AgentRun：接受、调度与执行（V3）
+
+actor "业务编排" as Caller
+participant "KernelHost" as Host
+participant "AgentSystemGateway" as Gateway
+participant "AgentRegistry" as Registry
+participant "RunRegistry" as Runs
+participant "RunScheduler" as Scheduler
+participant "AgentRuntimePool" as Pool
+participant "AgentRuntime" as Runtime
+participant "AgentAdapter" as Adapter
+participant "Event Journal" as Journal
+participant "AgentEventPublisherPort" as Publisher
+
+Caller -> Host : submit(command, externalContext)
+Host -> Host : 编译 AgentExecutionEnvelopeRef
+Host -> Gateway : RunCommandPort.submit(command, envelopeRef)
+Gateway -> Registry : resolve(definitionVersion, capabilityRequest)
+Registry --> Gateway : RouteSnapshot
+Gateway -> Runs : accept(trigger, route, budget, envelopeRef)
+Runs -> Journal : 持久化 RunAccepted
+Journal --> Runs : committed
+Runs -> Publisher : publish(committed RunAccepted)
+Runs --> Gateway : runId
+Runs -> Scheduler : enqueue(runId)
+Scheduler -> Pool : dispatch(runId, runtimeLease, envelopeRef)
+Pool -> Runtime : execute(attempt, lease)
+Runtime -> Adapter : AgentAdapterPort.executeTurn(contextFrame)
+Adapter --> Runtime : 规范化 AgentEvent 流
+Runtime -> Runs : RunExecutionPort.appendStep / complete
+Runs -> Journal : 先持久化事件与状态
+Journal --> Runs : committed
+Runs -> Publisher : 提交后发布 AgentEvent
+Publisher --> Caller : event stream / subscription
+@enduml

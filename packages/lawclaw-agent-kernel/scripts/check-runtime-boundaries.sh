@@ -5,19 +5,19 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 if rg -n "@earendil-works/pi-|bun:sqlite|from ['\"](?:express|fastify)" \
-  "${PROJECT_ROOT}/src/contracts" "${PROJECT_ROOT}/src/kernel"; then
+  "${PROJECT_ROOT}/src/contracts" "${PROJECT_ROOT}/src/control" "${PROJECT_ROOT}/src/cognitive/agent-runtime.ts" "${PROJECT_ROOT}/src/tools" "${PROJECT_ROOT}/src/security" "${PROJECT_ROOT}/src/observability"; then
   echo "错误：Kernel/Contracts 导入了具体 Runtime、存储或 HTTP 框架。" >&2
   exit 1
 fi
 
 if rg -n 'export (interface|type|class) .*\b(WorkflowInstance|WorkflowStep|ApprovalCase|Conversation)\b' \
-  "${PROJECT_ROOT}/src/contracts" "${PROJECT_ROOT}/src/kernel"; then
+  "${PROJECT_ROOT}/src/contracts" "${PROJECT_ROOT}/src/control" "${PROJECT_ROOT}/src/cognitive/agent-runtime.ts" "${PROJECT_ROOT}/src/tools" "${PROJECT_ROOT}/src/security" "${PROJECT_ROOT}/src/observability"; then
   echo "错误：Kernel/Contracts 出现了业务编排或业务会话类型。" >&2
   exit 1
 fi
 
 if rg -n '\bnew (PiAgentAdapter|ReadOnlyToolProvider|PiCliDelegationProvider|FakeDelegationProvider)\b' \
-  "${PROJECT_ROOT}/src/kernel" "${PROJECT_ROOT}/src/contracts"; then
+  "${PROJECT_ROOT}/src/control" "${PROJECT_ROOT}/src/cognitive/agent-runtime.ts" "${PROJECT_ROOT}/src/tools" "${PROJECT_ROOT}/src/security" "${PROJECT_ROOT}/src/observability" "${PROJECT_ROOT}/src/contracts"; then
   echo "错误：具体 Adapter 在 Composition Root 之外被实例化。" >&2
   exit 1
 fi
@@ -51,21 +51,21 @@ for section in "${required_config_sections[@]}"; do
 done
 
 if rg -n 'const MAX_|static readonly #max' \
-  "${PROJECT_ROOT}/src/kernel" "${PROJECT_ROOT}/src/adapters"; then
+  "${PROJECT_ROOT}/src/control" "${PROJECT_ROOT}/src/cognitive/agent-runtime.ts" "${PROJECT_ROOT}/src/tools" "${PROJECT_ROOT}/src/security" "${PROJECT_ROOT}/src/observability" "${PROJECT_ROOT}/src/execution" "${PROJECT_ROOT}/src/infrastructure"; then
   echo "错误：Kernel/Adapter 出现未注入的可调容量常量。" >&2
   exit 1
 fi
 
-if rg -n 'from ["'\'']\.\./config/' "${PROJECT_ROOT}/src/kernel"; then
+if rg -n 'from ["'\'']\.\./config/' "${PROJECT_ROOT}/src/control" "${PROJECT_ROOT}/src/cognitive/agent-runtime.ts" "${PROJECT_ROOT}/src/tools" "${PROJECT_ROOT}/src/security" "${PROJECT_ROOT}/src/observability"; then
   echo "错误：Kernel 不得直接读取或依赖配置加载器。" >&2
   exit 1
 fi
 
 if rg -n 'new Date|Date\.now|Date\.parse' \
-  "${PROJECT_ROOT}/src/kernel" \
+  "${PROJECT_ROOT}/src/control" "${PROJECT_ROOT}/src/cognitive/agent-runtime.ts" "${PROJECT_ROOT}/src/tools" "${PROJECT_ROOT}/src/security" "${PROJECT_ROOT}/src/observability" \
   "${PROJECT_ROOT}/src/application" \
   "${PROJECT_ROOT}/src/pi-cli" \
-  "${PROJECT_ROOT}/src/adapters" \
+  "${PROJECT_ROOT}/src/execution" "${PROJECT_ROOT}/src/infrastructure" \
   --glob '!system-time-adapter.ts'; then
   echo "错误：除 SystemTimeAdapter 外的运行时代码绕过 TimePort 访问系统时间。" >&2
   exit 1
@@ -105,3 +105,6 @@ node -e '
 ' "${PROJECT_ROOT}/package.json"
 
 echo "运行时依赖与职责边界检查通过。"
+
+node "${SCRIPT_DIR}/check-source-boundaries.mjs"
+node "${SCRIPT_DIR}/check-flow-state-constants.mjs"

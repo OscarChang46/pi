@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "include": ["src/**/*.ts"],
+    "exclude": ["src/**/*.d.ts"],
+    "includeUncovered": true
+  },
+  "reports": {
+    "directory": ".artifacts/coverage",
+    "reporters": ["text", "html", "json-summary", "lcov"]
+  },
+  "gate": {
+    "lines": 69,
+    "branches": 81
+  }
+}
