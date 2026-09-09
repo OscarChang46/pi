@@ -62,7 +62,9 @@ export class DecisionFactory {
 		let nextPosition: FlowPosition;
 		if ("commandOrdinal" in position) {
 			const { commandOrdinal, ...rest } = position;
-			nextPosition = { ...rest, commandId: identified[commandOrdinal].commandId };
+			const command = identified[commandOrdinal];
+			if (!command) return invalid();
+			nextPosition = { ...rest, commandId: command.commandId };
 		} else nextPosition = position;
 		const content: Omit<AdvanceDecision, "decisionDigest"> = {
 			decisionId,

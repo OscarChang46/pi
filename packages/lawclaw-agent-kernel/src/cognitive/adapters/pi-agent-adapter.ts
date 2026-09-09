@@ -48,6 +48,29 @@ function normalizeArguments(value: unknown): Readonly<Record<string, JsonValue>>
 	return value as Readonly<Record<string, JsonValue>>;
 }
 
+/** 校验持久化边界恢复出的 Pi 助手消息具备当前运行时所需字段。 */
+function isAssistantMessage(value: unknown): value is AssistantMessage {
+	return (
+		typeof value === "object" &&
+		value !== null &&
+		"role" in value &&
+		value.role === "assistant" &&
+		"content" in value &&
+		Array.isArray(value.content) &&
+		"api" in value &&
+		typeof value.api === "string" &&
+		"provider" in value &&
+		typeof value.provider === "string" &&
+		"model" in value &&
+		typeof value.model === "string" &&
+		"stopReason" in value &&
+		typeof value.stopReason === "string" &&
+		"usage" in value &&
+		"timestamp" in value &&
+		typeof value.timestamp === "number"
+	);
+}
+
 /**
  * Pi 的 embedded-loop Adapter。
  *
@@ -197,18 +220,7 @@ export class PiAgentAdapter implements AgentAdapter {
 				"message" in stored
 			) {
 				const restored = stored.message;
-				if (
-					typeof restored === "object" &&
-					restored !== null &&
-					"role" in restored &&
-					restored.role === "assistant" &&
-					"content" in restored &&
-					Array.isArray(restored.content) &&
-					"stopReason" in restored &&
-					"usage" in restored
-				) {
-					native = { tenantId, message: restored as AssistantMessage };
-				}
+				if (isAssistantMessage(restored)) native = { tenantId, message: restored };
 			}
 		}
 		if (!native) {

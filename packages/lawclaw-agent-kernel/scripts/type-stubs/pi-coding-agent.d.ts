@@ -5,7 +5,35 @@
  * 可用时，构建脚本不会加载本文件。
  */
 
-import type { PiSchema, Static } from "@earendil-works/pi-ai";
+import type {
+  Api,
+  AssistantMessageEventStream,
+  Context,
+  Model,
+  PiSchema,
+  SimpleStreamOptions,
+  Static,
+} from "@earendil-works/pi-ai";
+
+/** 创建模型运行时所需的最小配置。 */
+export interface CreateModelRuntimeOptions {
+  readonly authPath?: string;
+  readonly modelsPath?: string | null;
+  readonly modelsStorePath?: string;
+  readonly allowModelNetwork?: boolean;
+}
+
+/** Flow 装配当前使用的最小模型运行时表面。 */
+export class ModelRuntime {
+  static create(options?: CreateModelRuntimeOptions): Promise<ModelRuntime>;
+  getModel(providerId: string, modelId: string): Model<Api> | undefined;
+  hasConfiguredAuth(providerId: string): boolean;
+  streamSimple(
+    model: Model<Api>,
+    context: Context,
+    options?: SimpleStreamOptions,
+  ): AssistantMessageEventStream;
+}
 
 /** 扩展可读取的当前模型标识。 */
 export interface ExtensionModelRef {

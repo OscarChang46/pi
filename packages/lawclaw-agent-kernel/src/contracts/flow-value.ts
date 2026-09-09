@@ -36,7 +36,11 @@ export function canonicalize(value: unknown): string {
 				if (Object.values(descriptors).some((d) => !d.enumerable)) throw new TypeError("FLOW_INPUT_INVALID");
 				result = `{${Object.keys(descriptors)
 					.sort()
-					.map((key) => `${encode(key, depth + 1)}:${encode(descriptors[key].value, depth + 1)}`)
+					.map((key) => {
+						const descriptor = descriptors[key];
+						if (!descriptor || !("value" in descriptor)) throw new TypeError("FLOW_INPUT_INVALID");
+						return `${encode(key, depth + 1)}:${encode(descriptor.value, depth + 1)}`;
+					})
 					.join(",")}}`;
 			}
 			ancestors.delete(item);

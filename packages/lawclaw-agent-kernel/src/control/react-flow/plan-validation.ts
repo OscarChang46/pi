@@ -15,18 +15,32 @@ import { createVariantMatcher } from "../variant-matcher.ts";
 type ValidationContext = { input: AdvanceInput; plan: TransitionPlan };
 type WaitingPosition = Extract<PlannedPosition, { commandOrdinal: number }>;
 
+function onlyCommand<Kind extends CommandPayload["kind"]>(
+	commands: readonly CommandPayload[],
+	kind: Kind,
+): Extract<CommandPayload, { kind: Kind }> | undefined {
+	const command = commands[0];
+	return commands.length === 1 && command?.kind === kind
+		? (command as Extract<CommandPayload, { kind: Kind }>)
+		: undefined;
+}
+
 function waiting(
 	position: WaitingPosition,
 	commands: readonly CommandPayload[],
 	kind: CommandPayload["kind"],
 ): boolean {
-	return position.commandOrdinal === 0 && commands.length === 1 && commands[0].kind === kind;
+	return position.commandOrdinal === 0 && onlyCommand(commands, kind) !== undefined;
 }
 
-function proposalMatches(position: { proposalId: string }, plan: TransitionPlan): boolean {
-	const command = plan.commands[0];
+function proposalMatches(
+	position: { proposalId: string },
+	plan: TransitionPlan,
+	kind: "RequestPermission" | "DispatchTool",
+): boolean {
+	const command = onlyCommand(plan.commands, kind);
 	return (
-		(command.kind === "RequestPermission" || command.kind === "DispatchTool") &&
+		command !== undefined &&
 		position.proposalId === command.proposal.proposalId &&
 		plan.next.pendingActions.length > 0 &&
 		canonicalize(plan.next.pendingActions[0]) === canonicalize(command.proposal)
@@ -34,12 +48,8 @@ function proposalMatches(position: { proposalId: string }, plan: TransitionPlan)
 }
 
 function reconciliationMatches(target: string, incident: string, commands: readonly CommandPayload[]): boolean {
-	return (
-		commands.length === 1 &&
-		commands[0].kind === "RequestReconciliation" &&
-		commands[0].targetCommandId === target &&
-		commands[0].incidentRef === incident
-	);
+	const command = onlyCommand(commands, "RequestReconciliation");
+	return command !== undefined && command.targetCommandId === target && command.incidentRef === incident;
 }
 
 const validateWait = createVariantMatcher<WaitReason, ValidationContext, boolean>({
@@ -55,20 +65,20 @@ const validatePosition = createVariantMatcher<PlannedPosition, ValidationContext
 	[REACT_FLOW_STATE.READY]: (_position, { plan }) => plan.commands.length === 0,
 	[REACT_FLOW_STATE.AWAITING_MODEL]: (position, { plan }) => waiting(position, plan.commands, "InvokeModel"),
 	[REACT_FLOW_STATE.AWAITING_PERMISSION]: (position, { plan }) =>
-		waiting(position, plan.commands, "RequestPermission") && proposalMatches(position, plan),
+		waiting(position, plan.commands, "RequestPermission") && proposalMatches(position, plan, "RequestPermission"),
 	[REACT_FLOW_STATE.AWAITING_TOOL]: (position, { plan }) =>
-		waiting(position, plan.commands, "DispatchTool") && proposalMatches(position, plan),
-	[REACT_FLOW_STATE.AWAITING_CHILD]: (position, { plan }) =>
-		waiting(position, plan.commands, "CreateChildRun") &&
-		plan.commands[0].kind === "CreateChildRun" &&
-		position.childId === plan.commands[0].childId,
+		waiting(position, plan.commands, "DispatchTool") && proposalMatches(position, plan, "DispatchTool"),
+	[REACT_FLOW_STATE.AWAITING_CHILD]: (position, { plan }) => {
+		const command = onlyCommand(plan.commands, "CreateChildRun");
+		return position.commandOrdinal === 0 && command !== undefined && position.childId === command.childId;
+	},
 	[REACT_FLOW_STATE.SUSPENDED]: (position, context) => validateWait(position.reason, context),
 	[REACT_FLOW_STATE.COMPLETED]: () => true,
 	[REACT_FLOW_STATE.FAILED]: () => true,
-	[REACT_FLOW_STATE.CANCELLED]: (_position, { input, plan }) =>
-		plan.commands.length === 1 &&
-		plan.commands[0].kind === "CancelOutstanding" &&
-		plan.commands[0].cancelEpoch === input.run.cancelEpoch,
+	[REACT_FLOW_STATE.CANCELLED]: (_position, { input, plan }) => {
+		const command = onlyCommand(plan.commands, "CancelOutstanding");
+		return command !== undefined && command.cancelEpoch === input.run.cancelEpoch;
+	},
 });
 
 const reservations = {
