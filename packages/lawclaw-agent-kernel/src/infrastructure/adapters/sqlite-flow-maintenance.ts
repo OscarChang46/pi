@@ -108,18 +108,22 @@ export class SqliteFlowMaintenance {
 	}
 	/** SQLite页容量与未处理事件计数；不遍历或返回敏感正文。 */
 	storageStats() {
-		const pages = Number(this.#db.rows("PRAGMA page_count")[0].page_count);
-		const pageSize = Number(this.#db.rows("PRAGMA page_size")[0].page_size);
+		const pageCountRow = this.#db.rows("PRAGMA page_count")[0];
+		const pageSizeRow = this.#db.rows("PRAGMA page_size")[0];
+		const schemaVersionRow = this.#db.rows("PRAGMA user_version")[0];
+		const incidentCountRow = this.#db.rows(
+			"SELECT count(*) AS count FROM flow_incidents WHERE scope=? AND status=?",
+			this.#scope,
+			FLOW_INCIDENT_STATUS.OPEN,
+		)[0];
+		if (!pageCountRow || !pageSizeRow || !schemaVersionRow || !incidentCountRow)
+			throw new Error("FLOW_STORAGE_QUERY_FAILED");
+		const pages = Number(pageCountRow.page_count);
+		const pageSize = Number(pageSizeRow.page_size);
 		return {
-			schemaVersion: this.#db.rows("PRAGMA user_version")[0].user_version,
+			schemaVersion: schemaVersionRow.user_version,
 			databaseBytes: pages * pageSize,
-			openIncidents: Number(
-				this.#db.rows(
-					"SELECT count(*) AS count FROM flow_incidents WHERE scope=? AND status=?",
-					this.#scope,
-					FLOW_INCIDENT_STATUS.OPEN,
-				)[0].count,
-			),
+			openIncidents: Number(incidentCountRow.count),
 		};
 	}
 }
