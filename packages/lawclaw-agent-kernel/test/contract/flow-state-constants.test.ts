@@ -21,17 +21,29 @@ test("[AK-FS-012] Flow状态检查阻止裸判断、类型、表键、SQL及拼�
 			'if (result.kind === "exit") return result;',
 		];
 		for (const source of invalid) {
-			writeFileSync(path.join(directory, "flow-system.ts"), source);
+			writeFileSync(path.join(directory, "flow-engine-contract.ts"), source);
 			const result = spawnSync(process.execPath, [checker, directory], { encoding: "utf8" });
 			assert.equal(result.status, 1, source);
 			assert.match(result.stderr, /状态值必须引用所属模块常量/, source);
 		}
+		for (const legacyName of [
+			"FlowSystemState",
+			"FlowSystemAction",
+			"FLOW_SYSTEM_STATE",
+			"FLOW_SYSTEM_ACTION",
+			"resolveSystemTransition",
+		]) {
+			writeFileSync(path.join(directory, "flow-engine-contract.ts"), `const legacy = ${legacyName};`);
+			const result = spawnSync(process.execPath, [checker, directory], { encoding: "utf8" });
+			assert.equal(result.status, 1, legacyName);
+			assert.match(result.stderr, /过时FE名称/, legacyName);
+		}
 		writeFileSync(
-			path.join(directory, "flow-system.ts"),
+			path.join(directory, "flow-engine-contract.ts"),
 			`
-if (run.state === FLOW_SYSTEM_STATE.RUNNING) execute();
-const table = { [FLOW_SYSTEM_STATE.READY]: FLOW_SYSTEM_STATE.RUNNING };
-type State = typeof FLOW_SYSTEM_STATE.READY;
+if (run.state === FLOW_RUN_STATE.RUNNING) execute();
+const table = { [FLOW_RUN_STATE.READY]: FLOW_RUN_STATE.RUNNING };
+type State = typeof FLOW_RUN_STATE.READY;
 const context = { yield: handler, next: targets };
 // Running and PENDING in comments document the protocol.
 const reason = "FLOW_RUN_NOT_FOUND";

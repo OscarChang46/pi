@@ -1,13 +1,12 @@
 import { createPiAdapter } from "../cognitive/adapters/pi-adapter-factory.ts";
 import { AgentRuntime } from "../cognitive/agent-runtime.ts";
 import { loadRuntimeSettings, type RuntimeSettings } from "../config/index.ts";
-import type { RequestContext, StartAgentRunCommand, TimePort } from "../contracts/index.ts";
+import type { EnsureSessionCommand, RequestContext, StartAgentRunCommand, TimePort } from "../contracts/index.ts";
 import { AgentSystem } from "../control/agent-system.ts";
-import { ContextEngine } from "../control/context-engine.ts";
 import { DelegationEngine } from "../control/delegation-engine.ts";
 import { computeWorkspaceResourceId, createReadOnlyPermissionCeiling } from "../control/permission-scope.ts";
 import { RunFlow } from "../control/run-flow.ts";
-import { RunRegistry } from "../control/run-registry.ts";
+import { RunRegistry } from "../control/run-registry/run-registry.ts";
 import { InProcessReadOnlySandbox } from "../execution/adapters/in-process-read-only-sandbox.ts";
 import { ReadOnlyToolProvider } from "../execution/adapters/read-only-tool-provider.ts";
 import { SandboxPlanner } from "../execution/sandbox-planner.ts";
@@ -16,6 +15,7 @@ import { InMemoryPermissionSnapshots } from "../infrastructure/adapters/in-memor
 import { SystemTimeAdapter } from "../infrastructure/adapters/system-time-adapter.ts";
 import { InMemoryKillSwitch } from "../security/kill-switch.ts";
 import { PermissionApprovalService } from "../security/permission-approval.ts";
+import { createInMemoryContextDependencies } from "./context-assembly-composition.ts";
 import { createToolCoordinator } from "./tool-composition.ts";
 
 /** 创建配置化的本地调用上下文；服务接入时必须改由 Backend 签发可信上下文。 */
@@ -45,21 +45,52 @@ export function createRequestContext(
 	};
 }
 
-/** 返回完全由配置构造的 Agent Run 命令；只生成 Run/Session 技术标识。 */
+/** 创建显式 Root Session 命令所需的调用方业务绑定。 */
+export interface CreateRootSessionCommandInput {
+	/** 可信作用域内稳定的逻辑会话键；不是 Session ID。 */
+	readonly logicalKey: string;
+	/** 本会话绑定的 Agent 定义引用。 */
+	readonly agentDefinitionRef: string;
+	/** 本会话绑定的 Context 策略引用。 */
+	readonly contextPolicyRef: string;
+}
+
+/** 构造稳定创建意图并只生成幂等命令标识；Session ID 由 ensure 产生。 */
+export function createRootSessionCommand(input: CreateRootSessionCommandInput): EnsureSessionCommand {
+	return {
+		commandId: crypto.randomUUID(),
+		intent: {
+			logicalKey: input.logicalKey,
+			agentDefinitionRef: input.agentDefinitionRef,
+			contextPolicyRef: input.contextPolicyRef,
+			parent: null,
+		},
+	};
+}
+
+/** 创建 Run 命令所需的显式 Session 绑定和工作区输入。 */
+export interface CreateRunCommandInput {
+	/** 已由 Session 显式创建步骤确认的技术标识。 */
+	readonly sessionId: string;
+	/** 工具和子 Agent 允许访问的工作区根目录。 */
+	readonly workspaceRoot: string;
+}
+
+/** 返回完全由显式 Session 绑定和配置构造的 Agent Run 命令；只生成 Run 标识。 */
 export function createRunCommand(
-	workspaceRoot: string,
+	input: CreateRunCommandInput,
 	settings: RuntimeSettings = loadRuntimeSettings(),
 ): StartAgentRunCommand {
 	return {
 		runId: crypto.randomUUID(),
-		sessionId: crypto.randomUUID(),
+		sessionId: input.sessionId,
 		systemPrompt: settings.promptCatalog.require(settings.config.prompts.agentSystemPromptId),
 		goal: settings.config.runtime.goal,
 		contextItems: [settings.config.runtime.contextItem],
 		toolPolicy: settings.config.runtime.toolPolicy,
 		delegationPolicy: settings.config.runtime.delegationPolicy,
 		budget: settings.config.runtime.budget,
-		workspaceRoot,
+		workspaceRoot: input.workspaceRoot,
 	};
 }
 
@@ -114,7 +145,7 @@ export async function createAgentKernel(
 	);
 	const loopEngine = new RunFlow(
 		adapter,
-		new ContextEngine(settings.config.kernel.context),
+		createInMemoryContextDependencies(),
 		toolRuntime,
 		delegationEngine,
 		settings.config.kernel.runLimits,

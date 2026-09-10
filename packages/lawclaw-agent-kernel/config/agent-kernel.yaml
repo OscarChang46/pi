@@ -14,12 +14,6 @@ prompts:
 kernel:
   objectModel:
     maxSessions: 1024
-    maxRunsPerSession: 1024
-  context:
-    estimatedCharactersPerToken: 4
-    fixedPromptOverheadTokens: 16
-    messageOverheadTokens: 12
-    contextItemOverheadTokens: 12
   toolRuntime:
     maxRegisteredTools: 64
   delegation:
@@ -33,7 +27,6 @@ kernel:
     outputReserveTokens: 128000
     maxOutputChars: 1000000
   piAdapter:
-    maxPrivateMessages: 1024
     maxRetries: 0
 
 tools:

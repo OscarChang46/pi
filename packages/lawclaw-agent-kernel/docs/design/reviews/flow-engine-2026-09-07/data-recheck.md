@@ -11,7 +11,7 @@
 
 ## 曾发现 R1 [P1] 安全事实不能按接管规则重建——最终已关闭
 
-- 位置：`packages/lawclaw-agent-kernel/docs/design/layers/l1-control/components/flow-engine.md:2214`、`:2428`。
+- 位置：`packages/lawclaw-agent-kernel/docs/design/layers/l1-control/components/flow-engine/README.md:2214`、`:2428`。
 - 问题：来源白名单只允许 source=security 产生 PermissionResolved/ApprovalResolved，recovery 的重建名单不包括这两种事件；但接管规则要求旧 Attempt 的未消费 Inbox 全部 superseded，再通过 recovery 事件重建业务事实。安全事实没有合法恢复通道。DeferredReceipt 的旧 Attempt 处理也尚未明确。
 - 轨迹：Run=Suspended(approval)，A1 的合法 ApprovalResolved 已耐久受理但尚未 T2 → Host 崩溃 → A2 接管、旧事件被 superseded → 按21.7生成的新 recovery ApprovalResolved 在21.2被拒 → 审批源已经得到耐久受理 ACK，没有义务重发；Run 无法从已经批准的事实继续，只能等待到期。PermissionResolved(ask/allow) 在受理与消费之间崩溃有同样矛盾。
 - 修正：恢复器仅触发安全端查询原权限 commandId/approvalRef；安全端核验其耐久权威事实、当前授权与审批资格，以 source=security、当前 Attempt、稳定重发事件 ID 返回事实。允许复用原审批事实但不得复用失效 Permit。明确旧 admitted 与 Deferred 的安全事件均走此通道，且未取得可恢复凭证前保留耐久待恢复标记；recovery 本身仍不能自签 allow/approved。

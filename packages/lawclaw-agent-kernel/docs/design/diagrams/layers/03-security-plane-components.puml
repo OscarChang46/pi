@@ -1,34 +1,39 @@
 @startuml
 !include ../theme.puml
-title Security Plane 组件图
-left to right direction
-
-rectangle "KernelHost / Backend\n策略与身份权威源" as HOST LC_EXTERNAL
-rectangle "L1 PEP / L3 ExecutionGuard" as PEP_CALLERS LC_EXTERNAL
+title Security Plane：L1判定协调与执行点强制
+top to bottom direction
+skinparam linetype polyline
+skinparam nodesep 70
+skinparam ranksep 80
+rectangle "KernelHost / Backend\n身份与策略编译" as HOST LC_EXTERNAL
+rectangle "L1 前置 PEP" as L1PEP LC_EXTERNAL
+rectangle "真实执行 PEP\nL3 Guard / Memory / Child受理" as GUARD LC_EXTERNAL
 package "Security Plane" LC_DANGER {
-  component "PermissionDecisionEngine\nPDP" as PDP
-  component "ExecutionPermit" as PERMIT
-  component "PEP Enforcement" as PEP
-  component "ApprovalBridge" as APPROVAL
-  database "Compiled Policy Snapshot" as POLICY
+ component "PermissionDecisionEngine\nPDP" as PDP
+ component "ExecutionPermit" as PERMIT
+ component "ApprovalBridge" as APPROVAL
+ database "固定编译快照 / 当前授权状态" as POLICY
 }
-rectangle "业务审批边界" as BUSINESS LC_EXTERNAL
-rectangle "Security Repository Port" as INFRA LC_INFRASTRUCTURE
-rectangle "Security Audit" as OPS LC_OPERATIONS
-
-HOST --> POLICY : PolicySnapshotPort
-PEP_CALLERS --> PEP : BND-SEC-001
-PEP --> PDP : PermissionDecisionPort
-PDP --> POLICY : 只读策略快照
-PDP --> PERMIT : Allow / Ask / Deny
-PERMIT --> APPROVAL : Ask
+rectangle "外部技术审批通道" as BUSINESS LC_EXTERNAL
+HOST --> POLICY : 安装 / 失效
+L1PEP -down-> PDP : PermissionDecisionPort
+PDP --> POLICY : PolicySnapshotPort
+PDP -down-> PERMIT : Allow → issue
+PDP -down-> APPROVAL : 工具Ask → 请求outbox
 APPROVAL --> BUSINESS : ApprovalRequestPort
 BUSINESS ..> APPROVAL : ApprovalDecisionPort
-PERMIT --> INFRA : PermitRepositoryPort
-PDP ..> OPS : BND-OPS-001
-
+GUARD -up-> PERMIT : PermitValidationPort\nconsume / authorizeStart
+legend bottom
+ 批准事实通知L1；L1重新请求PDP。
+ 回调不直接签Permit或调用执行器。
+endlegend
 note bottom of POLICY
-  Kernel 不认证用户，也不拥有 RBAC/ABAC；
-  这里只保存已编译、带版本的技术策略快照。
+ 各安全组件经Repository Port持久化事实；
+ 经Audit Port确认必要Journal后才放行。
+ PEP不拥有另一套状态库。
+end note
+note bottom of GUARD
+ Guard不读取策略源，不做第二次判定。
+ PEP是跨组件模式，不新增服务或聚合。
 end note
 @enduml

@@ -2,7 +2,7 @@
 
 结论：有条件通过。完整阅读 flow-engine.md（本次核对为 2509 行版本），以第 21 章 FE-CON-1 为准。以下为设计可开发性问题，不以候选状态、尚无代码或测试执行记录作为缺陷。未重复报告主评审正在处理的第 13/15 章默认值、Inbox 队首、恢复匹配与执行端排他阶段。
 
-文件：`/Users/oscar/jurismind/code/pi-lawclaw/packages/lawclaw-agent-kernel/docs/design/layers/l1-control/components/flow-engine.md`
+文件：`/Users/oscar/jurismind/code/pi-lawclaw/packages/lawclaw-agent-kernel/docs/design/layers/l1-control/components/flow-engine/README.md`
 
 1. **[P2] 终态 UNKNOWN 的人工核对没有完整关闭契约。** 行 2391、2401、2441，关联行 2258—2260、2357—2364。轨迹：工具 UNKNOWN → Run 因 Deadline 进入 Cancelled → 运维次日查到外部已生效。文档要求终态不变、迟到事实分表、未解决 incident 不得删除，但 EffectReconciled 的状态迁移仅覆盖 Suspended，未定义终态核对写入如何关闭 incident、更新命令执行事实、幂等返回及审计证据。开发者仍需自行决定关闭流程。建议明确由受控恢复入口验证证据后，按 incidentRef/targetCommandId 原子更新独立 incident 与执行事实；重复同证据幂等、矛盾证据冲突，Run.version 不变；关闭后重新计算保留期限。增加“取消后核对成功及重复提交”的验收轨迹。
 

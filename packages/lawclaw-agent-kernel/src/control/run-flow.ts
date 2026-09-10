@@ -1,4 +1,17 @@
-import type { ContextEnginePort, DelegationPort } from "../contracts/control.ts";
+import type {
+	AssemblyCandidate,
+	ContextMessage,
+	ExpectedChildObservation,
+	SourceRecord,
+} from "../contracts/control/context-engine/assembly-contract.ts";
+import { encodeCandidate } from "../contracts/control/context-engine/candidate-codec.ts";
+import type {
+	FrozenHistorySource,
+	RunSessionContext,
+	RuntimeContextDependencies,
+} from "../contracts/control/context-engine/runtime-preparation.ts";
+import type { DelegationPort } from "../contracts/control.ts";
+import { flowId } from "../contracts/flow-value.ts";
 import {
 	type AgentAdapter,
 	type AgentEvent,
@@ -7,7 +20,6 @@ import {
 	type JsonValue,
 	type KernelAssistantMessage,
 	KernelError,
-	type KernelMessage,
 	type RequestContext,
 	type StartAgentRunCommand,
 	type TimePort,
@@ -19,6 +31,9 @@ import { assertRequestContext } from "../contracts/request-context-guard.ts";
 import type { ToolCoordinatorPort } from "../contracts/tool-runtime.ts";
 import type { ToolExecutionScope } from "../contracts/tool-scope.ts";
 import type { AgentLoopLifecyclePort } from "./agent-loop.ts";
+import { completedRunHistory } from "./context-engine/completed-run-history.ts";
+import { createRunContextBasis, runtimeAssemblyLimits } from "./context-engine/run-context-basis.ts";
+import { projectRunMessage } from "./context-engine/run-history-projection.ts";
 import { createDelegationToolDescriptor } from "./delegation-tool-descriptor.ts";
 
 /**
@@ -31,7 +46,7 @@ import { createDelegationToolDescriptor } from "./delegation-tool-descriptor.ts"
 export class RunFlow {
 	readonly #delegationToolDescriptor: ToolDescriptor;
 	readonly #adapter: AgentAdapter;
-	readonly #contextEngine: ContextEnginePort;
+	readonly #context: RuntimeContextDependencies;
 	readonly #toolRuntime: ToolCoordinatorPort;
 	readonly #delegationEngine: DelegationPort;
 	readonly #runLimits: AgentExecutionBudget;
@@ -40,7 +55,7 @@ export class RunFlow {
 	/** 装配稳定端口和配置化 Run 上限；所有具体实现仍由 Composition Root 创建。 */
 	public constructor(
 		adapter: AgentAdapter,
-		contextEngine: ContextEnginePort,
+		context: RuntimeContextDependencies,
 		toolRuntime: ToolCoordinatorPort,
 		delegationEngine: DelegationPort,
 		runLimits: AgentExecutionBudget,
@@ -48,7 +63,7 @@ export class RunFlow {
 		timePort: TimePort,
 	) {
 		this.#adapter = adapter;
-		this.#contextEngine = contextEngine;
+		this.#context = context;
 		this.#toolRuntime = toolRuntime;
 		this.#delegationEngine = delegationEngine;
 		this.#runLimits = runLimits;
@@ -56,13 +71,14 @@ export class RunFlow {
 		this.#delegationToolDescriptor = createDelegationToolDescriptor(delegationToolMaxResultBytes);
 	}
 
-	/** 执行一次有界 Agent Run，并返回规范化事件、输出和最后一个 ContextFrame。 */
+	/** 执行一次有界 Agent Run，并返回规范化事件、输出和最后一个规范候选。 */
 	public async run(
 		context: RequestContext,
 		command: StartAgentRunCommand,
 		externalSignal: AbortSignal,
 		lifecycle: AgentLoopLifecyclePort,
 		toolExecutionScope: ToolExecutionScope,
+		sessionContext?: RunSessionContext,
 	): Promise<AgentRunResult> {
 		assertRequestContext(context, this.#timePort);
 		if (
@@ -83,13 +99,10 @@ export class RunFlow {
 		}
 		await this.#toolRuntime.initialize(context);
 
-		let frame = this.#contextEngine.assemble({
-			systemPrompt: command.systemPrompt,
-			goal: command.goal,
-			items: command.contextItems,
-			maxInputTokens: command.budget.maxInputTokens,
-			outputReserveTokens: command.budget.outputReserveTokens,
-		});
+		const records: SourceRecord[] = [];
+		const expectedChildObservations: ExpectedChildObservation[] = [];
+		let candidateInput: AssemblyCandidate | null = null;
+
 		const events: AgentEvent[] = [];
 		let seq = 0;
 		let turns = 0;
@@ -108,12 +121,6 @@ export class RunFlow {
 		};
 
 		appendEvent("RunStarted", { sessionId: command.sessionId });
-		appendEvent("ContextAssembled", {
-			frameId: frame.frameId,
-			estimatedTokens: frame.estimatedTokens,
-			selectedItemIds: [...frame.reductionTrace.selectedItemIds],
-			droppedItemIds: [...frame.reductionTrace.droppedItemIds],
-		});
 
 		const operationDeadline = this.#timePort.parseIsoUtc(context.operation.deadlineAt);
 		if (!operationDeadline) {
@@ -124,6 +131,93 @@ export class RunFlow {
 			Math.max(1, Math.min(command.budget.maxDurationMs, remainingOperationMs)),
 		);
 		const signal = AbortSignal.any([externalSignal, deadlineSignal]);
+		const assemble = async (tools: readonly ToolDescriptor[]) => {
+			const artifacts = this.#context.artifacts;
+			const basis = createRunContextBasis(artifacts, {
+				runInput: records.length
+					? {
+							kind: "existing",
+							runId: command.runId,
+							sourceRunVersion: records.length,
+							transcriptHeadRef: flowId("transcript", records),
+						}
+					: {
+							kind: "initial",
+							preparationId: flowId("prepare", { runId: command.runId }),
+							plannedRunId: command.runId,
+						},
+				sessionInput: {
+					kind: "existing",
+					anchor: sessionContext?.anchor ?? {
+						sessionId: command.sessionId,
+						version: 0,
+						headRef: `session-head:${command.sessionId}:0`,
+					},
+				},
+				system: command.systemPrompt,
+				task: command.goal,
+				tools,
+				items: command.contextItems,
+				limits: runtimeAssemblyLimits(command.budget.maxInputTokens, command.budget.outputReserveTokens, 1048576),
+				configVersion: flowId("context-config", command.budget),
+				envelopeRef: context.tenant.authorizationSnapshot,
+			});
+			const completeBasis = {
+				...basis,
+				expectedChildObservations: [
+					...(sessionContext?.expectedChildObservations ?? []),
+					...expectedChildObservations,
+				],
+			};
+			const sources: FrozenHistorySource[] = [
+				{
+					binding: {
+						kind: "session",
+						anchor: sessionContext?.anchor ?? {
+							sessionId: command.sessionId,
+							version: 0,
+							headRef: `session-head:${command.sessionId}:0`,
+						},
+						recordRefs: null,
+					},
+					result: { records: sessionContext?.records ?? [], contents: [] },
+				},
+			];
+			const historySources = [
+				...sources,
+				...(basis.runInput.kind === "existing"
+					? [
+							{
+								binding: {
+									kind: "run" as const,
+									runId: command.runId,
+									version: records.length,
+									headRef: basis.runInput.transcriptHeadRef,
+								},
+								result: { records, contents: [] },
+							},
+						]
+					: []),
+			];
+			const candidate = await this.#context.engineFactory.create(historySources).assemble(completeBasis, signal);
+			signal.throwIfAborted();
+			this.#toolRuntime.assertActive(context, toolExecutionScope);
+			artifacts.put(encodeCandidate(candidate));
+			appendEvent("ContextAssembled", {
+				inputDigest: candidate.inputDigest,
+				payloadDigest: candidate.payloadDigest,
+				estimatedTokens: candidate.tokenAccounting.inputTokens,
+			});
+			return candidate;
+		};
+		const allowedTools = () => [
+			...this.#toolRuntime.listAllowed(context, command.toolPolicy, toolExecutionScope),
+			...(command.delegationPolicy.enabled &&
+			command.toolPolicy.allowedToolNames.includes(this.#delegationToolDescriptor.name) &&
+			command.toolPolicy.allowedRisks.includes(this.#delegationToolDescriptor.risk)
+				? [this.#delegationToolDescriptor]
+				: []),
+		];
 		const finishActiveLoop = (
 			status: "COMPLETED" | typeof FLOW_COMMAND_STATUS.FAILED | typeof FLOW_COMMAND_STATUS.CANCELLED,
 		): void => {
@@ -133,6 +227,7 @@ export class RunFlow {
 		};
 
 		try {
+			candidateInput = await assemble(allowedTools());
 			while (true) {
 				this.#toolRuntime.assertActive(context, toolExecutionScope);
 				if (signal.aborted) {
@@ -144,7 +239,7 @@ export class RunFlow {
 						turns,
 						toolCalls,
 						events,
-						lastFrame: frame,
+						lastCandidate: candidateInput,
 					};
 				}
 				if (turns >= command.budget.maxTurns) {
@@ -157,17 +252,15 @@ export class RunFlow {
 				activeLoopOrdinal = turns;
 				lifecycle?.loopStarted(turns, this.#timePort.now().isoUtc);
 				let assistant: KernelAssistantMessage | undefined;
-				const availableTools = [
-					...this.#toolRuntime.listAllowed(context, command.toolPolicy, toolExecutionScope),
-					...(command.delegationPolicy.enabled &&
-					command.toolPolicy.allowedToolNames.includes(this.#delegationToolDescriptor.name) &&
-					command.toolPolicy.allowedRisks.includes(this.#delegationToolDescriptor.risk)
-						? [this.#delegationToolDescriptor]
-						: []),
-				];
+
 				for await (const candidate of this.#adapter.executeTurn(
 					context,
-					Object.freeze({ sessionId: command.sessionId, frame, tools: Object.freeze(availableTools) }),
+					Object.freeze({
+						sessionId: command.sessionId,
+						payload: candidateInput.payload,
+						formatVersion: candidateInput.formatVersion,
+						modelAdapterVersion: candidateInput.modelAdapterVersion,
+					}),
 					signal,
 				)) {
 					if (candidate.type === "text_delta") {
@@ -196,12 +289,6 @@ export class RunFlow {
 
 				const requestedTools = assistant.content.filter((block) => block.type === "tool_call");
 				if (requestedTools.length === 0) {
-					frame = this.#contextEngine.appendTurn(
-						frame,
-						[assistant],
-						command.budget.maxInputTokens,
-						command.budget.outputReserveTokens,
-					);
 					const output = assistant.content
 						.filter((block) => block.type === "text")
 						.map((block) => block.text)
@@ -211,12 +298,36 @@ export class RunFlow {
 							maxOutputChars: command.budget.maxOutputChars,
 						});
 					}
+					const modelCommandId = flowId("model", { runId: command.runId, turn: turns });
+					records.push(
+						projectRunMessage(this.#context.artifacts, {
+							runId: command.runId,
+							eventId: flowId("assistant", { modelCommandId }),
+							sequence: records.length,
+							modelCommandId,
+							message: assistant,
+							requires: [],
+						}),
+					);
+					sessionContext?.commit(
+						completedRunHistory(this.#context.artifacts, command.runId, command.goal, records),
+						expectedChildObservations,
+					);
 					appendEvent("RunCompleted", { turns, toolCalls, outputChars: output.length });
 					finishActiveLoop("COMPLETED");
-					return { runId: command.runId, status: "completed", output, turns, toolCalls, events, lastFrame: frame };
+					return {
+						runId: command.runId,
+						status: "completed",
+						output,
+						turns,
+						toolCalls,
+						events,
+						lastCandidate: candidateInput,
+					};
 				}
 
-				const toolMessages: KernelMessage[] = [];
+				const toolMessages: ContextMessage[] = [];
+				let projectedAssistant: ContextMessage = assistant;
 				for (const toolCall of requestedTools) {
 					toolCalls += 1;
 					if (toolCalls > command.budget.maxToolCalls || toolCalls > command.toolPolicy.maxCalls) {
@@ -245,12 +356,26 @@ export class RunFlow {
 							signal,
 						);
 						appendEvent("ChildRunCompleted", { childRunId: child.childRunId, status: child.status });
+						if (child.status === "cancelled")
+							throw new KernelError("DELEGATION_NOT_ALLOWED", "已取消 Child 不能编造终态观察。");
+						const childId = flowId("child", { runId: command.runId, turn: turns, callId: toolCall.toolCallId });
+						if (projectedAssistant.role !== "assistant") throw new Error("CONTEXT_ASSISTANT_REQUIRED");
+						projectedAssistant = {
+							...projectedAssistant,
+							content: projectedAssistant.content.map((block) =>
+								block.type === "tool_call" && block.toolCallId === toolCall.toolCallId
+									? { type: "child_task", childId, childRunId: child.childRunId, task }
+									: block,
+							),
+						};
 						toolMessages.push({
-							role: "tool",
-							toolCallId: toolCall.toolCallId,
-							toolName: toolCall.toolName,
+							role: "task_observation",
+							childId,
+							childRunId: child.childRunId,
 							text: child.summary,
-							isError: child.status !== "completed",
+							outcome: child.status === "completed" ? FLOW_COMMAND_STATUS.SUCCEEDED : FLOW_COMMAND_STATUS.FAILED,
+							resultRef: child.status === "completed" ? this.#context.artifacts.put(child.summary) : null,
+							errorRef: child.status === "failed" ? flowId("child-error", { childId }) : null,
 						});
 					} else {
 						const invocation: ToolInvocation = {
@@ -276,13 +401,35 @@ export class RunFlow {
 					appendEvent("ToolCompleted", { toolCallId: toolCall.toolCallId, toolName: toolCall.toolName });
 				}
 
-				frame = this.#contextEngine.appendTurn(
-					frame,
-					[assistant, ...toolMessages],
-					command.budget.maxInputTokens,
-					command.budget.outputReserveTokens,
-				);
-				appendEvent("ContextAssembled", { frameId: frame.frameId, estimatedTokens: frame.estimatedTokens });
+				const modelCommandId = flowId("model", { runId: command.runId, turn: turns });
+				const declaration = projectRunMessage(this.#context.artifacts, {
+					runId: command.runId,
+					eventId: flowId("assistant", { modelCommandId }),
+					sequence: records.length,
+					modelCommandId,
+					message: projectedAssistant,
+					requires: [],
+				});
+				records.push(declaration);
+				for (const [index, message] of toolMessages.entries()) {
+					const record = projectRunMessage(this.#context.artifacts, {
+						runId: command.runId,
+						eventId: flowId("observation", { modelCommandId, index }),
+						sequence: records.length,
+						modelCommandId,
+						message,
+						requires: [declaration.recordRef],
+					});
+					records.push(record);
+					if (message.role === "task_observation")
+						expectedChildObservations.push({
+							recordRef: record.recordRef,
+							childId: message.childId,
+							childRunId: message.childRunId,
+							outcome: message.outcome,
+						});
+				}
+				candidateInput = await assemble(allowedTools());
 				finishActiveLoop("COMPLETED");
 			}
 		} catch (error) {
@@ -296,14 +443,22 @@ export class RunFlow {
 					turns,
 					toolCalls,
 					events,
-					lastFrame: frame,
+					lastCandidate: candidateInput,
 				};
 			}
 			finishActiveLoop(FLOW_COMMAND_STATUS.FAILED);
 			const normalized =
 				error instanceof KernelError ? error : new KernelError("ADAPTER_PROTOCOL_ERROR", "Run 执行失败。", true);
 			appendEvent("RunFailed", { errorCode: normalized.code, retryable: normalized.retryable });
-			return { runId: command.runId, status: "failed", output: "", turns, toolCalls, events, lastFrame: frame };
+			return {
+				runId: command.runId,
+				status: "failed",
+				output: "",
+				turns,
+				toolCalls,
+				events,
+				lastCandidate: candidateInput,
+			};
 		}
 	}
 }

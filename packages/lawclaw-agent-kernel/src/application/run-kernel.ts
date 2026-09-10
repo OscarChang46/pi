@@ -1,12 +1,27 @@
 import { loadRuntimeSettings, resolveConfiguredPath } from "../config/index.ts";
-import { createAgentKernel, createRequestContext, createRunCommand } from "./composition-root.ts";
+import {
+	createAgentKernel,
+	createRequestContext,
+	createRootSessionCommand,
+	createRunCommand,
+} from "./composition-root.ts";
 
 const settings = loadRuntimeSettings();
 const workspaceRoot = resolveConfiguredPath(settings, settings.config.runtime.workspaceRoot);
 const kernel = await createAgentKernel(workspaceRoot, settings);
-const result = await kernel.run(createRequestContext(settings), createRunCommand(workspaceRoot, settings));
+const requestContext = createRequestContext(settings);
+const ensured = kernel.ensure(
+	requestContext,
+	createRootSessionCommand({
+		logicalKey: `logical-session:${crypto.randomUUID()}`,
+		agentDefinitionRef: kernel.agentId,
+		contextPolicyRef: settings.config.prompts.agentSystemPromptId,
+	}),
+);
+const command = createRunCommand({ sessionId: ensured.anchor.sessionId, workspaceRoot }, settings);
+const result = await kernel.run(requestContext, command);
 
-if (result.status !== "completed") {
+if (result.status !== "completed" || !result.lastCandidate) {
 	throw new Error(`Pi Agent Kernel 运行未完成，终态为 ${result.status}。`);
 }
 
@@ -19,8 +34,8 @@ console.log(
 			toolCalls: result.toolCalls,
 			eventTypes: result.events.map((event) => event.type),
 			context: {
-				estimatedTokens: result.lastFrame.estimatedTokens,
-				selectedItemIds: result.lastFrame.reductionTrace.selectedItemIds,
+				estimatedTokens: result.lastCandidate.tokenAccounting.inputTokens,
+				selectedItemIds: result.lastCandidate.payload.materials.map((item) => item.sourceRef),
 			},
 		},
 		null,

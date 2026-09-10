@@ -5,6 +5,8 @@
 > 日期：2026-09-04
 > 基于：`ACR-2026-0008` / `AKB-2026-09-03-09`
 
+> 历史决定说明：FE、资源分配及独立子任务协调组件的旧边界已由[ACR-0012](ACR-2026-0012-flow-system-engine.md)替代；以下保留当时评审事实。
+
 ## 1. 变更原因
 
 步骤二评审发现 Session、Run、AgentLoop、FlowEngine、进程和 Multi-agent 的边界仍可能被不同解释，需要在冻结接口前重开步骤一。
@@ -36,9 +38,9 @@
 
 - [总体设计](../../design/agent-kernel-design.md)
 - [L1 Control 层设计](../../design/layers/l1-control/README.md)
-- [FlowEngine 组件设计](../../design/layers/l1-control/components/flow-engine.md)
+- [FlowEngine 组件设计](../../design/layers/l1-control/components/flow-engine/README.md)
 - [SessionManager 组件设计](../../design/layers/l1-control/components/session-manager.md)
-- [SubagentCoordinator 组件设计](../../design/layers/l1-control/components/subagent-coordinator.md)
+- [SubagentCoordinator 组件设计（已撤回归档）](../archive/flow-before-system-v1/subagent-coordinator-withdrawn-2026-09-08.md)
 - [Operations Plane 层设计](../../design/layers/operations-plane/README.md)
 - [Infrastructure Plane 层设计](../../design/layers/infrastructure-plane/README.md)
 - [边界契约导览](../../design/contracts/README.md)

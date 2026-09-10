@@ -19,8 +19,9 @@ rectangle "Agent Kernel System 边界" as KernelBoundary #FFFDF8 {
     [上下文组装器\n(Context Manager)] as ContextMgr
     [运行调度器\n(Run Scheduler)] as Scheduler
     [运行状态入口\n(Run Registry)] as RunRegistry
-    [无状态流程推进器\n(FlowEngine)] as FlowEngine
-    [资源管理器\n(Resource Manager)] as ResourceManager
+    [系统四态框架\n(FlowEngine)] as FlowEngine
+    [ReAct业务适配] as BusinessFlow
+    [ActivityInterceptor] as Magic
     [拦截器 / PEP\n(Policy Enforcement Point)] as PEP
 
     database "聚合根持久化\n(State DB)" as DB {
@@ -78,23 +79,24 @@ package "Infrastructure Plane 边界\n（只提供机制，不拥有领域规则
   [Secret / Clock] as SecretClockInfra
 }
 
-Gateway -right-> Scheduler : 1. 发起任务请求\n（可信 ExecutionEnvelopeRef）
-
-Scheduler -down-> SessionMgr : 2. 唤醒 / 创建 Session
+Gateway -right-> SessionMgr : 1. ensure Session /\nreserve唯一ActiveRunBinding
+SessionMgr -right-> RunRegistry : 2. commit后outbox受理Run\n(SessionRunBindingRef)
 Scheduler -right-> RunRegistry : RunSchedulingPort
 SessionMgr -right-> DB : 读写持久化状态
 RunRegistry -right-> DB : Run / Attempt / Event
 SessionMgr -down-> ContextMgr : 3. 提取 Memory 与动态上下文（RAG）
 
-Scheduler -right-> ResourceManager : 4a. ExecutionResourcePort\n申请有界执行槽
-ResourceManager -up-> FlowEngine : 4b. 推进已调度 AgentRun
-FlowEngine -up-> AgentCore : 4c. 注入 Context 并推进 AgentLoop
+Scheduler --> BusinessFlow : 4a. 唤醒业务程序
+BusinessFlow --> FlowEngine : 4b. 注册工作流
+FlowEngine --> Magic : Activity拦截及回放
+Magic --> DB : 先追加Started / 后追加Completed
+BusinessFlow -up-> AgentCore : 4c. 经Activity调用模型
 AgentCore -right-> AgentAdapter : AgentAdapterPort
 AgentAdapter -right-> LLM : BND-MOD-001\nProvider 私有协议
 AgentCore -left-> Parser : 解析意图（生成 ToolRequest）
-Parser -down-> FlowEngine : 5. 抛出动作候选回主控层
+Parser -down-> BusinessFlow : 5. 业务动作候选
 
-FlowEngine -right-> PEP : 6. 拦截动作，发起鉴权
+BusinessFlow -right-> PEP : 6. 发起业务动作鉴权
 PEP -up-> PDP : 7. 携带 Context 询问权限
 PDP -down-> PolicyDB : 查算策略
 PDP .down.> PEP : 8. 返回鉴权结果\n（通过 / 挂起审批）
@@ -104,12 +106,11 @@ ToolRouter -right-> ToolProviderAdapter : 10a. ToolProviderPort
 ToolProviderAdapter -right-> InternalAPI : Provider 私有协议
 ToolRouter -down-> Sandbox : 10b. SandboxPort.execute\n一次性有界执行
 
-ToolRouter .left.> FlowEngine : 10. 返回执行结果写入黑板
-FlowEngine .down.> SessionMgr : 11. 提交 ContextDelta / ArtifactRef
+ToolRouter .left.> BusinessFlow : 10. 返回业务结果
+BusinessFlow .down.> SessionMgr : 11. 提交 ContextDelta / ArtifactRef
 
 ' 横切运维只接收 OperationContext 与遥测，不反向控制领域流程。
 Scheduler .down.> ObsPort : OperationContext / 调度耗时
-ResourceManager .down.> ObsPort : 队列 / 执行槽 / 资源耗时
 FlowEngine .down.> ObsPort : 状态推进耗时
 AgentCore .down.> ObsPort : AgentLoop / 模型耗时
 PEP .down.> ObsPort : 权限判定 / 安全审计
@@ -121,7 +122,6 @@ Telemetry --> OpsAudit : 审计与诊断
 ' 领域组件只依赖 Port；具体容器、通信、存储、密钥和时钟机制位于 Kernel 之外。
 DB --> InfraPort : RepositoryPort
 Scheduler --> InfraPort : TransportPort / ClockPort
-ResourceManager --> InfraPort : ExecutionResourcePort / ProcessPort
 AgentCore --> InfraPort : ModelEgressPort / SecretPort
 Sandbox --> InfraPort : Process / Container / Filesystem / Network Port
 InfraPort -down-> InfraAdapter : InfrastructurePort
@@ -132,8 +132,9 @@ InfraAdapter --> SecretClockInfra
 
 legend bottom
   本图是逻辑组件视图，不表示代码包、部署单元或聚合所有权。
-  FlowEngine 是无状态推进算法；Session 与 Run 权威状态均在 Repository，不在 Engine 内。
+  FlowEngine管理四态与Activity恢复；系统日志只追加，业务状态独立。
   一个 Host 可用一个 FlowEngine 服务多个 Session/Run；Session 不对应进程。
+  每个Session只有0..1当前活跃Run绑定；历史Run与Attempt接管归RunRegistry。
   Multi-agent 团队拓扑、角色和协作由 Agent Kernel System 外的业务编排负责。
   身份 Token 在 Backend/KernelHost 终止；Kernel 不拥有 RBAC/ABAC 权威策略。
   L4 定义受控执行语义；Infrastructure 只实现进程、容器、文件和网络机制。

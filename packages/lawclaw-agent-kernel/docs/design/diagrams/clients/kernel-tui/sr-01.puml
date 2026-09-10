@@ -1,0 +1,18 @@
+@startuml
+skinparam defaultFontName Hiragino Sans GB
+start
+:Launcher.resolve(profile或显式端点);
+if (返回已就绪且身份匹配的宿主?) then (是)
+ :initialize并验证能力;
+else (否)
+ :显示错误，不接管进程/锁;
+ stop
+endif
+:resume指定实例，pending优先查询;
+ :仅有bookmark时直接恢复当前快照;
+if (连接失败?) then (是)
+ :有限重连五次；耗尽等待/status或重试;
+endif
+:退出仅释放客户端，不取消任务;
+stop
+@enduml

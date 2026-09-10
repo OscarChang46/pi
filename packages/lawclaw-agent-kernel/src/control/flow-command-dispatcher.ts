@@ -1,7 +1,7 @@
+import type { AgentRunStore } from "../contracts/control/run-registry/run-storage.ts";
 import type { FlowArtifactStore } from "../contracts/flow-artifacts.ts";
 import type { FlowCommandHandler, FlowCommandHandlers, FlowCommandOutcome } from "../contracts/flow-dispatch.ts";
 import type { AdvanceInput, CommandRecord, EngineCommand, ExecutionClaim } from "../contracts/flow-engine.ts";
-import type { DurableFlowStore } from "../contracts/flow-storage.ts";
 import type { TimePort } from "../contracts/index.ts";
 import { FLOW_COMMAND_STATUS, FLOW_EFFECT } from "../contracts/react-flow-values.ts";
 import { createVariantMatcher } from "./variant-matcher.ts";
@@ -11,7 +11,7 @@ export interface FlowDispatchDependencies {
 	/** 读取系统Completed以修复业务结果提交前崩溃，undefined表示尚无完成记录。 */
 	readonly replay?: (input: AdvanceInput, command: EngineCommand) => FlowCommandOutcome | null | undefined;
 	/** 命令及Run权威存储。 */
-	readonly store: DurableFlowStore;
+	readonly store: AgentRunStore;
 	/** 命令结果的不可变存储。 */
 	readonly artifacts: FlowArtifactStore;
 	/** 截止时间来源。 */

@@ -1,0 +1,42 @@
+@startuml
+!include ../../drawio-theme.puml
+skinparam defaultFontName "Hiragino Sans GB"
+skinparam linetype polyline
+title Session sub-session 协调边界（候选，待实现）
+top to bottom direction
+
+class "外部业务处理器" as Business <<external_subdomain>>
+interface "SessionForkJoinPort\nFork / Cancel / Query" as RelationPort <<inbound_port>>
+package "SessionManager" {
+  class "SubSessionCoordinator" as Relations <<application_service>>
+  class "JoinBarrier + JoinMember" as Barrier <<aggregate_root>>
+  interface "JoinRepository\ninbox / barrier / reduction / outbox" as Journal <<outbound_port>>
+  class "ReducerRegistry" as Reducer <<domain_service>>
+  RelationPort <|.. Relations
+  Relations --> Barrier : 策略裁决 / 状态迁移
+  Relations --> Journal : 唯一持久协调与恢复进度
+  Relations --> Reducer : 事务外规约
+}
+interface "FlowRunCommandPort\nsubmit / cancel / resume" as FlowPort <<outbound_port>>
+class "FlowEngine\n单 Flow 执行" as Engine <<external_subdomain>>
+class "安全模块\nPDP / PEP / Permit" as Security <<external_subdomain>>
+class "Session / Artifact Store" as Session <<external_subdomain>>
+
+Business --> RelationPort : 提交冻结ForkSpec
+Relations --> Security : 委派与数据授权
+Relations --> Session : branch / snapshot / append Summary
+Relations --> FlowPort : commit后outbox
+FlowPort --> Engine : 执行/取消Child，唤醒Parent
+Engine ..> Relations : 终态事件 -> inbox
+
+note bottom of Relations
+  统一拥有Session血缘、Fork/Join/Reduce、取消编排与Parent唤醒。
+  inbox/member/barrier CAS防重复决策；Reduce不持DB锁。
+  Parent Summary提交确认后才产生resume outbox。
+end note
+
+note bottom of Engine
+  FE只记单Flow执行事实和幂等指令回执。
+  不读JoinBarrier、Reducer或Child黑板。
+end note
+@enduml

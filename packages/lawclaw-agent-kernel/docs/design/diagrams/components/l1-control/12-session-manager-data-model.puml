@@ -1,0 +1,327 @@
+@startuml
+!include ../../drawio-theme.puml
+title SessionManager 模块数据与方法模型（实现基线 + 候选目标）
+top to bottom direction
+hide empty methods
+skinparam linetype ortho
+
+package "Session 聚合" <<domain_module>> {
+  class AgentSystem <<implemented_facade>> {
+    +agentId: Ref {readOnly}
+    -limits.maxSessions: Count
+    -sessions: Map<Ref, AgentSession>
+    -sessionBindings: Map<Ref, SessionLookupBinding>
+    -ensureReceipts: Map<Ref, EnsureReceipt>
+    -scopeKey: Ref?
+    -- public --
+    +lookup(context, logicalKey): SessionLookupResult
+    +ensure(context, command): EnsureSessionResult
+    +run(context, command, signal?): Promise<AgentRunResult>
+    -- private --
+    -assertEnsureCommand(command): void
+    -assertMatchingBinding(binding, command): void
+    -recordEnsureReceipt(context, commandId, payloadDigest, result): EnsureSessionResult
+    -assertTenantScope(context): void
+  }
+
+  class AgentSession <<implemented_slice>> {
+    +sessionId: Ref {readOnly}
+    +scopeKey: Ref {readOnly}
+    +agentId: Ref {readOnly}
+    +version: Count = 0 {readOnly}
+    +headRef: Ref {readOnly}
+    -activeRunBinding: ActiveRunBinding?
+    -lastBindingVersion: Count = 0
+    -- public --
+    +AgentSession(sessionId, tenantId, agentId)
+    +anchor(): SessionAnchor
+    +get activeRunBinding(): ActiveRunBinding?
+    +reserveRun(input): ActiveRunBinding
+    +markRunAdmissionUnknown(runId, bindingVersion): ActiveRunBinding
+    +confirmRunAdmission(runId, bindingVersion, receiptRef): ActiveRunBinding
+    +confirmRunAdmissionRejected(runId, bindingVersion): void
+    +beginRunRelease(runId, bindingVersion, receiptRef): ActiveRunBinding
+    +finalizeRunRelease(runId, bindingVersion): void
+    -- private --
+    -requireBinding(runId, bindingVersion): ActiveRunBinding
+    -replaceBinding(binding, change): ActiveRunBinding
+    -invalidTransition(binding, action): KernelError
+  }
+
+  class ReserveSessionRunInput <<implemented_input>> {
+    +runId: Ref {readOnly}
+    +reserveCommandId: Ref {readOnly}
+    +admissionCommandId: Ref {readOnly}
+    +payloadDigest: Digest {readOnly}
+  }
+
+  class SessionRecord <<candidate_persistence>> {
+    +sessionId: Ref
+    +version: Count
+    +agentId: Ref
+    +state: active | archived
+    +parent: ParentSnapshotRef?
+    +headRef: Ref
+    +lastBindingVersion: Count
+    +activeRunBinding: ActiveRunBinding?
+  }
+
+  class ParentSnapshotRef <<value_object>> {
+    +sessionId: Ref
+    +version: Count
+  }
+
+  class ActiveRunBinding <<value_object>> {
+    +runId: Ref
+    +bindingVersion: Count
+    +state: RESERVED | SUBMIT_UNKNOWN | ACTIVE | RELEASING
+    +reserveCommandId: Ref
+    +admissionCommandId: Ref
+    +payloadDigest: Digest
+    +admissionReceiptRef: Ref?
+    +terminalReceiptRef: Ref?
+    +stateVersion: Count
+  }
+
+  class SessionDelta <<entity>> {
+    +deltaId: Ref
+    +sourceRunId: Ref
+    +sourceBindingVersion: Count
+    +slice: TranscriptSlice
+  }
+
+  class SessionLookupBinding <<persistence_record>> {
+    +scopeKey: Ref
+    +logicalKey: Ref
+    +sessionId: Ref
+    +agentDefinitionRef: Ref
+    +contextPolicyRef: Ref
+  }
+
+  class SessionCreationIntent <<implemented_input>> {
+    +logicalKey: Ref
+    +agentDefinitionRef: Ref
+    +contextPolicyRef: Ref
+    +parent: SessionAnchor?
+  }
+
+  class SessionAnchor <<implemented_value>> {
+    +sessionId: Ref
+    +version: Count
+    +headRef: Ref
+  }
+
+  class EnsureSessionCommand <<implemented_input>> {
+    +commandId: Ref
+    +intent: SessionCreationIntent
+  }
+
+  class EnsureSessionResult <<implemented_value>> {
+    +anchor: SessionAnchor
+    +created: Bool
+  }
+
+  class EnsureReceipt <<implemented_record>> {
+    +scopeKey: Ref
+    +commandId: Ref
+    +payloadDigest: Digest
+    +result: EnsureSessionResult
+  }
+
+  class SessionCommandReceipt <<persistence_record>> {
+    +commandId: Ref
+    +payloadDigest: Digest
+    +resultRef: Ref
+  }
+
+  AgentSystem "1" o-- "0..*" AgentSession : sessionId目录
+  AgentSystem "1" o-- "0..*" SessionLookupBinding : logicalKey唯一目录
+  AgentSystem "1" o-- "0..*" EnsureReceipt : commandId回执目录
+  AgentSystem ..> EnsureSessionCommand : ensure
+  AgentSystem ..> EnsureSessionResult : returns
+  AgentSession ..> ReserveSessionRunInput : reserveRun
+  AgentSession ..> SessionAnchor : anchor
+  AgentSession *-- "0..1" ActiveRunBinding : 当前实现占用
+  AgentSession ..> SessionRecord : 目标持久映射
+  SessionRecord *-- "0..1" ParentSnapshotRef : Child 的冻结父版本
+  SessionRecord *-- "0..1" ActiveRunBinding : 当前占用
+  SessionRecord *-- "0..*" SessionDelta : 版本化增量
+  SessionLookupBinding --> "1" SessionRecord : 只索引 Root
+  SessionCommandReceipt --> "1" SessionRecord : 持久目标幂等结果
+  EnsureSessionCommand *-- "1" SessionCreationIntent
+  EnsureSessionResult *-- "1" SessionAnchor
+  EnsureReceipt *-- "1" EnsureSessionResult
+}
+
+package "Fork / Join 聚合" <<domain_module>> {
+  class JoinBarrier <<aggregate_root>> {
+    +groupId: Ref
+    +parentSessionId: Ref
+    +parentSessionVersion: Count
+    +parentRunId: Ref
+    +state: BarrierState
+    +version: Count
+    +decisionKind: JoinDecisionKind?
+    +outcomeKind: ParentOutcomeKind?
+    +cleanupState: GroupCleanupState
+  }
+
+  class JoinMember <<entity>> {
+    +memberId: Ref
+    +ordinal: Count
+    +childSessionId: Ref
+    +childRunId: Ref
+    +state: MemberState
+    +childSessionState: ChildSessionState
+    +contextState: ChildContextState
+    +runBindingVersion: Count?
+    +terminalVersion: Count
+  }
+
+  class JoinPolicy <<value_object>> {
+    +kind: ALL_SUCCESS | WAIT_ALL | QUORUM
+    +minSuccesses: Count?
+    +includeFailures: Bool?
+    +cancelRemainder: Bool?
+  }
+
+  class ReducerSpec <<value_object>> {
+    +ref: Ref
+    +version: Version
+  }
+
+  class BarrierSuspension <<value_object>> {
+    +suspendedFromState: BarrierState
+    +blockingUnknownCount: Count
+    +suspensionSetDigest: Digest
+    +incidentSetRef: Ref
+    +observedAtMs: Millis
+  }
+
+  class JoinReduction <<persistence_record>> {
+    +groupId: Ref
+    +fence: Count
+    +inputDigest: Digest
+    +outputRef: Artifact?
+    +outputDigest: Digest?
+  }
+
+  JoinBarrier *-- "1..16" JoinMember : 固定成员
+  JoinBarrier *-- "1" JoinPolicy : Fork 时冻结
+  JoinBarrier *-- "1" ReducerSpec : 版本化策略
+  JoinBarrier *-- "0..1" BarrierSuspension : 阻塞投影
+  JoinBarrier o-- "0..1" JoinReduction : 唯一规约
+}
+
+package "可靠性与恢复记录" <<domain_module>> {
+  class JoinInbox <<persistence_record>> {
+    +eventId: Ref
+    +payloadDigest: Digest
+    +receiptRef: Ref
+  }
+
+  class JoinOutbox <<persistence_record>> {
+    +commandId: Ref
+    +payloadDigest: Digest
+    +state: READY | CLAIMED | SENT_UNKNOWN | CONFIRMED | CANCELLED
+  }
+
+  class JoinUnknownEffect <<persistence_record>> {
+    +commandId: Ref
+    +kind: UnknownEffectKind
+    +role: BLOCKING | CLEANUP
+    +state: UnknownEffectState
+    +payloadDigest: Digest
+  }
+
+  class RetentionPin <<persistence_record>> {
+    +pinId: Ref
+    +targetRef: Ref
+    +reason: Ref
+    +releasedAtMs: Millis?
+  }
+
+  JoinBarrier "1" o-[norank]- "0..*" JoinInbox : 事件去重
+  JoinBarrier "1" o-[norank]- "0..*" JoinOutbox : 提交后投递
+  JoinBarrier "1" o-[norank]- "0..*" JoinUnknownEffect : 按命令独立对账
+  JoinBarrier "1" o-[norank]- "0..*" RetentionPin : 阻止过早回收
+}
+
+package "外部能力引用" <<domain_module>> {
+  class SecurityEvidenceRefs <<reference>> {
+    +executionEnvelopeRef: Ref
+    +decisionCommandId: Ref
+    +permitRef: Ref
+    +permitReceiptRef: Ref
+    +startGrantRef: Ref
+    +bindingDigest: Digest
+  }
+
+  class ContextCandidateRefs <<candidate_reference>> {
+    +parentContextSliceSpecRef: Ref
+    +inputDigest: Digest
+    +promptRef: Artifact?
+    +tokenAccountingRef: Ref?
+  }
+
+  class SessionRunBindingRef <<reference>> {
+    +sessionId: Ref
+    +runId: Ref
+    +bindingVersion: Count
+    +bindingReceiptRef: Ref
+  }
+
+  class ParentOutcomeRefs <<reference>> {
+    +outcomeRef: Artifact
+    +outcomeDigest: Digest
+    +parentCommitRef: Ref?
+    +wakeReceiptRef: Ref?
+  }
+}
+
+JoinMember o-[norank]- "0..1" SecurityEvidenceRefs : 仅保存安全事实引用
+JoinMember o-[norank]- "0..1" ContextCandidateRefs : 候选保存与采纳证据
+ActiveRunBinding .[norank].> SessionRunBindingRef : 受理后生成
+JoinBarrier o-[norank]- "0..1" ParentOutcomeRefs : Parent 提交与唤醒证据
+JoinMember -[norank]-> "1" SessionRecord : childSessionId
+JoinBarrier -[norank]-> "1" SessionRecord : parentSessionId@version
+
+AgentSession -[hidden]down-> JoinBarrier
+JoinBarrier -[hidden]down-> JoinInbox
+JoinInbox -[hidden]down-> SecurityEvidenceRefs
+
+note right of AgentSession
+  当前代码实现Root@0锚点和单活 Run 切片。
+  tenantId 是现行隔离字段，不是权限对象。
+  lastBindingVersion 在对象生命周期内只增不减。
+end note
+
+note right of SessionRecord
+  候选持久模型；尚未实现。
+  lastBindingVersion 必须在清槽后保留，
+  防止重启后复用旧 bindingVersion。
+  Parent 不持有 Child 集合，不支持 re-parent。
+end note
+
+note bottom of JoinBarrier
+  JoinBarrier 与 AgentSession 是两个聚合根。
+  inbox/member/barrier/outbox 的原子范围由 Repository 实现；
+  Reducer、Context、Security、RunRegistry 和 FE 均在事务外调用。
+end note
+
+note bottom of ContextCandidateRefs
+  Context 只返回 AssemblyCandidate，
+  不存在独立 assemblyReceiptRef。
+  promptRef 仅在调用方保存完整候选后产生；
+  TokenAccounting 不代表 Provider 账单 Token。
+end note
+
+legend bottom
+  <<implemented_slice>> 当前 TypeScript 已实现
+  <<implemented_input>> 当前 TypeScript 已实现输入
+  <<implemented_value>> 当前 TypeScript 已实现值对象
+  <<implemented_record>> 当前 TypeScript 已实现进程内记录
+  <<candidate_persistence>> 候选持久模型，尚未实现
+  <<candidate_reference>> 候选跨组件引用，尚未实现
+endlegend
+@enduml

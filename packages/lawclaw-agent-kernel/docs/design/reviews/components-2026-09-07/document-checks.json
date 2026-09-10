@@ -1,0 +1,9 @@
+{
+  "kind": "document-static-check-only",
+  "files": 39,
+  "localLinks": 257,
+  "internalContractAnchors": 23,
+  "securityDesignVectors": 9,
+  "errors": [],
+  "runtimeTestsExecuted": false
+}

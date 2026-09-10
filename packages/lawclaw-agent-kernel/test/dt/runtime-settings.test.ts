@@ -41,3 +41,11 @@ test("[AK-CFG-004] 可配置参数不能突破绝对安全上限", async (contex
 	context.after(() => fs.rm(fixture.directory, { recursive: true, force: true }));
 	assert.throws(() => loadRuntimeSettings(fixture.configFile), RuntimeConfigurationError);
 });
+
+test("[AK-CFG-006] Session 单活 Run 不是可调容量参数", async (context) => {
+	const fixture = await temporaryConfiguration(
+		defaultConfigText.replace("maxSessions: 1024", "maxSessions: 1024\n    maxRunsPerSession: 2"),
+	);
+	context.after(() => fs.rm(fixture.directory, { recursive: true, force: true }));
+	assert.throws(() => loadRuntimeSettings(fixture.configFile), RuntimeConfigurationError);
+});

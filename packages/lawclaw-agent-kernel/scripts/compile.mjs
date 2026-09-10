@@ -78,4 +78,13 @@ if (result.error) {
   process.exit(1);
 }
 
-process.exit(result.status ?? 1);
+if (result.status !== 0) process.exit(result.status ?? 1);
+// 使用真实构建配置做无产物检查，避免开发配置遗漏构建专属约束。
+if (mode === "--typecheck") {
+  const buildCheck = spawnSync(process.execPath, [compilerPath, "-p",
+    path.join(packageRoot, hasDependencyDeclarations ? "tsconfig.build.json" : "tsconfig.build-stub.json"),
+    "--noEmit"], { cwd: packageRoot, stdio: "inherit" });
+  if (buildCheck.error) console.error(buildCheck.error.message);
+  process.exit(buildCheck.status ?? 1);
+}
+process.exit(0);

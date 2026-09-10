@@ -1,0 +1,208 @@
+---
+doc_id: L3-CMP-001
+level: component
+layer: L3 Tool Runtime
+component: ToolCatalogRouter
+status: candidate
+baseline: AKB-2026-09-03-09
+authoritative_for: ToolDefinition 目录投影、可见性过滤与冻结路由快照
+parent: L3-DES-001
+interfaces: [ToolRuntimePort]
+diagrams: []
+supersedes: ["[归档工具调用子系统设计](../../../../governance/archive/design-v3-pre-layering/tool-call-subsystem-design.md) 中工具目录与路由部分"]
+---
+
+# ToolCatalogRouter 组件设计
+
+## 职责
+
+ToolCatalogRouter 维护版本化 ToolDefinition 目录投影，根据 L1 提供的技术执行范围生成可见工具集合和冻结路由快照。它描述“有哪些候选工具和如何定位执行端”，不判断某次调用是否获准，也不执行工具。
+
+## 状态与不变量
+
+目录条目包含稳定工具标识、版本、能力描述、参数契约引用、风险标签、执行类型和 Provider/Sandbox 路由引用。运行中的 Attempt 使用不可变快照；目录热更新不能改变已派发 Attempt 的工具含义。Secret、业务身份和 Provider 私有句柄不进入公开快照。
+
+## 入站与出站
+
+L1 查询作用域化目录并获得 `ToolCatalogSnapshotRef`；ToolCallRuntime 使用同一快照解析冻结路由。L2 只接收 L1 转交的目录快照，不直接查询本组件。
+
+## 并发与故障
+
+目录发布采用新版本原子可见，读者不会观察半更新。工具版本缺失、路由失效或快照过期时拒绝执行，不回退到同名其他版本。Provider 健康可以影响新快照选择，但不能改写已冻结授权目标。
+
+## 契约边界
+
+公共DTO沿用CD-1；L3-DD-1补齐内部索引与公开投影。目录只做精确版本解析和作用域过滤，没有排序权重或智能路由算法。
+
+## 开发设计：L3-CMP-001 / CD-1（2026-09-07）
+
+候选开发设计，不代表实现或批准。分类：**独立组件**。字段与操作唯一维护于[CD-1契约](../../../contracts/component-development-contracts-v1.md#tool-catalog-router)；早期概要中的签名待定、可选重试等简写按CD-1明确行为解释。分类依据见[必要性审查](../../../reviews/components-2026-09-07/scope.md)。
+
+### 1. 问题与取舍
+
+具体失效/验证轨迹：两个同toolId/version发布：SCHEMA_INVALID。需要下面的职责划分与明确提交/恢复点；协作者可用纯函数实现，不要求每个职责一个类、进程或公共Port。
+
+### 2. 内部职责、依赖与生命周期
+
+ToolCatalogRouter：目录快照用例；DescriptorValidator：发布验证；VisibilityProjector：按技术范围过滤；FrozenRouteResolver：只解确定版本。目录发布与执行控制分离。
+
+本节细化既有Port允许的调用方向。跨组件只交换不可变值、稳定引用或Port，不传共享可变Run/Session。机制依然归Infrastructure，不因合并开发任务而搬入领域层。
+
+### 3. 数据与操作
+
+[数据与操作明细](../../../contracts/component-development-contracts-v1.md#tool-catalog-router)给出字段、判别值和调用边界。写操作组合CD-1命令元数据，查询组合请求与可信作用域；Ref不构成访问授权。无状态对象仅为输入输出，不因此新建Repository。
+
+### 4. 正常流程与分支
+
+发布前验证toolId+version唯一，Schema/描述Artifact已发布、路由binding已注册且隔离满足；事务原子插新快照、head与事件。visible求scope交集并保存不可变投影引用；L1转交L2。resolve只查该快照准确工具版本，实际目标必须符合resourceScope，不读取最新同名工具替代。
+
+先验证来源、Scope、大小、契约与幂等前置，再执行本节算法。明确区分纯计算结果、耐久受理回执和外部执行结果；外部操作只在必要状态提交后派发。
+
+### 5. 并发、幂等与恢复
+
+快照被活动Run/Permit引用时保留pin；路由失效拒绝，不改写快照。热更新只影响新Run。缓存按scope/version键，恢复不重新选择Provider。
+
+无法证明未执行时返回UNKNOWN，不返回absent或success。模型/工具首版自动执行重试0，查询有界重试与重新执行分开。并发验收同时核对状态版本、提交顺序和真实执行次数。
+
+### 6. 安全
+
+可见性不是执行授权；返回给L2描述剔除route地址、Secret、内部路径。toolDescriptorRef/digest用于L1/PEP复算，描述内容为不可信数据不能授予能力。
+
+普通遥测不含Prompt、Memory正文、工具参数、内容摘要、Secret、Permit或物理路径。必要安全审计走独立耐久Journal；普通遥测失败不回滚事实。拒绝路径同时保证未授权读取数和新副作用数为0。
+
+### 7. 配置、容量与运维
+
+每目录工具≤256、每描述64KiB、总投影1MiB；缓存16份/16MiB；发布校验5秒；被引用历史不得GC。
+
+以上为设计目标，不是测量结果。配置启动校验、冻结configVersion，不能热更新放宽既有Run。指标使用CD-1封闭component/phase/result/code集合；共同告警、容量总账与保留期见CD-1。
+
+诊断顺序：核对版本 → 查询本次身份与阶段 → 查询权威回执或投影来源 → 区分拒绝/未受理/已受理/UNKNOWN → 按本节恢复。禁止直接改数据库状态或放宽权限解除挂起。
+
+### 8. SFMEA、故障注入与验收
+
+局部表是契约验收矩阵，不对正常用例机械计算风险分数。具体失效原因、系统影响、严重度依据、控制措施与跨组件测试见[统一SFMEA](../../../reviews/components-2026-09-07/acceptance-matrix.md)。O/D无运行证据不估数值；全部具名风险均是强制实现验收项，不依赖RPN阈值。
+
+| 场景/需求 | 输入、故障注入与精确预期 | 局部追踪 | 测试 |
+|---|---|---|---|
+| L3-CMP-001-SC-01/REQ-01 | 两个同toolId/version发布：SCHEMA_INVALID | L3-CMP-001-FM-01 | L3-CMP-001-TC-01 |
+| L3-CMP-001-SC-02/REQ-02 | 目录更新后原Run resolve：仍旧routeRef | L3-CMP-001-FM-02 | L3-CMP-001-TC-02 |
+| L3-CMP-001-SC-03/REQ-03 | 旧route不可用：ROUTE_UNAVAILABLE而非同名fallback | L3-CMP-001-FM-03 | L3-CMP-001-TC-03 |
+| L3-CMP-001-SC-04/REQ-04 | T1可见投影交给T2读取：ACCESS_DENIED | L3-CMP-001-FM-04 | L3-CMP-001-TC-04 |
+| L3-CMP-001-SC-05/REQ-05 | Schema Artifact未发布：发布失败且head不变 | L3-CMP-001-FM-05 | L3-CMP-001-TC-05 |
+| L3-CMP-001-SC-06/REQ-06 | 公开描述检查：无endpoint或Secret字段 | L3-CMP-001-FM-06 | L3-CMP-001-TC-06 |
+
+六例均做契约/集成验证；纯算法使用冻结输入，涉及崩溃的用例加真实进程终止与SQLite/Artifact恢复，不能只重建内存实例。Faux Provider记录实际生效次数，测试不使用真实密钥或付费模型。用ManualClock和双屏障精确控制取消、到期和CAS竞态，不以sleep碰撞概率。
+
+每例保存合成输入、契约/config/代码版本、屏障释放顺序、调用轨迹、期望/实际状态与数量、错误码、资源清理和泄漏扫描。必须分别注入未生效失败、已生效丢响应；预期不能由被测实现生成。
+
+另覆盖合法成功、每个声明状态迁移与未声明状态×操作拒绝；限额逐个测L-1/L/L+1，两Scope交错和取消清理。性能按最大合法输入运行10,000次，记录Node/OS/CPU/内存和P99；异步组件按统一SFMEA的固定Faux负载测得C后，以0.8C到达速率持续30分钟，资源不超硬界限。独立实现验收报告必须区分替身、真实本地和真实外部证据。
+
+### 9. 开发拆分与完成定义
+
+顺序：契约验证 → 纯规则/状态机 → Repository或机制Adapter → 幂等/恢复 → 安全强制 → 具名故障和容量验收。实现分类为内部职责的随所属组件交付，不另建服务；条件启用项只有档案满足才启用。
+
+文档就绪要求：五角色无未关闭P0/P1、字段和操作无未定义引用、恢复无开发者自由猜测分支、SFMEA映射验收、配置有硬界限。实现就绪另需代码、测试与持久性证据和架构所有者批准。
+
+### R1评审修订适用项
+
+本组件适用CD-1的授权视图、快照保留和容量规则；Child及FE调度不在本组件内实现。
+
+## L3-DD-1 内部结构与算法
+
+本节为2026-09-08候选细化；字段唯一来源为[详细契约](../../../contracts/l3-tool-runtime-detail.md)。问题是热更新不能改变已获准动作。例如Run冻结catalog7中的readFile v2→route4，发布catalog8后，原调用仍只能使用route4；route4停用则拒绝，不转向route5。
+
+### 协作者和创建
+
+Composition Root创建一个ToolCatalogRouter，注入作用域化CatalogStore、只读RouteRegistry和Artifact读取Port。Validator、Projector、Resolver为无状态纯规则；每次请求持有独立冻结值，缓存可丢弃。ToolDefinition不是Provider对象，目录不能持有SDK连接或明文密钥。
+
+```plantuml
+@startuml
+skinparam defaultFontName Hiragino Sans GB
+title L3目录内部职责
+class ToolCatalogRouter {
+ publish()
+ project()
+ resolveFrozen()
+}
+class DescriptorValidator
+class VisibilityProjector
+class FrozenRouteResolver
+interface CatalogStore
+interface RouteRegistry
+interface ArtifactReadPort
+ToolCatalogRouter --> DescriptorValidator : 发布校验
+ToolCatalogRouter --> VisibilityProjector : 过滤公开字段
+ToolCatalogRouter --> FrozenRouteResolver : 精确解析
+ToolCatalogRouter --> CatalogStore : 版本CAS / pin
+ToolCatalogRouter --> RouteRegistry : 注册绑定与活性
+ToolCatalogRouter --> ArtifactReadPort : 校验schema与描述
+note bottom of VisibilityProjector
+不返回执行授权；无PDP策略依赖
+end note
+@enduml
+```
+
+### S1 发布与冻结可见目录
+
+调用者为可信工具注册入口与L1；前置条件为发布能力及已发布的描述/Schema Artifact。Validator先检查集合上限，再建立toolId/version唯一索引，校验引用内容、Schema可加载、执行类型与注册路由隔离一致；任一错误整个发布失败。没有按名称覆盖的隐式更新操作。
+
+新版本只在head CAS事务成功后可见；并发发布失败方返回VERSION_CONFLICT，不自动合并。project读取一个版本，按可信Scope资源子集关系过滤，输出PublicTool白名单字段，确认视图和catalog pin后返回。L1冻结viewRef供Attempt使用，L2不调用Router。描述中的指令文本始终是不可信工具数据。
+
+```plantuml
+@startuml
+skinparam defaultFontName Hiragino Sans GB
+title S1 发布与可见目录
+start
+:Router验证发布权限与容量;
+:Validator检查唯一键、Artifact、路由隔离;
+if (全部有效?) then (是)
+ :Store事务插入snapshot/index并CAS head;
+ if (CAS成功?) then (是)
+  :L1按指定version请求可见目录;
+  :Projector验证Scope并过滤公开字段;
+  if (投影容量与pin确认成功?) then (是)
+   :返回viewRef；L1冻结后交L2;
+  else (否)
+   :拒绝返回视图；不派发模型;
+  endif
+ else (否)
+  :VERSION_CONFLICT；旧head不变;
+ endif
+else (否)
+ :SCHEMA_INVALID或依赖错误；head不变;
+endif
+stop
+@enduml
+```
+
+### S2 冻结路由与失效
+
+resolveFrozen先验证调用方有权读取catalog，再在该索引准确匹配descriptorRef；校验该工具确在冻结可见集合、resourceScope仍包含目标，最后查原RouteBinding是否可用。不访问latest、不以Provider健康探测替换目标。Schema校验针对完整有界参数，禁用远程Schema引用解析，防止验证过程产生网络副作用。Schema验证机制由注入的编译器提供，具体库选型留在实现依赖评审。
+
+```plantuml
+@startuml
+skinparam defaultFontName Hiragino Sans GB
+title S2 冻结路由解析与热更新
+start
+:Runtime提交原catalogRef和descriptorRef;
+if (Scope授权且原快照/条目存在?) then (是)
+ :Resolver读取固定routeRef/version;
+ if (资源绑定匹配且原路由可用?) then (是)
+  :返回原descriptor和RouteBinding给Guard;
+ else (否)
+  :BINDING_MISMATCH或ROUTE_UNAVAILABLE;
+  :执行次数0；交L1重新提案;
+ endif
+else (否)
+ :ACCESS_DENIED / NOT_FOUND / GONE;
+ :不查最新同名工具;
+endif
+stop
+@enduml
+```
+
+### 扩展和验收落点
+
+新增远程pdf.extract v3：注册L4适配器→发布新的RouteBinding和描述→新catalog可见。Router算法不修改；增加描述Schema、scope过滤、旧版本仍可解析及原路由失效拒绝四组测试。provider/sandbox处理必须在装配时穷尽，重复binding或缺失handler启动失败。
+
+保留原L3-CMP-001-TC-01..06。新增L3-DD-TC-01：固定catalog7含read v2及write v1，scope仅允许read，期望PublicTool只有read且没有route字段；发布catalog8后原view字节不变。新增TC-02：GC与pin双屏障竞争，返回的view不能悬空；超1MiB投影不返回部分列表。纯规则通过冻结输入测试，发布/GC须使用真实存储并发测试，均为待实施验收。

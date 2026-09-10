@@ -1,0 +1,44 @@
+@startuml
+!include ../../theme.puml
+title E3：Memory、Child与清理（S6）
+start
+if (查询/停止既有执行?) then (是)
+ :验证控制能力、Scope与原command;
+ if (包含新业务payload?) then (是)
+  :SCHEMA_INVALID，执行0;
+ else (否)
+  :仅查询/停止原executor；未知不报stopped;
+ endif
+ stop
+endif
+:动作所有者冻结Memory/Child提案与需求;
+:PDP判定；不读取受保护正文;
+if (Allow?) then (否)
+ :Ask → ACTION_APPROVAL_REQUIRED；
+Deny/unavailable → 稳定拒绝，读/写/Child0;
+ stop
+endif
+:按kind精确consume + authorizeStart;
+if (资格与必要审计确认?) then (否)
+ :失败关闭，不复用其他动作Permit;
+ stop
+endif
+if (memory.write?) then (是)
+ :MemoryManager按原command / expectedVersion
+CAS Entry并保存应用回执；冲突不改内容重试;
+elseif (memory.read?) then (是)
+ :授权检索或查原View；
+释放内容前复核当前访问授权;
+ if (已撤销?) then (是)
+  :拒绝返回正文;
+ else (否)
+  :返回固定View;
+ endif
+else (child.create)
+ :FE受理边界复核父资格 / 唯一激活身份；
+接口细节待SR-04，不另设协调器;
+ :受理未知只查询原激活；
+取消与清理仍由FE负责;
+endif
+stop
+@enduml

@@ -14,8 +14,8 @@
 
 ## 交付内容
 
-- [设计正文](../../layers/l1-control/components/flow-engine.md)：第21章给出字段类型、约束、迁移表、确定性身份、T1/T2事务、claim、执行记录、恢复规则和容量；第12.5.6a给出补充故障验收；第11章关联FE-FM-011—016。
-- [规范化与推进示例](../../layers/l1-control/components/flow-engine-contract-v1.examples.json)：6组精确字节/摘要向量，8组完整AdvanceInput与AdvanceResult期望。
+- [设计正文](../../layers/l1-control/components/flow-engine/README.md)：第21章给出字段类型、约束、迁移表、确定性身份、T1/T2事务、claim、执行记录、恢复规则和容量；第12.5.6a给出补充故障验收；第11章关联FE-FM-011—016。
+- [规范化与推进示例](../../layers/l1-control/components/flow-engine/history/react-contract-v1.examples.json)：6组精确字节/摘要向量，8组完整AdvanceInput与AdvanceResult期望。
 - 原始评审与复核报告保留当时行号，后续正文增补可能使行号移动；以章节名、协议名及用例ID定位。初审发现保留为历史，当前处置以复核报告和本表为准。
 
 ## 本次实际验证

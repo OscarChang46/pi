@@ -20,7 +20,9 @@ supersedes: [docs/design/c4-boundary-protocols.md]
 
 ## 语义
 
-写命令只返回已持久化受理结果或既有幂等结果，不等待运行完成。CLI 默认进程内绑定，Desktop Host 默认 stdio JSONL，Loopback HTTP/SSE 可选。断线不取消 Run；取消必须显式发命令。Backend/KernelHost 在进入 Kernel 前终止原始 User Token 与租户身份，只传可信 `executionEnvelopeRef`。
+Kernel 写命令只返回已持久化受理结果或既有幂等结果，不等待运行完成。原程序化 CLI 可用进程内绑定；新 LawClaw TUI 档案明确使用本机 HTTP/SSE，Desktop Host 的 stdio JSONL 档案不变。断线不取消 Run；取消必须显式发命令。Backend/KernelHost 在进入 Kernel 前终止原始 User Token 与租户身份，只传可信 `executionEnvelopeRef`。
+
+新客户端协议见 [TUI-CON-001](kernel-tui-contract.md)。Host 的 submitConversation 接收首次会话意图，先按 CTX-CON-1 完成候选准备及 Session 确认，再通过 Facade/Gateway start；preparing 只表示 Host 准备记录耐久，accepted 才表示 Run 受理。低层 start 不创建未准备的空 Session，TUI 也不负责调用 ensure/Context。完整接口仍为候选，不代表现有 HTTP 已支持。
 
 ## 恢复
 

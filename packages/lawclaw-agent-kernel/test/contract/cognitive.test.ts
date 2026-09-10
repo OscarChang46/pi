@@ -1,33 +1,25 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { AgentRuntime } from "../../src/cognitive/agent-runtime.ts";
-import { loadRuntimeSettings } from "../../src/config/index.ts";
 import {
 	type AgentAdapter,
 	type AgentTurnRequest,
 	KernelError,
 	type RuntimeEventCandidate,
 } from "../../src/contracts/index.ts";
-import { ContextEngine } from "../../src/control/context-engine.ts";
 import { scriptedModel } from "../support/harness.ts";
 import { testContext } from "../support/test-context.ts";
 
 const request: AgentTurnRequest = {
 	sessionId: "session:test",
-	frame: new ContextEngine(loadRuntimeSettings().config.kernel.context).assemble({
-		systemPrompt: "system",
-		goal: "goal",
-		items: [],
-		maxInputTokens: 1000,
-		outputReserveTokens: 100,
-	}),
-	tools: [],
+	payload: { system: "system", task: "goal", messages: [], tools: [], materials: [], memory: [] },
+	formatVersion: "ctx-input-1",
+	modelAdapterVersion: "pi-context-1",
 };
 const completion: RuntimeEventCandidate = {
 	type: "turn_completed",
 	message: {
 		role: "assistant",
-		runtimeMessageRef: "private:test",
 		stopReason: "stop",
 		content: [{ type: "text", text: "ok" }],
 	},

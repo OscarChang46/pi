@@ -14,6 +14,8 @@
 
 ## 文件与子目录
 
+[架构层与组件归属](component-layout.md)记录本次迁移及尚待确认的归属；各层内部以设计组件名维护目录。
+
 - [application](application/README.md)
 - [cognitive](cognitive/README.md)
 - [config](config/README.md)

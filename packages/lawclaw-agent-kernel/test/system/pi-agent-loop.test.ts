@@ -2,14 +2,29 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { createAgentKernel, createRequestContext, createRunCommand } from "../../src/application/composition-root.ts";
+import {
+	createAgentKernel,
+	createRequestContext,
+	createRootSessionCommand,
+	createRunCommand,
+} from "../../src/application/composition-root.ts";
 import { assertEventSequence } from "../support/harness.ts";
 
 test("[AK-FLOW-001] Pi Adapter、Kernel Loop、只读工具和单层委派形成完整纵切", async () => {
 	const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 	const workspace = path.join(projectRoot, "sample-workspace");
 	const kernel = await createAgentKernel(workspace);
-	const result = await kernel.run(createRequestContext(), createRunCommand(workspace));
+	const requestContext = createRequestContext();
+	const ensuredSession = kernel.ensure(
+		requestContext,
+		createRootSessionCommand({
+			logicalKey: "logical:system",
+			agentDefinitionRef: kernel.agentId,
+			contextPolicyRef: "agent.system.default",
+		}),
+	);
+	const command = createRunCommand({ sessionId: ensuredSession.anchor.sessionId, workspaceRoot: workspace });
+	const result = await kernel.run(requestContext, command);
 
 	assert.equal(result.status, "completed");
 	assert.equal(result.turns, 3);
@@ -19,9 +34,9 @@ test("[AK-FLOW-001] Pi Adapter、Kernel Loop、只读工具和单层委派形成
 	assert.ok(result.events.some((event) => event.type === "ChildRunCompleted"));
 	assertEventSequence(result.events);
 	assert.equal(kernel.sessions.length, 1);
-	const session = kernel.sessions[0];
-	assert.equal(session?.sessionId, result.events[0]?.data.sessionId);
-	assert.equal(session?.runIds.length, 1);
+	const sessionSnapshot = kernel.sessions[0];
+	assert.equal(sessionSnapshot?.sessionId, result.events[0]?.data.sessionId);
+	assert.equal(sessionSnapshot?.activeRunBinding, undefined);
 	const run = kernel.getRun(result.runId);
 	assert.equal(run?.status, "COMPLETED");
 	assert.equal(run?.loops.length, result.turns);

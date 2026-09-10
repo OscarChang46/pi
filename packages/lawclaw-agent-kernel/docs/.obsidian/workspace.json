@@ -1,0 +1,241 @@
+{
+  "main": {
+    "id": "1c5c9e29c8107b8b",
+    "type": "split",
+    "children": [
+      {
+        "id": "3aafae2239629de4",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "654f5cfaaa50d9bc",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "design/layers/l1-control/components/context-engine/functional-domains/source-ingestion/sr-01-source-ingestion.md",
+                "mode": "preview",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "sr-01-source-ingestion"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "222df374469e932a",
+    "type": "split",
+    "children": [
+      {
+        "id": "c4772ce8bd9b31d4",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "85782b4336e53d3d",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-folder-closed",
+              "title": "文件列表"
+            }
+          },
+          {
+            "id": "48d2397f0302a993",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "搜索"
+            }
+          },
+          {
+            "id": "9ca8f2eea324f0dc",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-bookmark",
+              "title": "书签"
+            }
+          }
+        ],
+        "currentTab": 1
+      }
+    ],
+    "direction": "horizontal",
+    "width": 200
+  },
+  "right": {
+    "id": "1dc62921d60f5ad9",
+    "type": "split",
+    "children": [
+      {
+        "id": "aeb17f9556fc2cac",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "fdd091787cf6a225",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "design/layers/l1-control/components/context-engine/functional-domains/source-ingestion/sr-01-source-ingestion.md",
+                "collapseAll": true,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "反向链接"
+            }
+          },
+          {
+            "id": "3e29cd38ebaf2af2",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "design/agent-kernel-v2-architecture-review.md",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "出链"
+            }
+          },
+          {
+            "id": "69d8abe42516d459",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "标签"
+            }
+          },
+          {
+            "id": "964fb1c2594bce8f",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "添加笔记属性"
+            }
+          },
+          {
+            "id": "70e2a7ffda2ec3bd",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "design/layers/l1-control/components/context-engine/functional-domains/source-ingestion/sr-01-source-ingestion.md",
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "大纲"
+            }
+          }
+        ],
+        "currentTab": 4
+      }
+    ],
+    "direction": "horizontal",
+    "width": 200
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:打开快速切换": false,
+      "graph:查看关系图谱": false,
+      "canvas:新建白板": false,
+      "daily-notes:打开/创建今天的日记": false,
+      "templates:插入模板": false,
+      "command-palette:打开命令面板": false,
+      "bases:新建数据库": false
+    }
+  },
+  "active": "654f5cfaaa50d9bc",
+  "lastOpenFiles": [
+    "verification/context-interface-migration-2026-09-10.md",
+    "design/layers/l1-control/components/context-engine/functional-domains/assembly-orchestration/sr-05-assembly-orchestration.md",
+    "design/layers/l1-control/components/context-engine/README.md",
+    "design/layers/l1-control/README.md",
+    "design/contracts/component-development-contracts-v1.md",
+    "governance/changes/ACR-2026-0002-configurable-model-and-prompts.md",
+    "design/layers/l1-control/components/run-scheduler.md",
+    "governance/archive/l34-validation-script-2026-09-09.txt",
+    "governance/reviews/l34-document-checks-2026-09-09.json",
+    "governance/baselines/l34-spec-1.0.0.json",
+    "governance/baselines",
+    "governance/reviews/l34-baseline-2026-09-09.md",
+    "governance/reviews/l34-protocol-validation-2026-09-09.json",
+    "governance/changes/ACR-2026-0021-l34-protocol-baseline.md",
+    "design/contracts/l34/vectors.json",
+    "design/contracts/l34/protocol.schema.json",
+    "design/contracts/l34",
+    "governance/archive/l34-before-baseline-2026-09-09.txt",
+    "governance/reviews/l3-functional-domains-inputs-2026-09-09.json",
+    "governance/archive/l3-before-functional-domains-2026-09-09/README.md",
+    "governance/reviews/l3-functional-domains-2026-09-09.md",
+    "design/layers/l3-tool-runtime/components/tool-execution-guard/functional-domains/execution-authorization/sr-01-execution-authorization.md",
+    "design/layers/l3-tool-runtime/components/tool-execution-guard/README.md",
+    "design/layers/l3-tool-runtime/components/tool-call-runtime/functional-domains/outcome-cancellation/sr-02-outcome-cancellation.md",
+    "design/layers/l3-tool-runtime/components/tool-call-runtime/functional-domains/invocation-dispatch/sr-01-invocation-dispatch.md",
+    "design/layers/l3-tool-runtime/components/tool-call-runtime/README.md",
+    "design/layers/l3-tool-runtime/components/tool-catalog-router/functional-domains/catalog-projection/sr-01-catalog-projection.md",
+    "design/layers/l3-tool-runtime/components/tool-catalog-router/functional-domains/frozen-routing/sr-02-frozen-routing.md",
+    "design/layers/l3-tool-runtime/components/tool-catalog-router/README.md",
+    "design/layers/l3-tool-runtime/components/tool-registry/functional-domains/definition-registration/sr-01-definition-registration.md",
+    "design/layers/l3-tool-runtime/components/tool-registry/functional-domains/availability-management/sr-02-availability-management.md",
+    "design/layers/l3-tool-runtime/components/tool-registry/README.md",
+    "governance/reviews/l4-detail-2026-09-09.md",
+    "governance/changes/ACR-2026-0020-l4-detail.md",
+    "design/layers/l4-execution-runtime/components/sandbox-runtime/functional-domains/reclamation/README.md",
+    "design/layers/l4-execution-runtime/components/sandbox-runtime/functional-domains/environment/README.md",
+    "design/diagrams/rendered/clients/kernel-tui/structure.svg",
+    "design/diagrams/rendered/clients/kernel-tui/sr-05.svg",
+    "design/diagrams/rendered/clients/kernel-tui/sr-03.svg",
+    "design/diagrams/rendered/clients/kernel-tui/sr-02.svg",
+    "design/diagrams/rendered/clients/kernel-tui/sr-06.svg",
+    "design/diagrams/rendered/clients/kernel-tui/sr-04.svg",
+    "design/diagrams/rendered/clients/kernel-tui/sr-01.svg",
+    "design/diagrams/rendered/components/l1-control/12-session-manager-data-model.svg",
+    "design/reviews/storage-io-2026-09-08/storage-observation.png",
+    "design/diagrams/rendered/components/security-plane/pep-structure.svg"
+  ]
+}

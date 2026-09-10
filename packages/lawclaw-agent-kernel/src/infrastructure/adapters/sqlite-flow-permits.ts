@@ -4,15 +4,15 @@ import type { FlowPermitStore } from "../../contracts/flow-permits.ts";
 import type { TimePort } from "../../contracts/index.ts";
 import type { PermissionGrant } from "../../contracts/permissions.ts";
 import { REACT_FLOW_STATE } from "../../contracts/react-flow-values.ts";
-import type { FlowSqliteDatabase } from "./flow-sqlite-database.ts";
+import type { AgentRunDatabase } from "../state-storage/adapters/run-registry/agent-run-database.ts";
 
 /** 与Run取消栅栏共享SQLite事务的Permit消费端。 */
 export class SqliteFlowPermits implements FlowPermitStore {
-	readonly #db: FlowSqliteDatabase;
+	readonly #db: AgentRunDatabase;
 	readonly #scope: string;
 	readonly #time: TimePort;
 	/** 绑定受信任作用域；调用方必须为已装配PDP与PEP。 */
-	constructor(db: FlowSqliteDatabase, scope: string, time: TimePort) {
+	constructor(db: AgentRunDatabase, scope: string, time: TimePort) {
 		this.#db = db;
 		this.#scope = scope;
 		this.#time = time;

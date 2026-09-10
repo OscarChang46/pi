@@ -8,13 +8,12 @@ import { createRunCommand } from "../../src/application/composition-root.ts";
 import { AgentRuntime } from "../../src/cognitive/agent-runtime.ts";
 import { loadRuntimeSettings } from "../../src/config/index.ts";
 
-import { ContextEngine } from "../../src/control/context-engine.ts";
 import { temporaryWorkspace } from "../support/harness.ts";
 import { testContext } from "../support/test-context.ts";
 
 const settings = loadRuntimeSettings();
 const command = {
-	...createRunCommand("/workspace", settings),
+	...createRunCommand({ sessionId: "session:dt-boundary", workspaceRoot: "/workspace" }, settings),
 	delegationPolicy: { ...settings.config.runtime.delegationPolicy, enabled: false },
 };
 test("[AK-BND-002] 认知层在工具候选之后收到取消，不向控制层交付可执行完成结果", async () => {
@@ -24,7 +23,7 @@ test("[AK-BND-002] 认知层在工具候选之后收到取消，不向控制层�
 			cancel.abort();
 			yield {
 				type: "turn_completed",
-				message: { role: "assistant", runtimeMessageRef: "private:cancel", stopReason: "tool_use", content: [] },
+				message: { role: "assistant", stopReason: "tool_use", content: [] },
 			};
 		},
 	});
@@ -33,14 +32,9 @@ test("[AK-BND-002] 认知层在工具候选之后收到取消，不向控制层�
 			testContext(),
 			{
 				sessionId: command.sessionId,
-				frame: new ContextEngine(settings.config.kernel.context).assemble({
-					systemPrompt: "system",
-					goal: "goal",
-					items: [],
-					maxInputTokens: 1000,
-					outputReserveTokens: 100,
-				}),
-				tools: [],
+				payload: { system: "system", task: "goal", messages: [], tools: [], materials: [], memory: [] },
+				formatVersion: "ctx-input-1",
+				modelAdapterVersion: "pi-context-1",
 			},
 			cancel.signal,
 		)) {

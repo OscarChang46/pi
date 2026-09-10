@@ -2,6 +2,9 @@
 !include ../theme.puml
 title L1 统一控制层组件图
 left to right direction
+skinparam linetype polyline
+skinparam nodesep 70
+skinparam ranksep 100
 
 rectangle "Client / Backend\n可信 ExecutionEnvelopeRef" as CLIENT LC_EXTERNAL
 package "L1 Control & Orchestration" LC_KERNEL {
@@ -9,15 +12,14 @@ package "L1 Control & Orchestration" LC_KERNEL {
   component "AgentSystemGateway" as GATEWAY
   component "AgentRegistry" as REGISTRY
   component "CapabilityRouter" as ROUTER
-  component "SessionManager" as SESSION
+  component "SessionManager\nSubSessionCoordinator" as SESSION
   component "RunRegistry" as RUNS
   component "RunScheduler" as SCHEDULER
-  component "FlowEngine\n无状态推进" as FLOW
+  component "FlowEngine\nReady / Running / Yield / Terminate" as FLOW
+  component "ReAct业务适配" as BUSINESS
+  component "ActivityInterceptor" as MAGIC
   component "ContextEngine" as CONTEXT
   component "MemoryManager" as MEMORY
-  component "ResourceManager" as RESOURCE
-  component "RuntimePool" as POOL
-  component "SubagentCoordinator" as CHILD
 }
 rectangle "L2 Cognitive Runtime" as L2 LC_EXTERNAL
 rectangle "Security Plane" as SEC LC_EXTERNAL
@@ -27,28 +29,36 @@ rectangle "Infrastructure Ports" as INFRA LC_INFRASTRUCTURE
 CLIENT --> FACADE : BND-EXT-001
 FACADE --> GATEWAY : AgentSystemGateway
 GATEWAY --> REGISTRY : Registry Port
-GATEWAY --> SESSION : Session Port
-GATEWAY --> RUNS : Run Command/Query Port
+GATEWAY --> SESSION : Session / SessionRun Port
+GATEWAY --> RUNS : RunQueryPort
+SESSION --> RUNS : commit后outbox\nBound RunCommandPort
+RUNS ..> SESSION : admission/terminal event\n绑定确认与释放
 REGISTRY --> ROUTER : 能力与适配档案
 RUNS --> SCHEDULER : RunSchedulingPort
-SCHEDULER --> RESOURCE : ResourceAdmissionPort
-RESOURCE --> POOL : RuntimeDispatchPort
-POOL --> L2 : BND-L12-001
-L2 ..> FLOW : RuntimeEventPort
-FLOW --> CONTEXT : ContextPort
+SCHEDULER --> BUSINESS : 运行已受理任务
+BUSINESS --> FLOW : 注册业务工作流
+FLOW --> MAGIC : Activity
+MAGIC --> INFRA : FlowJournal / append-only
+BUSINESS <--> L2 : 经Activity的模型调用 / 规范结果
+BUSINESS --> CONTEXT : ContextPort
 CONTEXT --> SESSION : SessionQueryPort
 CONTEXT --> MEMORY : BND-MEM-001
-FLOW --> SEC : BND-SEC-001\nActionProposal
-FLOW --> L3 : BND-L13-001\nAuthorizedToolRequest
-FLOW --> CHILD : ChildRunPort
-CHILD --> SCHEDULER : RunSchedulerPort
+BUSINESS --> SEC : BND-SEC-001\nActionProposal
+BUSINESS --> L3 : 经Activity与PEP的工具调用
+BUSINESS --> SESSION : SessionForkJoinPort
+SESSION --> FLOW : FlowRunCommandPort\n单 Child Flow / Parent resume
+FLOW ..> SESSION : 终态事件 -> inbox
 SESSION --> INFRA : SessionRepositoryPort
 RUNS --> INFRA : RunRepositoryPort
-RESOURCE --> INFRA : ExecutionCapacityPort
 
 L2 -[#DC2626,dashed,bold]-> L3 : <color:#B91C1C>禁止绕过 L1</color>
 note bottom of FLOW
-  FlowEngine 只计算 NextAction；不持久化、
-  不判权限、不执行工具、不拥有业务 Workflow。
+  系统四态、Activity、单 Flow 取消与恢复属于 FE。
+  ReAct状态和上下文由业务适配解释；不存在资源分配组件。
+end note
+note bottom of SESSION
+  Session血缘、Barrier、Fork/Join/Reduce、取消编排和Parent唤醒归SM。
+  每个Session只有0..1 ActiveRunBinding；不保存Run集合或队列。
+  SM事务提交后经outbox调FE；FE经event bus/inbox回报，无双向事务回调。
 end note
 @enduml

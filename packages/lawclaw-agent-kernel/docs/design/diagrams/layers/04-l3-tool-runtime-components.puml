@@ -1,27 +1,33 @@
 @startuml
 !include ../theme.puml
 title L3 受控工具运行层组件图
-left to right direction
+top to bottom direction
+skinparam linetype polyline
+skinparam nodesep 90
+skinparam ranksep 100
 
-rectangle "L1 FlowEngine / PEP" as L1 LC_EXTERNAL
+rectangle "L1 业务Activity适配 / PEP" as L1 LC_EXTERNAL
 package "L3 Controlled Tool Runtime" LC_ADAPTER {
+  component "ToolRegistry" as REGISTRY
   component "ToolCatalogRouter" as CATALOG
   component "ToolCallRuntime" as RUNTIME
   component "ToolExecutionGuard" as GUARD
 }
 rectangle "Security Plane" as SEC LC_EXTERNAL
 rectangle "L4 Execution Runtime" as L4 LC_EXTERNAL
-rectangle "Artifact / Secret / Repository Ports" as INFRA LC_INFRASTRUCTURE
+rectangle "Artifact / Repository Ports" as INFRA LC_INFRASTRUCTURE
 rectangle "Operations Plane" as OPS LC_OPERATIONS
 
 L1 --> RUNTIME : BND-L13-001\nAuthorizedToolRequest
 RUNTIME --> CATALOG : 冻结 Tool Route
 RUNTIME --> GUARD : 执行前检查
-GUARD --> SEC : PermitValidationPort\nvalidateAndConsume
-GUARD --> L4 : BND-L34-001
-L4 ..> RUNTIME : ToolResult
-RUNTIME --> INFRA : ToolCallRepository / Artifact / Secret
-RUNTIME ..> L1 : ToolEventPort
+GUARD --> SEC : PermitValidationPort\nconsume / authorizeStart
+RUNTIME --> L4 : BND-L34-001\nGuard通过后单次派发
+L4 -[norank,dashed]-> RUNTIME : ToolResult
+CATALOG --> REGISTRY : 固定版本与当前可用状态
+REGISTRY --> INFRA : 注册视图读写约束
+RUNTIME --> INFRA : Artifact受控读写
+RUNTIME -[norank,dashed]-> L1 : ToolOutcome / lateFactSink
 RUNTIME ..> OPS : BND-OPS-001
 
 note bottom of GUARD

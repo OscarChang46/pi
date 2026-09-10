@@ -18,6 +18,8 @@ supersedes: [docs/design/agent-kernel-v2-architecture-review.md]
 > 活动代码基线：`AKB-2026-09-03-08`（保持不变）
 > 实施约束：五步评审全部通过前不修改运行代码、Schema 或数据库迁移。
 
+> 历史评审：其中旧FE、资源分配与独立子任务协调边界不再有效，现行边界见[ACR-0012](../changes/ACR-2026-0012-flow-system-engine.md)。原结论保留追溯，不作为新开发要求。
+
 ## 1. 本轮为什么重开步骤一
 
 `ACR-2026-0008` 已确认 AgentRun 是执行聚合根、Runtime 是可重建服务、Permission/Tool/Memory 是独立边界。随后评审发现 Session、FlowEngine、进程和 Multi-agent 的职责仍需修订。由于这会改变系统职责和领域对象，不能继续冻结步骤二接口，必须重开步骤一。
@@ -36,7 +38,7 @@ supersedes: [docs/design/agent-kernel-v2-architecture-review.md]
 
 | 对象 | 类型 | 生命周期 | 权威职责 |
 |---|---|---|---|
-| `AgentSession` | 聚合根 | 创建到关闭/归档，可跨多个 Run | ContextDelta、Artifact 索引、版本锁、可选父 Session 血缘 |
+| `AgentSession` | 聚合根 | 创建到关闭/归档；当前活跃Run绑定基数0..1，终态历史归RunRegistry | ContextDelta、Artifact索引、版本锁、ActiveRunBinding、可选父Session血缘；不保存Run集合 |
 | `AgentRun` | 聚合根 | 一次任务请求到终态 | 执行状态、等待原因、预算、结果、Attempt 序列 |
 | `AgentRunAttempt` | Run 内实体 | 一次物理尝试 | Runtime 绑定、恢复边界和执行结果 |
 | `AgentLoopStep` | Attempt 内实体 | 一次内部推进 | 模型/工具/上下文/记忆/Child Run 步骤事实 |
@@ -91,7 +93,7 @@ Kernel 不拥有：
 - [领域对象全集](../../design/diagrams/system/04-agent-system-domain-universe.puml)
 - [七层 C4 Component 图](../../design/diagrams/layers/)
 - [Run 状态机](../../design/diagrams/components/l1-control/04-run-state-machine.puml)
-- [Subagent 生命周期](../../design/diagrams/components/l1-control/11-subagent-lifecycle.puml)
+- [Subagent 生命周期（历史归档）](../archive/flow-before-system-v1/11-subagent-lifecycle.puml)
 - [跨层场景图](../../design/diagrams/scenarios/)
 - [边界协议图](../../design/diagrams/contracts/12-c4-boundary-protocols.puml)
 

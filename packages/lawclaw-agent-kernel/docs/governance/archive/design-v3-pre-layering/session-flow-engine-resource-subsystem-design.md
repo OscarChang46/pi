@@ -1,4 +1,4 @@
-> **非规范性归档：** 已拆入 L1 的 [SessionManager](../../../design/layers/l1-control/components/session-manager.md)、[FlowEngine](../../../design/layers/l1-control/components/flow-engine.md)、[ResourceManager](../../../design/layers/l1-control/components/resource-manager.md)和[SubagentCoordinator](../../../design/layers/l1-control/components/subagent-coordinator.md)。
+> **非规范性归档：** 已拆入 L1 的 [SessionManager](../../../design/layers/l1-control/components/session-manager.md)、[FlowEngine](../../../design/layers/l1-control/components/flow-engine/README.md)、[ResourceManager](../../../design/layers/l1-control/components/resource-manager.md)和[SubagentCoordinator](../../../design/layers/l1-control/components/subagent-coordinator.md)。
 
 # AgentSession、FlowEngine 与本地资源调度设计
 

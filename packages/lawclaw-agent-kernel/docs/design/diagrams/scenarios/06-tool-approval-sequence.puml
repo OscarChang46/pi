@@ -1,44 +1,49 @@
 @startuml
 !include ../theme.puml
-title 工具调用与异步审批（V3）
-
-participant "AgentRuntime" as Runtime
-participant "L1 Action Coordinator / PEP" as Control
-participant "ToolRuntime" as Tool
-participant "PermissionSystem" as Permission
-participant "Backend / 业务审批" as Approval
-participant "SandboxPort" as Sandbox
-participant "ToolProviderPort" as Provider
-participant "Run/Event Domain" as Events
-
-Runtime -> Control : RuntimeEventPort.publish(ToolCallCandidate)
-Control -> Tool : ToolRuntimePort.executeTool(candidate, envelopeRef)
-Tool -> Permission : PermissionDecisionPort.authorize(actionProposal, envelopeRef)
-alt Allow
-  Permission --> Tool : Allow + 一次性 ExecutionPermit
-else Ask
-  Permission -> Approval : ApprovalRequestPort.requestDecision(request)
-  Permission --> Tool : Ask + PermissionRequestRef
-  Tool -> Events : ToolCallWaitingForApproval
-  Approval -> Permission : ApprovalDecisionPort.submitDecision
-  Permission --> Tool : ExecutionPermit 或 Deny
-else Deny
-  Permission --> Tool : Deny(reasonCode)
+title 工具权限：L1请求PDP，执行点消费与启动
+participant "L2 Runtime" as Runtime
+participant "L1业务Activity / PEP" as Control
+participant "PDP" as PDP
+participant "ApprovalBridge" as Bridge
+participant "外部审批" as Approval
+participant "Permit / 安全存储" as Permit
+participant "L3 ToolCall / Guard" as Tool
+participant "L4 Provider / Sandbox" as Provider
+Runtime -> Control : ToolCallCandidate
+Control -> Control : 固定提案；提交权限命令
+Control -> PDP : PermissionDecisionPort.decide
+alt Ask
+ PDP -> Bridge : 同安全事务创建pending / outbox
+ PDP --> Control : Ask + approvalRef（审计已确认）
+ Control -> Control : 持久等待，Yield并释放槽
+ Bridge -> Approval : ApprovalRequestPort.submit
+ Approval -> Bridge : 认证回调
+ Bridge -> Bridge : 绑定/截止/取消检查，CAS批准事实
+ Bridge --> Control : 事实通知；不是Permit
+ Control -> PDP : 新权限命令decide（同Proposal）
 end
-
-opt 获得有效 ExecutionPermit
-  Tool -> Permission : consume(permitId, actionDigest)
-  Permission --> Tool : consumed
-  Tool -> Sandbox : SandboxPort.prepare(request subset of permit)
-  Sandbox --> Tool : sandboxHandle
-  Tool -> Provider : ToolProviderPort.execute(authorizedRequest)
-  Provider --> Tool : ToolResult
-  Tool -> Events : ToolCallCompleted / Failed
-  Tool --> Control : ToolResultRef
-  Control -> Runtime : RuntimeControlPort.resumeAttempt(ToolResultRef)
+alt 最终Allow
+ PDP -> Permit : T-D签发短时Permit + 必要审计
+ PDP --> Control : Allow + permitRef
+ Control -> Control : 耐久派发意图
+ Control -> Tool : ToolRuntimePort.dispatch（已授权动作）
+ Tool -> Tool : 唯一受理；实际参数/目标复核
+ Tool -> Permit : consume + 必要审计
+ Permit --> Tool : 原子消费Receipt
+ Tool -> Tool : AUTHORIZED
+ Tool -> Permit : authorizeStart（当前claim / epoch / 截止）
+ Permit --> Tool : Grant（必要审计已确认）
+ Tool -> Tool : STARTED CAS；唯一胜者
+ Tool -> Provider : 固定ExecutionPlan，执行一次
+ Provider --> Tool : 可信结果或未知
+ Tool -> Tool : 结果/UNKNOWN + outbox耐久化
+ Tool --> Control : 原command观察事实
+else Deny / unavailable
+ PDP --> Control : 稳定拒绝或依赖失败
+ Control -> Control : 业务结果持久化；执行0
 end
-
 note over Tool,Provider
-  Candidate 不得直接进入 Provider；审批决定不能扩张原始 ActionProposal。
+ STARTED之后未知只查询，不自动重执行。
+ 撤销先于authorizeStart则不启动；之后为在途取消。
 end note
 @enduml

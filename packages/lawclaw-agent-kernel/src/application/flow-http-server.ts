@@ -10,7 +10,7 @@ type Service = Awaited<ReturnType<typeof createFlowService>>;
 export function createFlowHttpServer(service: Service, token: string) {
 	if (token.length < 32) throw new Error("FLOW_HTTP_TOKEN_REQUIRED");
 	const authorization = Buffer.from(`Bearer ${token}`);
-	const scheduler = new FlowScheduler(service.store, service.driver);
+	const scheduler = new FlowScheduler(service.store, service.driver, () => service.sessions.recover());
 	const routes = new FlowHttpRoutes(service, scheduler).entries();
 	const server = createServer(async (request, response) => {
 		try {
@@ -30,6 +30,11 @@ export function createFlowHttpServer(service: Service, token: string) {
 			if (!route) return sendFlowResponse(response, 404, { code: "FLOW_ROUTE_NOT_FOUND" });
 			await route.handler(request, response, route.path.exec(url.pathname)?.[1] ?? "");
 		} catch (error) {
+			if (
+				error instanceof Error &&
+				["SESSION_RUN_ACTIVE", "FLOW_SESSION_VERSION_CONFLICT", "FLOW_ADMISSION_CONFLICT"].includes(error.message)
+			)
+				return sendFlowResponse(response, 409, { code: error.message });
 			const invalid =
 				error instanceof SyntaxError || (error instanceof Error && error.message.startsWith("FLOW_HTTP_BODY"));
 			sendFlowResponse(response, invalid ? 400 : 503, {

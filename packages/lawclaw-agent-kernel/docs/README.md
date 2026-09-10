@@ -14,6 +14,8 @@
 
 ## 2. 推荐阅读路径
 
+本轮[组件必要性、详细设计及五角色评审](design/reviews/components-2026-09-07/README.md)按职责划分实现粒度，避免把37份概要文档当作37个独立模块。
+
 1. [架构变更标准流程](governance/architecture-change-process.md)
 2. [架构变更索引](governance/changes/README.md)
 3. [V3.1 步骤一评审](governance/reviews/agent-kernel-v3.1-step1-review.md)
@@ -37,6 +39,10 @@
 
 Client Interface、Backend、Model Provider 和业务 Tool Provider 是外部边界，不属于 Kernel 内部层。
 
+客户端按“组件 → 功能域”独立归档：[客户端入口](design/clients/README.md) → [Kernel TUI](design/clients/components/kernel-tui/README.md)。LawClaw TUI 使用 pi-tui 界面库，并通过 Kernel Client 调用宿主；该库不处于请求链起点。六个 SR 内分别维护场景、结构、算法与验收；候选状态见 [ACR-2026-0018](governance/changes/ACR-2026-0018-kernel-tui.md)。
+
+PEP/PDP详细设计及层内契约、评审、证据统一从[Security Plane文档归档](design/layers/security-plane/README.md#8-层内文档归档与阅读顺序)进入。
+
 ## 4. 正交设计材料
 
 | 目录 | 唯一职责 |
@@ -48,6 +54,7 @@ Client Interface、Backend、Model Provider 和业务 Tool Provider 是外部边
 | [diagrams](design/diagrams/) | PlantUML 权威图源及派生 SVG |
 | [governance](governance/) | 架构基线、ACR、评审和历史归档 |
 | [runtime](runtime/pi-kernel-runtime.md) | 当前实现、配置和运行事实 |
+| [extensions](extensions/README.md) | 非当前需求的独立档案、启动条件和候选材料；不计入当前交付 |
 
 ## 5. 图形分层
 

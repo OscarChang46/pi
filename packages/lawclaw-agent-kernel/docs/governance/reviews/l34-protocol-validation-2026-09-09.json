@@ -1,0 +1,202 @@
+{
+  "scope": "Documentation artifacts only; temporary independent fixture checks, not runtime implementation tests",
+  "schemaDraft": "2020-12",
+  "validator": "jsonschema 4.23.0",
+  "schemaValid": true,
+  "counts": {
+    "schema": 35,
+    "semanticFixture": 5,
+    "canonical": 2,
+    "framingFixture": 4,
+    "total": 46,
+    "passed": 46,
+    "failed": 0
+  },
+  "durationSeconds": 0.076,
+  "results": [
+    {
+      "id": "valid-hello",
+      "passed": true
+    },
+    {
+      "id": "valid-helloAck",
+      "passed": true
+    },
+    {
+      "id": "valid-execute",
+      "passed": true
+    },
+    {
+      "id": "valid-inspect",
+      "passed": true
+    },
+    {
+      "id": "valid-cancel",
+      "passed": true
+    },
+    {
+      "id": "valid-result",
+      "passed": true
+    },
+    {
+      "id": "valid-inspected",
+      "passed": true
+    },
+    {
+      "id": "valid-cancelled",
+      "passed": true
+    },
+    {
+      "id": "valid-fault",
+      "passed": true
+    },
+    {
+      "id": "valid-close",
+      "passed": true
+    },
+    {
+      "id": "provider-profile",
+      "passed": true
+    },
+    {
+      "id": "sandbox-profile",
+      "passed": true
+    },
+    {
+      "id": "tool-target",
+      "passed": true
+    },
+    {
+      "id": "admission",
+      "passed": true
+    },
+    {
+      "id": "unknown-version",
+      "passed": true
+    },
+    {
+      "id": "unknown-field",
+      "passed": true
+    },
+    {
+      "id": "missing-profile",
+      "passed": true
+    },
+    {
+      "id": "null-grant",
+      "passed": true
+    },
+    {
+      "id": "zero-seq",
+      "passed": true
+    },
+    {
+      "id": "float-deadline",
+      "passed": true
+    },
+    {
+      "id": "output-over-limit",
+      "passed": true
+    },
+    {
+      "id": "unknown-route-kind",
+      "passed": true
+    },
+    {
+      "id": "bad-ref",
+      "passed": true
+    },
+    {
+      "id": "ref-trailing-lf",
+      "passed": true
+    },
+    {
+      "id": "wrong-digest",
+      "passed": true
+    },
+    {
+      "id": "success-no-result",
+      "passed": true
+    },
+    {
+      "id": "success-unknown-effect",
+      "passed": true
+    },
+    {
+      "id": "success-no-evidence",
+      "passed": true
+    },
+    {
+      "id": "stopped-no-evidence",
+      "passed": true
+    },
+    {
+      "id": "unknown-frame",
+      "passed": true
+    },
+    {
+      "id": "provider-cpu-field",
+      "passed": true
+    },
+    {
+      "id": "sandbox-zero-pids",
+      "passed": true
+    },
+    {
+      "id": "sandbox-too-many-mounts",
+      "passed": true
+    },
+    {
+      "id": "retryable-fault",
+      "passed": true
+    },
+    {
+      "id": "hello-too-small-frame",
+      "passed": true
+    },
+    {
+      "id": "empty-object",
+      "passed": true
+    },
+    {
+      "id": "key-order",
+      "passed": true
+    },
+    {
+      "id": "wrong-operation-key",
+      "passed": true
+    },
+    {
+      "id": "wrong-scope",
+      "passed": true
+    },
+    {
+      "id": "query-expired",
+      "passed": true
+    },
+    {
+      "id": "unknown-session",
+      "passed": true
+    },
+    {
+      "id": "seq-gap",
+      "passed": true
+    },
+    {
+      "id": "split-utf8",
+      "passed": true
+    },
+    {
+      "id": "duplicate-key",
+      "passed": true
+    },
+    {
+      "id": "negative-zero",
+      "passed": true
+    },
+    {
+      "id": "missing-lf",
+      "passed": true
+    }
+  ]
+}

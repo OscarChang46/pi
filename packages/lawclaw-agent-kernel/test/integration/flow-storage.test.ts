@@ -4,8 +4,8 @@ import { test } from "node:test";
 import { flowDigest } from "../../src/contracts/flow-value.ts";
 import { isAdvanceInput } from "../../src/control/react-flow/input-schema.ts";
 import { ReActFlowPolicy as FlowEngine } from "../../src/control/react-flow/react-flow-policy.ts";
-import { FlowSqliteDatabase } from "../../src/infrastructure/adapters/flow-sqlite-database.ts";
-import { SqliteFlowStore } from "../../src/infrastructure/adapters/sqlite-flow-store.ts";
+import { AgentRunDatabase } from "../../src/infrastructure/state-storage/adapters/run-registry/agent-run-database.ts";
+import { SqliteRunRepository } from "../../src/infrastructure/state-storage/adapters/run-registry/sqlite-run-repository.ts";
 import { flowInput } from "../support/flow-engine-fixtures.ts";
 import { TestClock, temporaryWorkspace } from "../support/harness.ts";
 
@@ -16,13 +16,13 @@ test("[AK-FE-028] 命令插入故障回滚同事务的Run快照和事件回执�
 	const clock = new TestClock(new Date(input.operation.nowMs).toISOString());
 	const engine = new FlowEngine();
 	const path = join(directory, "flow.sqlite");
-	const store = new SqliteFlowStore(
+	const store = new SqliteRunRepository(
 		path,
 		"scope",
 		{ advance: engine.advance.bind(engine), digest: flowDigest, isInput: isAdvanceInput },
 		clock,
 	);
-	const injection = new FlowSqliteDatabase(path);
+	const injection = new AgentRunDatabase(path);
 	t.after(() => {
 		store.close();
 		injection.close();
@@ -51,9 +51,9 @@ test("[AK-FE-019] SQLite提交重开可查询且双连接旧版本不能再次�
 	const clock = new TestClock(new Date(input.operation.nowMs).toISOString());
 	const engine = new FlowEngine();
 	const rules = { advance: engine.advance.bind(engine), digest: flowDigest, isInput: isAdvanceInput };
-	let first = new SqliteFlowStore(join(directory, "flow.sqlite"), "scope-a", rules, clock);
-	const second = new SqliteFlowStore(join(directory, "flow.sqlite"), "scope-a", rules, clock);
-	const other = new SqliteFlowStore(join(directory, "flow.sqlite"), "scope-b", rules, clock);
+	let first = new SqliteRunRepository(join(directory, "flow.sqlite"), "scope-a", rules, clock);
+	const second = new SqliteRunRepository(join(directory, "flow.sqlite"), "scope-a", rules, clock);
+	const other = new SqliteRunRepository(join(directory, "flow.sqlite"), "scope-b", rules, clock);
 	t.after(() => {
 		first.close();
 		second.close();
@@ -87,7 +87,7 @@ test("[AK-FE-019] SQLite提交重开可查询且双连接旧版本不能再次�
 		reason: "version",
 	});
 	first.close();
-	first = new SqliteFlowStore(join(directory, "flow.sqlite"), "scope-a", rules, clock);
+	first = new SqliteRunRepository(join(directory, "flow.sqlite"), "scope-a", rules, clock);
 	assert.deepEqual(await first.queryCommit(initial.run.runId, result.decision.decisionId), committed);
 	assert.equal(first.load(initial.run.runId)?.run.position.kind, "AwaitingModel");
 	const command = result.decision.commands[0];
@@ -103,7 +103,7 @@ test("[AK-FE-020] SQLite拒绝伪造计划并在取消栅栏后阻断业务命�
 	const initial = { ...input, run: { ...input.run, consumedSequence: 0 }, event: { ...input.event, sequence: 1 } };
 	const clock = new TestClock(new Date(input.operation.nowMs).toISOString());
 	const engine = new FlowEngine();
-	const store = new SqliteFlowStore(
+	const store = new SqliteRunRepository(
 		join(directory, "flow.sqlite"),
 		"scope",
 		{ advance: engine.advance.bind(engine), digest: flowDigest, isInput: isAdvanceInput },
@@ -142,7 +142,7 @@ test("[AK-FE-026] 租约到期以新Attempt接管待消费事件，旧持有者�
 	const initial = { ...input, run: { ...input.run, consumedSequence: 0 }, event: { ...input.event, sequence: 1 } };
 	const clock = new TestClock(new Date(input.operation.nowMs).toISOString());
 	const engine = new FlowEngine();
-	const store = new SqliteFlowStore(
+	const store = new SqliteRunRepository(
 		join(directory, "flow.sqlite"),
 		"scope",
 		{ advance: engine.advance.bind(engine), digest: flowDigest, isInput: isAdvanceInput },

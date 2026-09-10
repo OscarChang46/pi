@@ -78,6 +78,7 @@ supersedes: [docs/design/agent-kernel-system-sfmea-test-plan.md]
 | `FM-MAG-001` | Subagent | Parent 终态后 Child 仍运行 | 孤儿任务、成本和权限失控 | Join/Cancel/移交未闭合 | ExecutionScope 结构化并发 | 9 | 4 | 4 | 144 | H | `ST-MAG-004`、`ST-MAG-006` |
 | `FM-MAG-002` | 权限/预算继承 | Child 获得高于 Parent 的权限或预算 | 权限升级、成本突破 | 合并采用覆盖而非交集 | Parent∩Role∩Policy∩System | 10 | 4 | 4 | 160 | H | `ST-MAG-003` |
 | `FM-SES-001` | Session/进程 | 每个 Session 常驻一个进程或协程 | 空闲会话耗尽内存、FD 和调度资源 | 把逻辑档案等同执行实体 | Session 可卸载；只有活动 Attempt 获得执行槽 | 8 | 6 | 3 | 144 | H | `ST-SES-001`、`ST-SES-002` |
+| `FM-SES-002` | Session/Run绑定 | 同一Session受理多个活跃Run，或UNKNOWN/迟到终态错误释放绑定 | 两个执行并发改写同一历史，恢复时无法判定当前Run | Session保存Run集合、无单行CAS、释放不校验代次 | `ActiveRunBinding`基数0..1；SM先占槽后受理Run；UNKNOWN保持占用；释放校验runId+bindingVersion | 10 | 4 | 4 | 160 | H | `ST-SES-003`～`ST-SES-006`、`SES-RUN-T-01～06` |
 | `FM-RES-001` | ResourceManager | 队列或执行槽无界增长 | OOM、响应雪崩 | 缺少容量上限和背压 | 有界 FIFO、Semaphore、deadline 和稳定拒绝 | 9 | 5 | 3 | 135 | H | `ST-RES-001`、`ST-RES-002` |
 | `FM-ARC-001` | Multi-agent 边界 | Kernel 引入 Team/Participant/Role 状态 | 业务编排与 Kernel 职责耦合 | 把上层组队映射成内核聚合 | 架构门禁禁止 Multi-agent 领域类型 | 7 | 3 | 2 | 42 | M | `ST-ARC-001` |
 | `FM-DAT-001` | Run/Event 事务 | 发布事件但状态未提交，或提交后本地投影未推进 | 投影与权威状态分裂 | Journal 与状态未同事务或分发顺序错误 | 状态+Event Journal 本地事务；投影按序补拉 | 8 | 5 | 4 | 160 | H | `ST-EVT-005`、`ST-EVT-006` |
@@ -124,7 +125,7 @@ supersedes: [docs/design/agent-kernel-system-sfmea-test-plan.md]
 | 用例 ID | 场景 | 关键步骤 | 预期结果 | 主要证据 |
 |---|---|---|---|---|
 | `ST-E2E-001` | 无工具单 Run 成功 | 提交 Run → 调度 → 模型流式回答 → 完成 | 单 Run、单 Attempt、事件严格递增、最终结果可查询 | Run Snapshot、Trace、Event Journal |
-| `ST-E2E-002` | 连续多轮 AgentSession | 连续提交两个关联 Run | 第二个 Run 获得冻结 ContextFrame；Session 不拥有 Run 状态且不常驻进程 | ContextSnapshot、Run refs、process count |
+| `ST-E2E-002` | 同一AgentSession顺序执行两Run | 并发提交R1/R2→仅一方受理→R1终态及Session finalization→再提交R2 | 任意时刻非空绑定≤1；第二Run只能在释放后受理；Session无Run集合，历史Run在RunRegistry | ActiveRunBinding版本、ContextSnapshot、RunRegistry历史、process count |
 | `ST-E2E-003` | 只读工具 Allow | 模型提出工具 → L1/PEP → L3 → Sandbox → 回流 L2 | Permit 一次消费；ToolResultRef 恢复原 Attempt | ToolCall、Permit、跨层 Trace |
 | `ST-E2E-004` | 工具 Ask/审批恢复 | PDP 返回 Ask → 外部批准 → 工具执行 → Runtime 恢复 | 无同步线程等待；决定不扩大 Proposal | PermissionRequest、审批事件、ResumeAttempt |
 | `ST-E2E-005` | 工具 Deny | PDP 返回 Deny | Provider/Sandbox 调用为零；Loop 收到有界拒绝结果 | Audit、Provider call count |
@@ -209,6 +210,14 @@ supersedes: [docs/design/agent-kernel-system-sfmea-test-plan.md]
 | `ST-MAG-006` | Parent 取消或授权撤销 | 所有 Child 级联取消 | `FM-RUN-003`、`FM-MAG-001` |
 | `ST-SES-001` | 创建并挂起 1000 个 Session | 进程数和活动协程数不随 Session 数线性增长 | `FM-SES-001` |
 | `ST-SES-002` | 挂起 Run 等待审批 | 释放执行槽；恢复信号到达后重新排队 | `FM-SES-001` |
+| `ST-SES-003` | 同一Session并发提交两个不同Run | 仅一个SM占槽CAS成功；另一个`SESSION_RUN_ACTIVE`且RunRegistry无记录 | `FM-SES-002` |
+| `ST-SES-004` | Run受理已生效但ACK丢失 | Session保持`SUBMIT_UNKNOWN`并按原命令对账；不得启动第二Run | `FM-SES-002` |
+| `ST-SES-005` | R1释放后R2占槽，再重放R1旧终态 | R1旧bindingVersion不清除R2；任意快照非空绑定≤1 | `FM-SES-002` |
+| `ST-SES-006` | 同一Session顺序完成R1、R2 | Session不保存Run集合；两条终态历史只从RunRegistry查询 | `FM-SES-002` |
+| `ST-SES-003` | 同一Session并发提交两个不同Run | 仅一个CAS占用成功；另一方`SESSION_RUN_ACTIVE`且RunRegistry未创建 | `FM-SES-002` |
+| `ST-SES-004` | Run受理成功但ACK丢失，随后提交第二Run | 绑定保持`SUBMIT_UNKNOWN`；只查询原命令，第二Run受理数0 | `FM-SES-002` |
+| `ST-SES-005` | R1释放后R2占用，再重放R1旧终态 | 旧bindingVersion只记迟到事实，不清除R2绑定 | `FM-SES-002` |
+| `ST-SES-006` | Parent等待Child并恢复 | Parent始终复用原Run；各Child Session各有一个Run；Barrier并发不要求Session内多Run | `FM-SES-002`、`FM-MAG-001` |
 | `ST-RES-001` | 执行队列达到 maxQueuedRuns | 新请求背压或返回 `RESOURCE_QUEUE_FULL`，内存不继续增长 | `FM-RES-001` |
 | `ST-RES-002` | Sandbox 进程达到上限 | 新工具调用有界等待或拒绝，不绕过 Sandbox | `FM-RES-001` |
 | `ST-ARC-001` | 扫描 Kernel contracts/domain | `MultiAgentRun`、Participant、团队 Role/仲裁类型数量为零 | `FM-ARC-001` |

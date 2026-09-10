@@ -3,7 +3,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import type { TestContext } from "node:test";
-import type { AgentAdapter, RuntimeEventCandidate, TimePoint } from "../../src/contracts/index.ts";
+import type { AgentAdapter, AgentTurnRequest, RuntimeEventCandidate, TimePoint } from "../../src/contracts/index.ts";
 import { SystemTimeAdapter } from "../../src/infrastructure/adapters/system-time-adapter.ts";
 
 /** 可推进的墙上时钟与独立单调时间；时间解析继续使用真实 Adapter。 */
@@ -50,15 +50,25 @@ export async function temporaryWorkspace(context: TestContext): Promise<string> 
 /** 按轮输出规范化候选，并暴露调用计数供独立断言。 */
 export function scriptedModel(turns: readonly (readonly RuntimeEventCandidate[])[]) {
 	let calls = 0;
+	const requests: AgentTurnRequest[] = [];
 	const adapter: AgentAdapter = {
-		async *executeTurn(_context, _request, signal) {
+		async *executeTurn(_context, request, signal) {
 			signal.throwIfAborted();
+			assert.deepEqual(Object.keys(request).sort(), [
+				"formatVersion",
+				"modelAdapterVersion",
+				"payload",
+				"sessionId",
+			]);
+			assert.equal(request.formatVersion, "ctx-input-1");
+			assert.equal(request.modelAdapterVersion, "pi-context-1");
+			requests.push(structuredClone(request));
 			const turn = turns[calls++];
 			assert.ok(turn, "模型调用超过测试脚本");
 			for (const event of turn) yield event;
 		},
 	};
-	return { adapter, calls: () => calls };
+	return { adapter, requests, calls: () => calls };
 }
 
 /** 验证当前内存事件序列；不声称具备 Journal 持久化。 */

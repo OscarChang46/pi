@@ -3,7 +3,12 @@ import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
-import { createAgentKernel, createRequestContext, createRunCommand } from "../../src/application/composition-root.ts";
+import {
+	createAgentKernel,
+	createRequestContext,
+	createRootSessionCommand,
+	createRunCommand,
+} from "../../src/application/composition-root.ts";
 import {
 	loadRuntimeSettings,
 	RuntimeConfigurationError,
@@ -45,9 +50,19 @@ test("[AK-CFG-001] 全部运行参数可从严格配置加载并用于 Faux 纵�
 	assert.equal(settings.config.kernel.piAdapter.maxRetries, 0);
 
 	const workspace = resolveConfiguredPath(settings, settings.config.runtime.workspaceRoot);
-	const command = createRunCommand(workspace, settings);
 	const kernel = await createAgentKernel(workspace, settings);
-	const result = await kernel.run(createRequestContext(settings), command);
+	const requestContext = createRequestContext(settings);
+	const session = kernel.ensure(
+		requestContext,
+		createRootSessionCommand({
+			logicalKey: "logical:configured",
+			agentDefinitionRef: kernel.agentId,
+			contextPolicyRef: settings.config.prompts.agentSystemPromptId,
+		}),
+	);
+	const command = createRunCommand({ sessionId: session.anchor.sessionId, workspaceRoot: workspace }, settings);
+	const result = await kernel.run(requestContext, command);
+	assert.equal(command.sessionId, session.anchor.sessionId);
 	assert.equal(result.status, "completed");
 	assert.match(result.output, /配置化 Agent Run 完成/u);
 });

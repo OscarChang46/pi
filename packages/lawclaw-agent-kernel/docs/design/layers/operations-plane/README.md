@@ -43,4 +43,6 @@ Kernel 各层只能通过 [`BND-OPS-001`](../../contracts/bnd-ops-001.md) 向本
 
 ## 验证
 
+[外部存储 I/O 监控候选方案](../../reviews/storage-io-2026-09-08/README.md)细化现有遥测组件的字节口径、放大比率、控制尾延迟、恢复 Trace、有界采集和性能验收；属于 ACR-2026-0016 联合评审输入，不新增反向控制领域状态的入口。
+
 见 [Operations Plane SFMEA](../../../verification/operations-plane.md) 和 [System SFMEA](../../../verification/system-sfmea.md)。

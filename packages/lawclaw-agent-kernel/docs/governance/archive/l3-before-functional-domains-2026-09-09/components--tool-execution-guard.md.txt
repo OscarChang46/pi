@@ -1,0 +1,85 @@
+---
+doc_id: L3-CMP-003
+level: component
+layer: L3 Tool Runtime
+component: ToolExecutionGuard
+status: candidate
+baseline: AKB-2026-09-03-09
+authoritative_for: L3 真实执行点的 Permit 校验消费与失败关闭
+parent: L3-DES-001
+interfaces: [PermitValidationPort]
+diagrams: []
+supersedes: ["[归档工具调用子系统设计](../../../../governance/archive/design-v3-pre-layering/tool-call-subsystem-design.md) 中 Permit 校验部分"]
+---
+
+# ToolExecutionGuard 组件设计
+
+## 职责
+
+ToolExecutionGuard 位于 L3 到 L4 的最后可信边界，在任何真实执行发生前校验并原子消费 Security Plane 签发的 ExecutionPermit。它不是 PDP，不返回 Allow/Ask/Deny，不读取策略源，也不签发新 Permit。
+
+## 校验不变量
+
+Guard 比对 Permit 与实际 ToolCall 的 ActionDigest、Run、Agent、执行信封引用、工具及版本、资源范围、策略版本和有效期。首次消费要求未消费；同命令同绑定恢复可查询原消费回执，但必须重新authorizeStart，不能据此直接执行。实际参数解析或路由解析导致目标变化时校验失败，必须回到 L1 重新提案。
+
+## 并发与原子性
+
+同一 Permit 的并发校验只有一个消费者成功。消费结果耐久化后方可进入 L4；校验服务、存储、时钟或审计不可用时失败关闭。Guard 不通过缓存的历史成功结果绕过当前消费状态。
+
+## 故障与审计
+
+拒绝原因以稳定、脱敏类别返回，且记录 Permit、ToolCall 和动作摘要引用。Permit 已消费但 L4 结果未知时，不恢复 Permit，也不自行重试；ToolCallRuntime 负责状态查询与结果收敛。
+
+## 契约边界
+
+Permit字段与操作由CD-1及Security Plane维护；L3只复用，不定义签名方案或第二套消费账本。
+
+## CD-1实现粒度（2026-09-07）
+
+能力保留原层级与Port所有权，首版随[tool-call-runtime内部协作设计](tool-call-runtime.md)交付，不独立建设服务或状态库。详细流程与测试见目标文档`L3-CMP-003 / CD-1`节；数据见[CD-1](../../../contracts/component-development-contracts-v1.md#tool-execution-guard)。只合并开发任务，不移动架构层、不删除安全检查。
+
+## L3-DD-1 最终执行检查
+
+本节细化Guard算法；[Runtime类图](tool-call-runtime.md#l3-dd-1-执行协调详细设计)显示其所有者与依赖。Guard由Runtime创建，注入PermitValidationPort、可信Clock及有范围限制的Artifact读能力；输入为不可变GuardInput，无缓存授权、无自身Repository、不调用L4。
+
+### 顺序与输入处理
+
+1. 验证可信服务身份、scope、command/run/claim关联及输入上限。未经读取授权不能先读参数Artifact；参数Ref不是访问权。
+2. 从冻结目录得到descriptor及原route，受控读取参数与Schema，校验实际字节数、Artifact摘要和Schema；使用同一已验证内容构造后续执行计划，禁止验证后再读可变路径。
+3. 使用公共FE-C14N-1编码器复算descriptor与actionDigest，比较资源范围、工具版本、catalog、路由与SecurityBinding。纯BindingValidator只输出通过/稳定错误，不评估allow/ask/deny。
+4. 调用Security.consume；同命令原回执允许恢复，不同命令已消费拒绝。consume响应不明查询原回执；找不到确认则不推进authorized。
+5. Runtime保存authorized后，Guard调用authorizeStart，复核当前claim、取消、Permit expiry、授权epoch与deadline；必须确认必要审计Journal回执。旧StartGrant不可用于新owner，禁止缓存放行。
+6. 返回绑定当前executor的grant给Runtime，Runtime完成start CAS才可进入L4。安全授权线性化点沿用CD-1；其后撤销是对在途调用的取消，不承诺远程即时撤回。
+
+### S4 拒绝、服务失效和恢复
+
+具体例子：参数Artifact的一字节变更导致摘要不匹配，consume调用数必须为0；消费后Permit过期，authorizeStart拒绝且L4调用数为0。安全服务超时不等于deny已被耐久记录，也不等于grant已确认。
+
+```plantuml
+@startuml
+skinparam defaultFontName Hiragino Sans GB
+title S4 最终执行检查
+start
+:Guard验证身份及读取权限;
+if (实际参数、目录、route绑定有效?) then (是)
+ :Security.consume或查询原receipt;
+ if (消费及审计确认?) then (是)
+  :Runtime保存authorized;
+  :Security.authorizeStart复核当前条件;
+  if (grant和必要审计均确认?) then (是)
+   :返回grant给Runtime做start CAS;
+  else (否)
+   :稳定错误或待确认；不返回执行资格;
+  endif
+ else (否)
+  :保留原阶段；禁止L4执行;
+ endif
+else (否)
+ :DIGEST_MISMATCH / BINDING_MISMATCH等;
+ :consume调用0，L4调用0;
+endif
+stop
+@enduml
+```
+
+结构验收：注入Security Fake后检查Guard无Provider依赖、无策略读取、无可变授权缓存；这需要依赖图/源码走读，不用搜索类名代替证明。行为沿用L3-CMP-003-TC-01..06，新增L3-DD-TC-09：审计append已受理但queryReceipt非found，grant不得交Runtime；TC-10：旧owner的grant与新claim混用，start CAS失败。以上均待实现测试。

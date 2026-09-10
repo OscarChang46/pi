@@ -1,0 +1,39 @@
+@startuml
+!include ../../theme.puml
+title D2：工具 Ask 与重新判定（S2）
+start
+:PDP T-D提交pending、审批outbox和审计;
+:L1持久等待并Yield，释放执行槽;
+:Bridge提交稳定approvalRef;
+if (外部受理响应未知?) then (是)
+ :查询原approvalRef；
+无幂等查询能力则待交付并告警;
+endif
+:Host认证回调，Bridge检查Scope与绑定;
+if (来源或关联非法?) then (是)
+ :拒绝回调，不改变请求;
+ stop
+endif
+if (已终结或重复决定?) then (是)
+ :同ID同载荷返回旧回执；
+矛盾载荷冲突，不迁移;
+ stop
+endif
+if (已取消或 now >= Deadline?) then (是)
+ :CAS cancelled / expired；Permit0;
+ stop
+endif
+if (外部拒绝?) then (是)
+ :CAS pending → denied，写通知;
+ stop
+endif
+:CAS pending → approved，写事实通知;
+:L1新权限command，原Proposal不变;
+:PDP重新执行D1，复核当前epoch与上限;
+if (仍获Allow?) then (是)
+ :短时Permit交L1；后续走E1;
+else (否)
+ :拒绝/不可用；工具执行0;
+endif
+stop
+@enduml

@@ -1,5 +1,19 @@
 /** 本目录显式导出入口；跨职责调用方应优先依赖 contracts 中的窄端口。 */
 export { computeArgumentsDigest, computeToolDescriptorDigest, digest } from "./authorization-digest.ts";
+export type {
+	AbsentSessionLookupResult,
+	ActiveRunBinding,
+	ActiveRunBindingState,
+	EnsureSessionCommand,
+	EnsureSessionResult,
+	FoundSessionLookupResult,
+	SessionAnchor,
+	SessionCommandPort,
+	SessionCreationIntent,
+	SessionLookupResult,
+	SessionQueryPort,
+} from "./control/session-manager/session-manager-contract.ts";
+export { ACTIVE_RUN_BINDING_STATE } from "./control/session-manager/session-manager-contract.ts";
 export type { ContextEnginePort, DelegationPort } from "./control.ts";
 export type { KernelErrorCode } from "./errors.ts";
 export { KernelError } from "./errors.ts";
@@ -54,10 +68,7 @@ export type {
 	AgentExecutionBudget,
 	AgentRunResult,
 	AgentTurnRequest,
-	ContextAssemblyRequest,
-	ContextFrame,
 	ContextItem,
-	ContextReductionTrace,
 	DataClassification,
 	DelegationPolicy,
 	DelegationProviderPort,

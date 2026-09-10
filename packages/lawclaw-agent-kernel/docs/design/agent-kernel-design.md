@@ -14,6 +14,10 @@ supersedes: []
 
 # 基于 Pi 的 LawClaw Agent Kernel System 完整设计
 
+当前 FE 范围为单 FlowRun 四态、Activity 回放、恢复和内部有向环。同一 Session 只允许 `0..1` 当前活跃 Run 绑定，绑定归 SessionManager，历史 Run 归 RunRegistry。Session 父子血缘及 sub-session Fork/Join/Reduce/唤醒协调归 SessionManager 内部 Coordinator；FE 只执行/取消单个 Child Flow 并幂等消费 Parent resume。
+
+2026-09-07增量决策：[ACR-2026-0012](../governance/changes/ACR-2026-0012-flow-system-engine.md)已由用户授权实施，替代本文旧FlowEngine纯ReAct定位和资源分配组件。其他领域仍沿用其原评审状态；下列旧五步进度不是本次授权状态。
+
 > 文档状态：V3.1 候选架构，五步评审步骤 1/5 重新评审
 > 候选变更：`ACR-2026-0009`（基于 `ACR-2026-0008`）
 > 候选基线：`AKB-2026-09-03-09`
@@ -48,16 +52,17 @@ LawClaw Agent Kernel System 长期管理多个 Agent 定义、Session、Run、�
 | `UP-AGT-003` | Pi、ACP 等差异收敛在 `AgentAdapterPort` 下方。 |
 | `UP-AGT-004` | Agent Registry 负责定义、能力匹配和技术路由快照。 |
 | `UP-AGT-005` | Run、Attempt、LoopStep 和规范化 Event 分层建模。 |
-| `UP-AGT-006` | Scheduler 统一调度 Root 和 Child Run；上层 Multi-agent 参与者也只表现为普通 Run。 |
+| `UP-AGT-006` | FE统一调度Root和Child Flow；外部Scheduler仅触发，业务参与者不获得另一套协调器。 |
 | `UP-AGT-007` | 取消、Lease、恢复和未知副作用采用失败关闭规则。 |
 | `UP-AGT-008` | Kernel 不拥有 Workflow、业务 Conversation 或业务审批。 |
 | `UP-AGT-009` | Subagent 采用结构化生命周期和父级约束子集。 |
 | `UP-AGT-010` | Multi-agent 团队拓扑、角色和协调策略由上层业务编排拥有；Kernel 只提供通用 Run/Session/Child Run 原语。 |
+| `UP-AGT-011` | 每个 Session 只维护 `0..1` 当前活跃 Run 绑定，不保存 Run 集合；Run/Attempt 历史与状态归 RunRegistry。 |
 | `UP-CTX-001` | ContextThread 只关联 Root Run，不拥有 Run。 |
 | `UP-CTX-002` | ContextFrame 是有界、可解释的执行投影。 |
 | `UP-CTX-003` | 长期 MemorySpace 独立建模，并以授权视图进入上下文。 |
 | `UP-TOOL-001` | 所有工具调用统一经过 L1 PEP、L3 ToolExecutionGuard 与 L4 受控执行边界。 |
-| `UP-DEL-001` | Child Run 只能通过 Scheduler 创建且不得成为孤儿。 |
+| `UP-DEL-001` | Child Flow通过FE统一关联与调度入口创建，不得成为孤儿；外部触发器不另建子任务协调。 |
 | `UP-DAT-001` | 聚合独立提交，事件持久化后发布并支持补拉去重。 |
 | `UP-SEC-001` | Host 编译执行信封；Kernel 只消费最小技术身份和权限快照。 |
 | `UP-RES-001` | 队列、预算、上下文、工具输出、子 Run 和并发均有界。 |
@@ -105,19 +110,22 @@ Agent Kernel System 明确不拥有或解释：
 | AgentRunAttempt | Run 内的一次物理执行尝试；由有效 Runtime Lease 启动。 |
 | AgentLoopStep | Attempt 内严格排序的一次模型、工具、上下文、记忆或委派步骤。 |
 | AgentRuntime | 可重建执行领域服务；连续执行多个已派发 Run，但不拥有 Run。 |
-| AgentSession | 持久化技术会话档案；保存上下文增量、Artifact 引用、版本和可选分支血缘，不是进程，也不复制 Run 状态。 |
-| AgentExecutionScope | Root/Child 执行树聚合根，约束 Join、Cancel、移交和预算继承。 |
-| FlowEngine | 无状态的 Run 推进算法；读取 Run/Session 快照，计算下一动作并通过 Port 提交。 |
-| ResourceManager | 进程级资源协调器；管理有界队列、执行槽和临时资源预算，不解释业务优先级。 |
+| AgentSession | 持久化技术会话档案；保存上下文增量、Artifact 引用、版本、可选分支血缘及 `0..1` 当前活跃 Run 绑定，不是进程，不保存 Run 集合，也不复制 Run 状态。 |
+| JoinBarrier | SessionManager 内的 sub-session 协调聚合根，冻结成员、JoinPolicy、Reducer 和 Parent 唤醒进度。 |
+| FlowEngine | 系统态执行框架；仅Ready、Running、Yield、Terminate，通过追加日志和Activity拦截恢复。 |
 | ContextEngine | 组装、裁剪、摘要并冻结当前模型调用工作上下文的领域服务。 |
 | MemoryManager | 管理长期 MemorySpace、版本、授权视图和候选写入的应用服务。 |
 | PermissionDecisionEngine | 受保护动作的统一决策点；返回 Allow、Ask 或 Deny，不执行动作。 |
 | ExecutionPermit | 绑定动作、资源、Run、Agent、授权版本和有效期的一次性执行授权。 |
+
+FlowEngine 无状态：可丢弃任何进程内实例，并从单 FlowRun 的追加日志恢复；SessionManager 的 JoinBarrier 也不得存入 FE 进程内状态。
 | ToolCallRuntime | L3 工具调用状态协调入口；在 Guard 消费 Permit 后选择 L4 Provider 或 Sandbox 路径并归一化结果。 |
 | AgentAdapter | 屏蔽 Pi 等执行实现差异的出站 Port；原生类型不得越界。 |
 | KernelHost | Kernel 外部可信装配边界；解释用户、租户和 RBAC，构造执行信封和 Scoped Adapter。 |
 
 ## 4. 总体职责边界
+
+客户端增量设计见 [Kernel TUI](clients/components/kernel-tui/README.md)。LawClaw TUI 是应用主体，依赖 pi-tui 提供终端组件；它另经 Kernel Client 调用本机 Host 端点。KernelHost 包含可信接入、准备适配器与 Facade/Gateway，不是请求中额外插入的业务层。首次输入由 Host 按 CTX-CON-1 准备候选、确认 Session 并保存绑定，再经 Gateway 受理；TUI 不直接串联内部组件。该候选增量见 [ACR-2026-0018](../governance/changes/ACR-2026-0018-kernel-tui.md)，不改变其他部分批准状态。
 
 业务编排是业务用例的权威协调者，Agent Kernel System 是技术执行子系统：
 
@@ -146,13 +154,14 @@ Agent Kernel System（限界上下文）
 ├── AgentRun（核心聚合根）
 │   └── AgentRunAttempt（实体）
 │       └── AgentLoopStep（实体/事件投影）
-├── AgentExecutionScope（聚合根）
+├── JoinBarrier（SessionManager 内部协调聚合根）
 ├── PermissionRequest（聚合根）
 ├── ExecutionPermit（聚合根）
 ├── ToolDefinition（聚合根）
 ├── ToolCall（聚合根）
 ├── MemorySpace（聚合根）
 ├── AgentSession（技术会话聚合根）
+│   └── ActiveRunBinding（0..1，当前占用引用）
 └── 可重建领域/应用服务
 ```
 
@@ -162,15 +171,15 @@ Agent Kernel System（限界上下文）
 
 ### 5.1 AgentRun、Attempt 与 Step
 
-`AgentRun` 独立保护执行状态、冻结路由、预算、取消、终态和 Attempt 序列。它不属于 Runtime 或 Session；`AgentLoopStep` 也不是顶层聚合。首版本地执行不强制 Lease/Fence，多 Worker 档案才启用租约隔离。生命周期与提交规则见 [RunRegistry](layers/l1-control/components/run-registry.md)，调度见 [RunScheduler](layers/l1-control/components/run-scheduler.md)，认知执行见 [AgentRuntime/AgentLoop](layers/l2-cognitive/components/agent-runtime-loop.md)。
+`AgentRun` 独立保护执行状态、冻结路由、预算、取消、终态和 Attempt 序列。它不是 Session 的子实体；Session 只持有当前占用它的 Run 引用，`AgentLoopStep` 也不是顶层聚合。Attempt 的 Lease/Fence/接管只归 RunRegistry，不在 SessionManager 复制。生命周期与提交规则见 [RunRegistry](layers/l1-control/components/run-registry.md)，调度见 [RunScheduler](layers/l1-control/components/run-scheduler.md)，认知执行见 [AgentRuntime/AgentLoop](layers/l2-cognitive/components/agent-runtime-loop.md)。
 
 ### 5.2 AgentSession
 
-`AgentSession` 是持久化技术会话聚合根，关联多个 Run，保存上下文增量、消息/观察记录、Artifact 引用、版本和可选父 Session 引用，但不拥有 Run 状态，也不对应进程。详细职责见 [SessionManager](layers/l1-control/components/session-manager.md)；Context 与 Memory 分别由 [ContextEngine](layers/l1-control/components/context-engine.md)和[MemoryManager](layers/l1-control/components/memory-manager.md)维护。
+`AgentSession` 是持久化技术会话聚合根，保存上下文增量、消息/观察记录、Artifact 引用、版本、可选父 Session 引用和 `0..1` 的 `ActiveRunBinding`，但不拥有 Run 状态、不保存 `runIds[]` 或待运行队列，也不对应进程。同一 Session 可在旧绑定释放后顺序启动下一 Run；历史终态 Run 只由 RunRegistry 留档。独立Child Session不复制父全文；SessionManager冻结允许继承的父上下文选择规格，ContextEngine从父确切版本组装Child初始Frame。详细职责见 [SessionManager](layers/l1-control/components/session-manager.md)；Context 与 Memory 分别由 [ContextEngine](layers/l1-control/components/context-engine.md)和[MemoryManager](layers/l1-control/components/memory-manager.md)维护。
 
 ### 5.3 独立安全与资源聚合
 
-`PermissionRequest`、`ExecutionPermit`、`ToolCall`、`MemorySpace` 和 `AgentExecutionScope` 具有独立生命周期和并发边界，不能降为 Runtime、Session 或 Run 内的普通值对象。详细不变量分别由 [Security Plane](layers/security-plane/README.md)、[L3 Tool Runtime](layers/l3-tool-runtime/README.md)、[MemoryManager](layers/l1-control/components/memory-manager.md)和[SubagentCoordinator](layers/l1-control/components/subagent-coordinator.md)维护。
+`PermissionRequest`、`ExecutionPermit`、`ToolCall`、`MemorySpace` 和 `JoinBarrier` 具有独立生命周期和并发边界，不能降为 Runtime、Session 或 Run 内的普通值对象。详细不变量分别由 [Security Plane](layers/security-plane/README.md)、[L3 Tool Runtime](layers/l3-tool-runtime/README.md)、[MemoryManager](layers/l1-control/components/memory-manager.md)和 [SessionManager Sub-session Fork/Join](layers/l1-control/components/session-manager/sr-03-subsession-fork-join.md) 维护。Join/Reduce/取消协调事实只在 SM 保留一份权威；AuthorizationState、Decision、Permit、Receipt、StartGrant、授权版本与撤销事实只在 Security Plane 保留权威。Session/Barrier/Member 只能保存 Security 返回的不透明引用，引用本身不构成授权，Parent授权也不能下传为Child运行权。
 
 ## 6. 系统服务 C4 组件协作
 
@@ -185,8 +194,8 @@ Agent Kernel System（限界上下文）
 | C4 抽象组件 | V3 工程映射 | 边界与数据所有权解释 |
 |---|---|---|
 | Web UI / API Gateway | Backend、KernelHost、`AgentSystemGateway` | Token 在 Backend/KernelHost 终止并被解释；Kernel 只接收 `AgentExecutionEnvelopeRef` 及最小技术上下文。 |
-| Workflow Engine | `FlowEngine` + `RunScheduler` | 无状态推进 AgentRun 技术状态；不保存业务 Workflow、Session/Run 权威状态、业务补偿或结果采纳。 |
-| Session Manager | `AgentSession` Repository/Application Service | 管理持久上下文、Artifact 索引、版本锁和可选分支血缘；Session 不是进程，Run 状态仍由 AgentRun 拥有。 |
+| Workflow Engine | `FlowEngine` + `RunScheduler` | 运行系统四态及Activity日志；业务流程通过处理器注册，业务状态独立。允许有向环，退出谓词由业务处理器决定。 |
+| Session Manager | `AgentSession` Repository/Application Service | 管理持久上下文、Artifact 索引、版本锁、`0..1 ActiveRunBinding` 和可选分支血缘；Session 不是进程，Run/Attempt 状态仍由 RunRegistry 拥有。 |
 | Context Manager | `ContextEngine` + `MemoryQueryPort` | 组装有界 `ContextFrame`；长期记忆的权威状态仍由 `MemoryManager` 管理。 |
 | State DB / Sessions / Memory | Run、Context、Memory Repository Port 的逻辑持久化视图 | 图中的单一 DB 只表示持久化能力；各聚合仍独立提交，数据库实现不能反向定义领域所有权。 |
 | Agent Core / Agent Loop | `AgentRuntime` + `AgentLoopStep` + `AgentAdapterPort` | Runtime 执行已派发 Attempt；Run 权威状态和 Lease 仍由 Run Domain/Scheduler 管理。 |
@@ -228,20 +237,18 @@ Agent Kernel System（限界上下文）
 | AgentRegistry | 管理 AgentDefinition、Capability 和路由候选 | 业务优先级、具体 Adapter 创建 |
 | RunRegistry | Run 查询、状态入口、幂等回执和 Lease 协作 | 能力定义和业务调度 |
 | RunScheduler | 队列、并发、预算、Deadline、Lease、技术重试和派发 | 业务流程顺序和结果采纳 |
-| FlowEngine | 读取 Run/Session 快照并计算下一技术动作 | 保存权威状态、设计业务工作流 |
-| ResourceManager | 执行准入、执行槽和临时资源预算 | 可运行队列、业务优先级和 Run 状态迁移 |
-| RuntimePool | Worker 容量、隔离和健康 | Run 权威状态 |
+| SessionManager | Session、分支血缘、sub-session Fork/Join/Reduce/取消协调与 Parent 唤醒 | 单 Flow 内部位置、Activity/Provider 执行 |
+| FlowEngine | 单flowRun四态、Activity拦截、内部循环图与恢复 | Session父子关联、AgentRun业务状态、ReAct规则、业务上下文、资源分配 |
 | AgentRuntime | 执行已派发 Attempt 的 Agent Loop | 系统调度、身份解释、直接资源访问 |
 | ContextEngine | 工作上下文组装、预算、裁剪、摘要和冻结 | 长期记忆权威状态、业务 Conversation |
 | MemoryManager | 长期记忆空间、版本、授权视图和候选提交 | 无条件共享或直接覆盖 Context |
 | PermissionDecisionEngine | ActionProposal 判定与 Ask 技术请求 | 审批人选择、Permit 消费和受保护动作执行 |
 | ToolCallRuntime | ToolDefinition、ToolCall、Guard 调用和 L4 协调 | PDP 权限裁决、Permit 签发、Sandbox 机制和基础设施实现 |
-| SubagentCoordinator | Parent/Child Run 的 Fork、Join、Cancel 和级联收敛 | Multi-agent 团队组建、角色、仲裁和业务结果采纳 |
 | AgentAdapter | Pi/未来 Runtime 私有类型映射和规范化事件 | Kernel 策略、权限、工具和记忆决策 |
 
 ## 7. AgentSession、调度、FlowEngine 与 Runtime
 
-`AgentSession` 是持久化技术档案，不是一进程；`AgentRun` 是执行聚合根；`FlowEngine` 是无状态推进算法；`AgentRuntime` 是可重建执行服务。所有 Root 和 Child Run 都经统一 Scheduler。首版使用一个 Host 进程、一个 FlowEngine、一个本地有界队列和若干执行槽；Lease/Fence 只属于多 Worker 部署档案。
+`AgentSession` 是持久化技术档案，不是一进程；`AgentRun` 是执行聚合根；`FlowEngine` 是通用四态系统执行框架；`AgentRuntime` 是可重建执行服务。所有 Root 和 Child Run 都经统一 Scheduler。首版使用一个Host和独立append-only系统日志；业务ReAct协议由ReActFlowHost/ReActFlowPolicy解释。执行代次隔离适用于本地崩溃恢复，不依赖资源分配组件。
 
 对象关系、Session 分支、进程模型和资源开销从[L1 层设计](layers/l1-control/README.md)进入对应组件；L2 执行生命周期见[L2 层设计](layers/l2-cognitive/README.md)。
 
@@ -257,6 +264,8 @@ Envelope 的权限求交、资源 Handle 和执行点约束见[Security Plane](l
 
 决策与执行点分离、Permit 生命周期、审批桥和故障关闭规则见[Security Plane](layers/security-plane/README.md)。
 
+2026-09-08的[PEP/PDP详细设计](layers/security-plane/README.md#7-peppdp详细设计入口2026-09-08)沿用上述职责，补齐内部算法、执行与恢复流程，属于[ACR-2026-0014](../governance/changes/ACR-2026-0014-pep-pdp-detail.md)候选，不代表安全接口、存储或运行实现已经获批。
+
 ## 10. 工具扩展与沙箱
 
 `ToolCallRuntime` 是工具调用状态协调入口，工具通过版本化 `ToolDefinition` 与 `ToolDescriptor` 扩展。Candidate 不能直接进入 Provider，Sandbox 和 Secret 机制也不能绕过 Permit。
@@ -267,13 +276,13 @@ ToolCall 聚合、合法调用链、取消和未知副作用规则见[L3 Tool Ru
 
 `AgentSession` 是技术会话聚合根；`MemorySpace` 是独立长期记忆聚合根；`ContextFrame` 只是一次模型调用的不可变投影。Agent 只能提交 `MemoryCandidate`，不能直接覆盖共享记忆。
 
-上下文组装与归约追踪见 [ContextEngine](layers/l1-control/components/context-engine.md)；MemoryView、共享范围和候选写入见 [MemoryManager](layers/l1-control/components/memory-manager.md)。
+上下文组装、归约追踪、sub-session选择性父上下文注入和TokenAccounting见 [ContextEngine](layers/l1-control/components/context-engine.md)；MemoryView、共享范围和候选写入见 [MemoryManager](layers/l1-control/components/memory-manager.md)。首版Token预算采用Pi粗估作为软目标；仅必选内容估算超目标时保留并标记，字节及结构仍受硬约束，不保证Provider实际请求不超窗。饱和测试只评价固定估算下的选择效率。模型输入映射采用CTX-CON-1的pi-context-1；首次由外部受信调用方准备来源，候选成功后才创建Session并绑定/采纳。
 
 ## 12. Subagent 与上层 Multi-agent 边界
 
-Subagent 是受 `AgentExecutionScope` 管理的 Child Run，属于 Kernel 的结构化执行能力。Multi-agent 团队由上层业务编排使用多个 Run/Session 组建；Kernel 不拥有 Team、Participant、RoleAssignment、CoordinationPolicy 或团队仲裁。
+Subagent 是 SessionManager `JoinBarrier` 成员所引用的 Child Session/Run，属于 Kernel 的结构化执行能力。Multi-agent 团队由上层业务编排使用多个 Run/Session 组建；Kernel 不拥有 Team、Participant、RoleAssignment或团队仲裁。JoinPolicy 只表达技术收敛条件，不是团队仲裁策略。
 
-父子生命周期、可选 Child Session、预算/权限继承和孤儿防护见 [SubagentCoordinator](layers/l1-control/components/subagent-coordinator.md)。上层共享记忆仍必须使用显式 MemoryView/Grant，不因 Multi-agent 组建方式而放宽权限。
+父子 Session 血缘、Fork/Join/Reduce、取消编排、恢复和孤儿防护统一由 SessionManager 内部 Coordinator 承担。Coordinator先用创建意图、Fork时冻结的父版本和ParentContextSliceSpec调用ContextEngine，取得完整内存候选；成功后才创建Child Session、确认绑定并保存候选，再按Session单活Run协议提交受理。Run采纳固定上下文引用，Context不创建Session或持久组装回执。输入、交付和恢复以[CTX-CON-1](contracts/context-assembly-contract.md)为准；SessionManager旧协调状态迁移须同步后实施。外部 Agent 适配只转换定义/参数；FE 只执行单 Child Flow。Child 黑板默认隔离，上层共享记忆仍必须使用显式 MemoryView/Grant，不因 Multi-agent 组建方式而放宽权限。Child“销毁”是可恢复的逻辑归档；物理GC必须等待引用、回执和未决事实解除。
 
 ## 13. 数据、一致性与韧性原则
 
@@ -307,12 +316,14 @@ Runtime 故障不等于 Run 必然终止。只有安全 Checkpoint、已知副�
 | 业务编排/KernelHost | AgentSystemGateway | AgentSystemGateway | 无；协调 Registry、Session 与 Run 用例 |
 | AgentSystemGateway | AgentRegistryQueryPort | AgentRegistry | AgentDefinition |
 | AgentSystemGateway | SessionCommandPort / SessionQueryPort | SessionManager | AgentSession |
-| AgentSystemGateway/SubagentCoordinator | RunSchedulerPort | RunScheduler | 可重建调度投影；Run 仍归 RunRegistry |
-| RunScheduler/RuntimePool | RuntimeControlPort | L2 AgentRuntime | Run 仍归 RunRegistry |
+| AgentSystemGateway / SubSessionCoordinator | SessionRunCommandPort | SessionManager | 先占用唯一ActiveRunBinding，再由提交后outbox受理Run |
+| SessionManager outbox worker | RunCommandPort / RunQueryPort | RunRegistry | 验证SessionRunBindingRef；Run状态和历史归RunRegistry |
+| Agent业务调用边界 | SessionForkJoinPort | SessionManager | SM 拥有 Barrier/Join/Reduce；Agent 业务元数据通过引用绑定 |
+| ReAct业务执行宿主 | RuntimeControlPort | L2 AgentRuntime | Run 仍归 RunRegistry |
 | AgentRuntime | RuntimeEventPort | L1 RunRegistry | 规范化事件、ToolCallCandidate、ChildRunCandidate |
 | L1 PEP Enforcement | PermissionDecisionPort | PermissionDecisionEngine | PermissionRequest/Permit |
 | L1 PEP Enforcement | ToolRuntimePort | L3 ToolCallRuntime | ToolDefinition/ToolCall |
-| L1 SubagentCoordinator | ChildRunPort / RunSchedulerPort | RunScheduler | AgentExecutionScope/Child Run |
+| SessionManager Coordinator | FlowRunCommandPort / FlowRunQueryPort | FlowEngine | SM 经 outbox 提交/取消 Child Flow 及唤醒 Parent；FE 不拥有 Join 决策 |
 | L3/L4、Memory、Delegation、Secret、Artifact 执行点 | PermitValidationPort | ExecutionPermit 组件 | ExecutionPermit 消费状态 |
 | PermissionDecisionEngine | ApprovalRequestPort | Backend/业务审批边界 | 外部 ApprovalCase |
 | Backend/业务审批边界 | ApprovalDecisionPort | ApprovalBridge / PermissionDecisionEngine | PermissionRequest |
@@ -324,6 +335,8 @@ Runtime 故障不等于 Run 必然终止。只有安全 Checkpoint、已知副�
 跨模块行为调用必须经过 Port；跨模块对象只保存 ID、Ref、Snapshot 或 Handle。Kernel Core 不导入 Pi、Bun、SQLite、HTTP 或具体 Adapter；具体 Adapter 只在 Composition Root 实例化；Infrastructure 不反向定义路由、权限或业务规则。
 
 ## 15. Pi Adapter、运维与基础设施
+
+2026-09-08 新增[外部存储 I/O 监控候选方案](reviews/storage-io-2026-09-08/README.md)，关联 [ACR-2026-0016](../governance/changes/ACR-2026-0016-storage-io-observability.md)：沿现有 Infrastructure/Operations 边界细化读写放大、控制尾延迟与可选 KV 恢复观测，不改变黑板、FlowRun 或推理缓存的所有权；尚未批准或实现。
 
 Pi 位于 `AgentAdapterPort` 下方，不与 Gateway、Scheduler 或 Runtime 并列。可复用其模型 Provider、流式事件、工具调用原语、Abort、Session/Context 原语和 Agent Loop 参考实现；Kernel/Adapter 补齐 Definition、Session、Run/Attempt、Context/Memory、Permission/Permit、L3 ToolCallRuntime 和受限 Child Run 生命周期。
 

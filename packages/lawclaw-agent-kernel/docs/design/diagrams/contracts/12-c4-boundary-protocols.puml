@@ -4,7 +4,9 @@
 skinparam componentStyle uml2
 skinparam backgroundColor #F8F9FA
 skinparam roundcorner 10
-skinparam linetype ortho
+skinparam linetype polyline
+skinparam nodesep 80
+skinparam ranksep 90
 top to bottom direction
 
 title Agent Kernel System C4 层间边界协议（Local-first 候选）
@@ -34,10 +36,9 @@ rectangle "Agent Kernel System 边界" as Kernel #FFFDF8 {
   package "L3 Controlled Tool Runtime" as L3 #E9F7EF {
     [ToolRuntime / Tool Router] as Tools
   }
-}
-
-node "L4 本地 Sandbox Boundary" as L4 #E5E7EB {
-  [Read-only Adapter / Child Process] as Sandbox
+  package "L4 受控执行边界" as L4 #E5E7EB {
+    [ToolProviderAdapter / SandboxRuntime] as Sandbox
+  }
 }
 
 database "Local Memory Store" as Memory #E9F7EF
@@ -57,7 +58,7 @@ SystemGateway -right-> Control : BND-L1-001
 Control -down-> Runtime : BND-L12-001
 Control -right-> PDP : BND-SEC-001
 Control -right-> Tools : BND-L13-001
-Tools -right-> Sandbox : BND-L34-001
+Tools -right-> Sandbox : BND-L34-001\nL34-SPEC-1.0.0
 Runtime -down-> Memory : BND-MEM-001
 Runtime -down-> Model : BND-MOD-001
 
@@ -88,7 +89,7 @@ legend bottom
   | BND-L12-001 | 进程内调用；隔离 Pi Runtime 时使用 stdio JSONL |
   | BND-SEC-001 | 进程内 PermissionDecisionPort / PermitValidationPort |
   | BND-L13-001 | 进程内 ToolRuntimePort |
-  | BND-L34-001 | 只读 Adapter 或本地子进程 stdin/stdout JSONL |
+  | BND-L34-001 | P1受信Port；P2同机受信Supervisor JSONL 1.0，工作负载独立管道 |
   | BND-MEM-001 | 进程内 Port + 本地 SQLite/Artifact Adapter |
   | BND-MOD-001 | Adapter 私有 HTTPS / SSE / SDK |
   | BND-OPS-001 | 本地结构化日志、Trace ID、指标快照和 SQLite 审计；OTLP 可选 |

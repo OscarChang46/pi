@@ -1,0 +1,1342 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:lawclaw:l34:1.0.0",
+  "title": "L34-SPEC-1.0.0",
+  "$ref": "#/$defs/Frame",
+  "$defs": {
+    "Ref": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._:-]{1,128}(?![\\s\\S])"
+    },
+    "Digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}(?![\\s\\S])"
+    },
+    "Count": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "Artifact": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Ref"
+        },
+        "digest": {
+          "$ref": "#/$defs/Digest"
+        },
+        "bytes": {
+          "$ref": "#/$defs/Count"
+        }
+      },
+      "required": [
+        "id",
+        "digest",
+        "bytes"
+      ],
+      "additionalProperties": false
+    },
+    "Error": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "enum": [
+            "PROTOCOL_UNSUPPORTED",
+            "SCHEMA_INVALID",
+            "FRAME_LIMIT",
+            "ACCESS_DENIED",
+            "NOT_FOUND",
+            "GONE",
+            "IDEMPOTENCY_CONFLICT",
+            "VERSION_CONFLICT",
+            "STALE_SNAPSHOT",
+            "STALE_CLAIM",
+            "INVALID_STATE",
+            "SCOPE_MISMATCH",
+            "DIGEST_MISMATCH",
+            "BINDING_MISMATCH",
+            "ROUTE_UNAVAILABLE",
+            "OUTPUT_LIMIT",
+            "RESOURCE_EXHAUSTED",
+            "DEADLINE_EXCEEDED",
+            "CANCELLED",
+            "DEPENDENCY_UNAVAILABLE",
+            "TRANSPORT_UNAVAILABLE",
+            "PERMISSION_UNAVAILABLE",
+            "PERMIT_EXPIRED",
+            "PERMIT_REVOKED",
+            "PERMIT_CONSUMED",
+            "AUDIT_UNAVAILABLE",
+            "CLOCK_UNTRUSTED",
+            "SECRET_UNAVAILABLE",
+            "ISOLATION_UNAVAILABLE",
+            "UNKNOWN",
+            "INTERNAL"
+          ]
+        },
+        "retryable": {
+          "const": false
+        },
+        "detailsRef": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Ref"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "code",
+        "retryable",
+        "detailsRef"
+      ],
+      "additionalProperties": false
+    },
+    "RouteBinding": {
+      "type": "object",
+      "properties": {
+        "routeRef": {
+          "$ref": "#/$defs/Ref"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "kind": {
+          "enum": [
+            "provider",
+            "sandbox"
+          ]
+        },
+        "adapterBindingRef": {
+          "$ref": "#/$defs/Ref"
+        },
+        "resourceScopeRef": {
+          "$ref": "#/$defs/Ref"
+        },
+        "querySupported": {
+          "type": "boolean"
+        },
+        "cancelSupported": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "routeRef",
+        "version",
+        "kind",
+        "adapterBindingRef",
+        "resourceScopeRef",
+        "querySupported",
+        "cancelSupported"
+      ],
+      "additionalProperties": false
+    },
+    "ExecutionLimits": {
+      "type": "object",
+      "properties": {
+        "cpuMillis": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 60000
+        },
+        "memoryBytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1073741824
+        },
+        "pids": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 64
+        },
+        "diskBytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1073741824
+        },
+        "outputBytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 262144
+        },
+        "network": {
+          "enum": [
+            "deny",
+            "scoped"
+          ]
+        },
+        "mountsRef": {
+          "$ref": "#/$defs/Ref"
+        }
+      },
+      "required": [
+        "cpuMillis",
+        "memoryBytes",
+        "pids",
+        "diskBytes",
+        "outputBytes",
+        "network",
+        "mountsRef"
+      ],
+      "additionalProperties": false
+    },
+    "ExecutionLocator": {
+      "type": "object",
+      "properties": {
+        "commandId": {
+          "$ref": "#/$defs/Ref"
+        },
+        "operationKey": {
+          "$ref": "#/$defs/Ref"
+        },
+        "routeRef": {
+          "$ref": "#/$defs/Ref"
+        }
+      },
+      "required": [
+        "commandId",
+        "operationKey",
+        "routeRef"
+      ],
+      "additionalProperties": false
+    },
+    "ExecutionPlan": {
+      "type": "object",
+      "properties": {
+        "commandId": {
+          "$ref": "#/$defs/Ref"
+        },
+        "operationKey": {
+          "$ref": "#/$defs/Ref"
+        },
+        "descriptorRef": {
+          "$ref": "#/$defs/Ref"
+        },
+        "argumentsRef": {
+          "$ref": "#/$defs/Artifact"
+        },
+        "route": {
+          "$ref": "#/$defs/RouteBinding"
+        },
+        "scopeRef": {
+          "$ref": "#/$defs/Ref"
+        },
+        "startGrantRef": {
+          "$ref": "#/$defs/Ref"
+        },
+        "deadlineAtMs": {
+          "$ref": "#/$defs/Count"
+        },
+        "limits": {
+          "$ref": "#/$defs/ExecutionLimits"
+        },
+        "resourceProfileRef": {
+          "$ref": "#/$defs/Artifact"
+        }
+      },
+      "required": [
+        "commandId",
+        "operationKey",
+        "descriptorRef",
+        "argumentsRef",
+        "route",
+        "scopeRef",
+        "startGrantRef",
+        "deadlineAtMs",
+        "limits",
+        "resourceProfileRef"
+      ],
+      "additionalProperties": false
+    },
+    "ActionProposal": {
+      "type": "object",
+      "properties": {
+        "proposalId": {
+          "$ref": "#/$defs/Ref"
+        },
+        "toolDescriptorRef": {
+          "$ref": "#/$defs/Ref"
+        },
+        "toolDescriptorDigest": {
+          "$ref": "#/$defs/Digest"
+        },
+        "argumentsRef": {
+          "$ref": "#/$defs/Artifact"
+        },
+        "actionDigest": {
+          "$ref": "#/$defs/Digest"
+        }
+      },
+      "required": [
+        "proposalId",
+        "toolDescriptorRef",
+        "toolDescriptorDigest",
+        "argumentsRef",
+        "actionDigest"
+      ],
+      "additionalProperties": false
+    },
+    "ToolTargetV1": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "const": "l34-target-1"
+        },
+        "proposal": {
+          "$ref": "#/$defs/ActionProposal"
+        },
+        "route": {
+          "$ref": "#/$defs/RouteBinding"
+        },
+        "resourceProfileRef": {
+          "$ref": "#/$defs/Artifact"
+        },
+        "limits": {
+          "$ref": "#/$defs/ExecutionLimits"
+        },
+        "scopeRef": {
+          "$ref": "#/$defs/Ref"
+        },
+        "deadlineAtMs": {
+          "$ref": "#/$defs/Count"
+        }
+      },
+      "required": [
+        "version",
+        "proposal",
+        "route",
+        "resourceProfileRef",
+        "limits",
+        "scopeRef",
+        "deadlineAtMs"
+      ],
+      "additionalProperties": false
+    },
+    "ExecutionAdmission": {
+      "type": "object",
+      "properties": {
+        "scopeRef": {
+          "$ref": "#/$defs/Ref"
+        },
+        "commandId": {
+          "$ref": "#/$defs/Ref"
+        },
+        "executorRef": {
+          "$ref": "#/$defs/Ref"
+        },
+        "startGrantRef": {
+          "$ref": "#/$defs/Ref"
+        },
+        "planDigest": {
+          "$ref": "#/$defs/Digest"
+        },
+        "expiresAtMs": {
+          "$ref": "#/$defs/Count"
+        }
+      },
+      "required": [
+        "scopeRef",
+        "commandId",
+        "executorRef",
+        "startGrantRef",
+        "planDigest",
+        "expiresAtMs"
+      ],
+      "additionalProperties": false
+    },
+    "MountBinding": {
+      "type": "object",
+      "properties": {
+        "resourceRef": {
+          "$ref": "#/$defs/Ref"
+        },
+        "mode": {
+          "enum": [
+            "read",
+            "write"
+          ]
+        },
+        "targetSlot": {
+          "$ref": "#/$defs/Ref"
+        }
+      },
+      "required": [
+        "resourceRef",
+        "mode",
+        "targetSlot"
+      ],
+      "additionalProperties": false
+    },
+    "ProviderProfile": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "provider"
+        },
+        "profileId": {
+          "$ref": "#/$defs/Ref"
+        },
+        "resourceScopeRef": {
+          "$ref": "#/$defs/Ref"
+        },
+        "inputBytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65536
+        },
+        "outputBytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 262144
+        },
+        "frameBytes": {
+          "const": 65536
+        },
+        "queueBytes": {
+          "const": 262144
+        },
+        "cleanupTimeoutMs": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 30000
+        },
+        "egressRefs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Ref"
+          },
+          "minItems": 0,
+          "maxItems": 64,
+          "uniqueItems": true
+        },
+        "secretHandleRefs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Ref"
+          },
+          "minItems": 0,
+          "maxItems": 64,
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "kind",
+        "profileId",
+        "resourceScopeRef",
+        "inputBytes",
+        "outputBytes",
+        "frameBytes",
+        "queueBytes",
+        "cleanupTimeoutMs",
+        "egressRefs",
+        "secretHandleRefs"
+      ],
+      "additionalProperties": false
+    },
+    "SandboxProfile": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "sandbox"
+        },
+        "profileId": {
+          "$ref": "#/$defs/Ref"
+        },
+        "resourceScopeRef": {
+          "$ref": "#/$defs/Ref"
+        },
+        "inputBytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65536
+        },
+        "outputBytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 262144
+        },
+        "frameBytes": {
+          "const": 65536
+        },
+        "queueBytes": {
+          "const": 262144
+        },
+        "cleanupTimeoutMs": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 30000
+        },
+        "egressRefs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Ref"
+          },
+          "minItems": 0,
+          "maxItems": 64,
+          "uniqueItems": true
+        },
+        "secretHandleRefs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Ref"
+          },
+          "minItems": 0,
+          "maxItems": 64,
+          "uniqueItems": true
+        },
+        "workloadRef": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/Artifact"
+            },
+            {
+              "properties": {
+                "bytes": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 67108864
+                }
+              }
+            }
+          ]
+        },
+        "cpuMillis": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 60000
+        },
+        "memoryBytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1073741824
+        },
+        "pids": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 64
+        },
+        "diskBytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1073741824
+        },
+        "maxOpenFiles": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1024
+        },
+        "mountsRef": {
+          "$ref": "#/$defs/Ref"
+        },
+        "mounts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/MountBinding"
+          },
+          "minItems": 0,
+          "maxItems": 64,
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "kind",
+        "profileId",
+        "resourceScopeRef",
+        "inputBytes",
+        "outputBytes",
+        "frameBytes",
+        "queueBytes",
+        "cleanupTimeoutMs",
+        "egressRefs",
+        "secretHandleRefs",
+        "workloadRef",
+        "cpuMillis",
+        "memoryBytes",
+        "pids",
+        "diskBytes",
+        "maxOpenFiles",
+        "mountsRef",
+        "mounts"
+      ],
+      "additionalProperties": false
+    },
+    "ResourceProfile": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/ProviderProfile"
+        },
+        {
+          "$ref": "#/$defs/SandboxProfile"
+        }
+      ]
+    },
+    "L4Reply": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "locator": {
+              "$ref": "#/$defs/ExecutionLocator"
+            },
+            "outcome": {
+              "const": "success"
+            },
+            "effect": {
+              "enum": [
+                "none",
+                "applied"
+              ]
+            },
+            "resultRef": {
+              "$ref": "#/$defs/Artifact"
+            },
+            "error": {
+              "type": "null"
+            },
+            "evidenceRef": {
+              "$ref": "#/$defs/Ref"
+            }
+          },
+          "required": [
+            "locator",
+            "outcome",
+            "effect",
+            "resultRef",
+            "error",
+            "evidenceRef"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "locator": {
+              "$ref": "#/$defs/ExecutionLocator"
+            },
+            "outcome": {
+              "const": "failed"
+            },
+            "effect": {
+              "enum": [
+                "none",
+                "applied"
+              ]
+            },
+            "resultRef": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Artifact"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "error": {
+              "$ref": "#/$defs/Error"
+            },
+            "evidenceRef": {
+              "$ref": "#/$defs/Ref"
+            }
+          },
+          "required": [
+            "locator",
+            "outcome",
+            "effect",
+            "resultRef",
+            "error",
+            "evidenceRef"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "locator": {
+              "$ref": "#/$defs/ExecutionLocator"
+            },
+            "outcome": {
+              "const": "unknown"
+            },
+            "effect": {
+              "const": "unknown"
+            },
+            "resultRef": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Artifact"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "error": {
+              "$ref": "#/$defs/Error"
+            },
+            "evidenceRef": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Ref"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "locator",
+            "outcome",
+            "effect",
+            "resultRef",
+            "error",
+            "evidenceRef"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "L4Query": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "state": {
+              "enum": [
+                "pending",
+                "unknown"
+              ]
+            },
+            "locator": {
+              "$ref": "#/$defs/ExecutionLocator"
+            }
+          },
+          "required": [
+            "state",
+            "locator"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "state": {
+              "const": "completed"
+            },
+            "reply": {
+              "$ref": "#/$defs/L4Reply"
+            }
+          },
+          "required": [
+            "state",
+            "reply"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "L4Cancel": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "locator": {
+              "$ref": "#/$defs/ExecutionLocator"
+            },
+            "state": {
+              "enum": [
+                "requested",
+                "unknown"
+              ]
+            },
+            "evidenceRef": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Ref"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "locator",
+            "state",
+            "evidenceRef"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "locator": {
+              "$ref": "#/$defs/ExecutionLocator"
+            },
+            "state": {
+              "const": "stopped"
+            },
+            "evidenceRef": {
+              "$ref": "#/$defs/Ref"
+            }
+          },
+          "required": [
+            "locator",
+            "state",
+            "evidenceRef"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Frame_hello": {
+      "type": "object",
+      "properties": {
+        "protocol": {
+          "const": "l34"
+        },
+        "version": {
+          "const": "1.0"
+        },
+        "sessionId": {
+          "$ref": "#/$defs/Ref"
+        },
+        "requestId": {
+          "$ref": "#/$defs/Ref"
+        },
+        "seq": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "type": {
+          "const": "hello"
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "versions": {
+              "type": "array",
+              "items": {
+                "const": "1.0"
+              },
+              "minItems": 1,
+              "maxItems": 1,
+              "uniqueItems": true
+            },
+            "maxFrameBytes": {
+              "const": 65536
+            }
+          },
+          "required": [
+            "versions",
+            "maxFrameBytes"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "protocol",
+        "version",
+        "sessionId",
+        "requestId",
+        "seq",
+        "type",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "Frame_helloAck": {
+      "type": "object",
+      "properties": {
+        "protocol": {
+          "const": "l34"
+        },
+        "version": {
+          "const": "1.0"
+        },
+        "sessionId": {
+          "$ref": "#/$defs/Ref"
+        },
+        "requestId": {
+          "$ref": "#/$defs/Ref"
+        },
+        "seq": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "type": {
+          "const": "helloAck"
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "selectedVersion": {
+              "const": "1.0"
+            },
+            "maxFrameBytes": {
+              "const": 65536
+            },
+            "maxInFlight": {
+              "const": 6
+            },
+            "querySupported": {
+              "type": "boolean"
+            },
+            "cancelSupported": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "selectedVersion",
+            "maxFrameBytes",
+            "maxInFlight",
+            "querySupported",
+            "cancelSupported"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "protocol",
+        "version",
+        "sessionId",
+        "requestId",
+        "seq",
+        "type",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "Frame_execute": {
+      "type": "object",
+      "properties": {
+        "protocol": {
+          "const": "l34"
+        },
+        "version": {
+          "const": "1.0"
+        },
+        "sessionId": {
+          "$ref": "#/$defs/Ref"
+        },
+        "requestId": {
+          "$ref": "#/$defs/Ref"
+        },
+        "seq": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "type": {
+          "const": "execute"
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "plan": {
+              "$ref": "#/$defs/ExecutionPlan"
+            }
+          },
+          "required": [
+            "plan"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "protocol",
+        "version",
+        "sessionId",
+        "requestId",
+        "seq",
+        "type",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "Frame_inspect": {
+      "type": "object",
+      "properties": {
+        "protocol": {
+          "const": "l34"
+        },
+        "version": {
+          "const": "1.0"
+        },
+        "sessionId": {
+          "$ref": "#/$defs/Ref"
+        },
+        "requestId": {
+          "$ref": "#/$defs/Ref"
+        },
+        "seq": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "type": {
+          "const": "inspect"
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "locator": {
+              "$ref": "#/$defs/ExecutionLocator"
+            },
+            "deadlineAtMs": {
+              "$ref": "#/$defs/Count"
+            }
+          },
+          "required": [
+            "locator",
+            "deadlineAtMs"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "protocol",
+        "version",
+        "sessionId",
+        "requestId",
+        "seq",
+        "type",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "Frame_cancel": {
+      "type": "object",
+      "properties": {
+        "protocol": {
+          "const": "l34"
+        },
+        "version": {
+          "const": "1.0"
+        },
+        "sessionId": {
+          "$ref": "#/$defs/Ref"
+        },
+        "requestId": {
+          "$ref": "#/$defs/Ref"
+        },
+        "seq": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "type": {
+          "const": "cancel"
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "locator": {
+              "$ref": "#/$defs/ExecutionLocator"
+            },
+            "deadlineAtMs": {
+              "$ref": "#/$defs/Count"
+            }
+          },
+          "required": [
+            "locator",
+            "deadlineAtMs"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "protocol",
+        "version",
+        "sessionId",
+        "requestId",
+        "seq",
+        "type",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "Frame_result": {
+      "type": "object",
+      "properties": {
+        "protocol": {
+          "const": "l34"
+        },
+        "version": {
+          "const": "1.0"
+        },
+        "sessionId": {
+          "$ref": "#/$defs/Ref"
+        },
+        "requestId": {
+          "$ref": "#/$defs/Ref"
+        },
+        "seq": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "type": {
+          "const": "result"
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "reply": {
+              "$ref": "#/$defs/L4Reply"
+            }
+          },
+          "required": [
+            "reply"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "protocol",
+        "version",
+        "sessionId",
+        "requestId",
+        "seq",
+        "type",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "Frame_inspected": {
+      "type": "object",
+      "properties": {
+        "protocol": {
+          "const": "l34"
+        },
+        "version": {
+          "const": "1.0"
+        },
+        "sessionId": {
+          "$ref": "#/$defs/Ref"
+        },
+        "requestId": {
+          "$ref": "#/$defs/Ref"
+        },
+        "seq": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "type": {
+          "const": "inspected"
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "$ref": "#/$defs/L4Query"
+            }
+          },
+          "required": [
+            "query"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "protocol",
+        "version",
+        "sessionId",
+        "requestId",
+        "seq",
+        "type",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "Frame_cancelled": {
+      "type": "object",
+      "properties": {
+        "protocol": {
+          "const": "l34"
+        },
+        "version": {
+          "const": "1.0"
+        },
+        "sessionId": {
+          "$ref": "#/$defs/Ref"
+        },
+        "requestId": {
+          "$ref": "#/$defs/Ref"
+        },
+        "seq": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "type": {
+          "const": "cancelled"
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "cancel": {
+              "$ref": "#/$defs/L4Cancel"
+            }
+          },
+          "required": [
+            "cancel"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "protocol",
+        "version",
+        "sessionId",
+        "requestId",
+        "seq",
+        "type",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "Frame_fault": {
+      "type": "object",
+      "properties": {
+        "protocol": {
+          "const": "l34"
+        },
+        "version": {
+          "const": "1.0"
+        },
+        "sessionId": {
+          "$ref": "#/$defs/Ref"
+        },
+        "requestId": {
+          "$ref": "#/$defs/Ref"
+        },
+        "seq": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "type": {
+          "const": "fault"
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "error": {
+              "$ref": "#/$defs/Error"
+            }
+          },
+          "required": [
+            "error"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "protocol",
+        "version",
+        "sessionId",
+        "requestId",
+        "seq",
+        "type",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "Frame_close": {
+      "type": "object",
+      "properties": {
+        "protocol": {
+          "const": "l34"
+        },
+        "version": {
+          "const": "1.0"
+        },
+        "sessionId": {
+          "$ref": "#/$defs/Ref"
+        },
+        "requestId": {
+          "$ref": "#/$defs/Ref"
+        },
+        "seq": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "type": {
+          "const": "close"
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "reason": {
+              "enum": [
+                "normal",
+                "shutdown",
+                "protocol_error"
+              ]
+            }
+          },
+          "required": [
+            "reason"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "protocol",
+        "version",
+        "sessionId",
+        "requestId",
+        "seq",
+        "type",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "Frame": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/Frame_hello"
+        },
+        {
+          "$ref": "#/$defs/Frame_helloAck"
+        },
+        {
+          "$ref": "#/$defs/Frame_execute"
+        },
+        {
+          "$ref": "#/$defs/Frame_inspect"
+        },
+        {
+          "$ref": "#/$defs/Frame_cancel"
+        },
+        {
+          "$ref": "#/$defs/Frame_result"
+        },
+        {
+          "$ref": "#/$defs/Frame_inspected"
+        },
+        {
+          "$ref": "#/$defs/Frame_cancelled"
+        },
+        {
+          "$ref": "#/$defs/Frame_fault"
+        },
+        {
+          "$ref": "#/$defs/Frame_close"
+        }
+      ]
+    }
+  }
+}

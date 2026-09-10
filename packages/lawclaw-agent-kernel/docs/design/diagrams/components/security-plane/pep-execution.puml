@@ -1,0 +1,45 @@
+@startuml
+!include ../../theme.puml
+title E1：工具 PEP 主链（S1—S4）
+start
+:L1持久权限命令，调用PDP D1;
+if (Allow?) then (否)
+ if (Ask?) then (是)
+  :保存等待并Yield；进入D2;
+ else (否)
+  :持久拒绝/不可用，执行0;
+ endif
+ stop
+endif
+:L1保存带Permit派发意图后调用L3;
+:L3按command / payload唯一受理RECEIVED;
+if (当前合法命令且实际参数/路由绑定相同?) then (否)
+ :拒绝原命令；不静默重绑;
+ stop
+endif
+:Guard consume：T-C + 必要审计;
+if (消费回执确认?) then (否)
+ :进入E2查询；不执行;
+ stop
+endif
+:ToolCall保存Receipt → AUTHORIZED;
+:Guard authorizeStart：T-G
+检查当前claim、取消、截止、epoch与Permit;
+if (有效Grant且必要审计确认?) then (否)
+ :阻断启动；查询/明确失败;
+ stop
+endif
+:ToolCall比较Grant身份与版本，CAS STARTED;
+if (本执行者是CAS胜者?) then (否)
+ :只查已有ToolCall；不调Provider;
+ stop
+endif
+:L4用冻结参数与受控Handle执行一次;
+if (得到可信结果?) then (是)
+ :先发布Artifact，再存结果/effect/outbox;
+ :L1记业务观察，FE推进;
+else (否)
+ :UNKNOWN + Incident；进入E2;
+endif
+stop
+@enduml

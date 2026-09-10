@@ -2,7 +2,7 @@
 
 结论：通过。原 4 项 P2 均在设计层面关闭。本次只复核原问题对应修订及新增验收分支，未修改仓库文件；不代表实现、压测或真实故障恢复已经通过。
 
-复核文件：`/Users/oscar/jurismind/code/pi-lawclaw/packages/lawclaw-agent-kernel/docs/design/layers/l1-control/components/flow-engine.md`。
+复核文件：`/Users/oscar/jurismind/code/pi-lawclaw/packages/lawclaw-agent-kernel/docs/design/layers/l1-control/components/flow-engine/README.md`。
 
 | 原问题 | 结论 | 当前证据 |
 |---|---|---|

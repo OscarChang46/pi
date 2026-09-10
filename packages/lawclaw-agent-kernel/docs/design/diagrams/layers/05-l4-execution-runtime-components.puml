@@ -1,9 +1,11 @@
 @startuml
 !include ../theme.puml
 title L4 受控执行层组件图
-left to right direction
+top to bottom direction
+skinparam linetype polyline
+skinparam ranksep 80
 
-rectangle "L3 ToolExecutionGuard" as L3 LC_EXTERNAL
+rectangle "L3 ToolCallRuntime / ToolExecutionGuard" as L3 LC_EXTERNAL
 package "L4 Execution Runtime" LC_ADAPTER {
   component "ToolProviderAdapter" as PROVIDER
   component "SandboxRuntime" as SANDBOX
@@ -12,17 +14,18 @@ rectangle "业务 Tool Provider / MCP" as TOOL_PROVIDER LC_EXTERNAL
 rectangle "Process / Container / Filesystem / Network Ports" as PROCESS LC_INFRASTRUCTURE
 rectangle "Operations Plane" as OPS LC_OPERATIONS
 
-L3 --> PROVIDER : ToolProviderPort
-L3 --> SANDBOX : SandboxPort.execute\n一次性有界请求
+L3 -down-> PROVIDER : ToolProviderPort
+L3 -down-> SANDBOX : SandboxPort
 PROVIDER --> TOOL_PROVIDER : Provider 私有协议
 SANDBOX --> PROCESS : 机制 Port
-PROVIDER ..> L3 : ToolResult
-SANDBOX ..> L3 : SandboxedExecutionResult
 PROVIDER ..> OPS : BND-OPS-001
 SANDBOX ..> OPS : BND-OPS-001
 
 note bottom of SANDBOX
+  两个 Port 均提供 execute / inspect / cancel，
+  执行结果以 L4Reply 返回 L3。
   L4 定义受控执行语义；Infrastructure 只实现机制。
   Sandbox 不路由工具、不签发权限、不扩大 Permit。
+  执行结果与回收状态分别记录；unknown 不重放。
 end note
 @enduml

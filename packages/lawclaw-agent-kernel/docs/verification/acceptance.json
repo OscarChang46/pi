@@ -8,8 +8,8 @@
     },
     {
       "id": "context",
-      "title": "上下文预算",
-      "status": "implemented"
+      "title": "上下文组装与宿主接入",
+      "status": "partial"
     },
     {
       "id": "delegation",
@@ -80,21 +80,83 @@
       "id": "flow-engine",
       "title": "FE-CON-1纯Core及运行边界接入",
       "status": "partial"
+    },
+    {
+      "id": "kernel-tui",
+      "title": "LawClaw TUI客户端与真实宿主链路",
+      "status": "partial"
     }
   ],
   "requirements": [
     {
-      "id": "REQ-AK-RUN-001",
+      "id": "REQ-AK-SESSION-DURABLE-001",
       "capability": "control",
       "status": "implemented",
-      "title": "控制入口独立持有 Run，Session 只关联 Run 标识",
-      "risk": "当前 control 行为违反其边界或结果语义",
+      "title": "本地持久 Session 占槽受理及确认历史后释放",
+      "risk": "受理误推进历史、回执丢失、终态未采纳提前续轮；仅本地持久切片，不代表完整TUI或跨进程故障验收",
+      "levels": ["integration"],
+      "cases": [
+        {"id": "AK-SESSION-011", "level": "integration", "file": "test/integration/durable-session-admission.test.ts"},
+        {"id": "AK-SESSION-012", "level": "integration", "file": "test/integration/durable-session-admission.test.ts"},
+        {"id": "AK-SESSION-013", "level": "integration", "file": "test/integration/durable-session-admission.test.ts"},
+        {"id": "AK-SESSION-014", "level": "integration", "file": "test/integration/durable-session-admission.test.ts"},
+        {"id": "AK-SESSION-015", "level": "integration", "file": "test/integration/durable-session-admission.test.ts"},
+        {"id": "AK-SESSION-016", "level": "integration", "file": "test/integration/durable-session-admission.test.ts"},
+        {"id": "AK-SESSION-017", "level": "integration", "file": "test/integration/durable-session-admission.test.ts"},
+        {"id": "AK-SESSION-018", "level": "integration", "file": "test/integration/durable-session-admission.test.ts"}
+      ]
+    },
+    {
+      "id": "REQ-AK-RUN-001",
+      "capability": "control",
+      "status": "planned",
+      "title": "SessionManager为每个Session只维护0..1当前活跃Run绑定",
+      "risk": "当前进程内切片已移除runIds集合，但尚未以持久CAS、回执和outbox证明跨进程单活协议",
       "levels": [
+        "contract",
+        "integration",
+        "system"
+      ],
+      "cases": []
+    },
+    {
+      "id": "REQ-AK-SESSION-IM-001",
+      "capability": "control",
+      "status": "implemented",
+      "title": "进程内Session只维护0..1当前Run绑定并以代次拒绝迟到释放",
+      "risk": "内存入口若继续保存Run集合、提前释放UNKNOWN或忽略绑定代次，会破坏后续持久实现的领域不变量",
+      "levels": [
+        "ut",
         "dt"
       ],
       "cases": [
         {
+          "id": "AK-SESSION-001",
+          "level": "ut",
+          "file": "test/ut/session-manager.test.ts"
+        },
+        {
+          "id": "AK-SESSION-002",
+          "level": "ut",
+          "file": "test/ut/session-manager.test.ts"
+        },
+        {
+          "id": "AK-SESSION-003",
+          "level": "ut",
+          "file": "test/ut/session-manager.test.ts"
+        },
+        {
+          "id": "AK-SESSION-004",
+          "level": "dt",
+          "file": "test/dt/agent-object-model.test.ts"
+        },
+        {
           "id": "AK-RUN-001",
+          "level": "dt",
+          "file": "test/dt/agent-object-model.test.ts"
+        },
+        {
+          "id": "AK-RUN-002",
           "level": "dt",
           "file": "test/dt/agent-object-model.test.ts"
         }
@@ -103,17 +165,68 @@
     {
       "id": "REQ-AK-RUN-002",
       "capability": "control",
+      "status": "planned",
+      "title": "单活Run占用具备CAS、UNKNOWN对账、代次释放与Attempt职责隔离",
+      "risk": "并发双占、受理UNKNOWN提前释放、迟到终态清除新绑定或SM复制Run lease会破坏单活与恢复确定性",
+      "levels": [
+        "contract",
+        "integration",
+        "system"
+      ],
+      "cases": []
+    },
+    {
+      "id": "REQ-AK-SESSION-IM-002",
+      "capability": "control",
       "status": "implemented",
-      "title": "Runtime 和 Session 拒绝跨租户复用、重复 Run 与容量扩张",
-      "risk": "当前 control 行为违反其边界或结果语义",
+      "title": "进程内Run只绑定显式确保的Session且缺失查询不写入",
+      "risk": "Run入口若把缺失查询合并为创建，会绕过独立创建权限和确认点，并在失败请求下放大Session容量",
       "levels": [
         "dt"
       ],
       "cases": [
         {
-          "id": "AK-RUN-002",
+          "id": "AK-SESSION-005",
           "level": "dt",
           "file": "test/dt/agent-object-model.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-SESSION-IM-003",
+      "capability": "control",
+      "status": "implemented",
+      "title": "Root Session 通过 logicalKey 显式确保并在并发竞争后按赢家锚点重组 Context",
+      "risk": "若调用方提供 sessionId、ensure 不返回稳定锚点和原始回执，或竞争失败者复用空历史候选，Context 会绑定错误的 Session 历史",
+      "levels": [
+        "dt",
+        "integration"
+      ],
+      "cases": [
+        {
+          "id": "AK-SESSION-006",
+          "level": "dt",
+          "file": "test/dt/agent-object-model.test.ts"
+        },
+        {
+          "id": "AK-SESSION-007",
+          "level": "dt",
+          "file": "test/dt/agent-object-model.test.ts"
+        },
+        {
+          "id": "AK-SESSION-008",
+          "level": "dt",
+          "file": "test/dt/agent-object-model.test.ts"
+        },
+        {
+          "id": "AK-SESSION-009",
+          "level": "integration",
+          "file": "test/integration/session-first-access.test.ts"
+        },
+        {
+          "id": "AK-SESSION-010",
+          "level": "integration",
+          "file": "test/integration/session-first-access.test.ts"
         }
       ]
     },
@@ -594,10 +707,27 @@
       ]
     },
     {
+      "id": "REQ-AK-CFG-006",
+      "capability": "config",
+      "status": "implemented",
+      "title": "Session单活Run约束不可通过容量参数放宽",
+      "risk": "遗留maxRunsPerSession配置会把领域不变量降级成可修改的运行参数",
+      "levels": [
+        "dt"
+      ],
+      "cases": [
+        {
+          "id": "AK-CFG-006",
+          "level": "dt",
+          "file": "test/dt/runtime-settings.test.ts"
+        }
+      ]
+    },
+    {
       "id": "REQ-AK-SBX-001",
       "capability": "execution",
       "status": "implemented",
-      "title": "SandboxPlanner 只生成 PermissionGrant 的确定性子集",
+      "title": "SandboxPlanner 只生成旧短时 Grant 的确定性子集",
       "risk": "当前 execution 行为违反其边界或结果语义",
       "levels": [
         "ut"
@@ -872,6 +1002,43 @@
       "risk": "一次性 Permit 原子消费及异步审批",
       "levels": [
         "integration"
+      ],
+      "cases": []
+    },
+    {
+      "id": "FUTURE-SESSION-SECURITY-REF",
+      "capability": "security",
+      "status": "planned",
+      "title": "Session 不保存权限对象且 sub-session 只引用 Security 权威事实",
+      "risk": "Session 中复制 Grant、Permit 或授权状态会导致撤销漂移、跨动作重放和 Child 扩权",
+      "levels": [
+        "contract",
+        "integration"
+      ],
+      "cases": []
+    },
+    {
+      "id": "FUTURE-SUBSESSION-CONTEXT",
+      "capability": "context",
+      "status": "planned",
+      "title": "sub-session宿主接入冻结父子集、延迟创建与候选采纳；Pi Token为软目标",
+      "risk": "复制父全文、读取越权候选、外部Run采纳前启动Child或把粗估当硬保证会造成泄漏、重复执行和Provider拒绝；Context无回执确认职责",
+      "levels": [
+        "contract",
+        "integration",
+        "system"
+      ],
+      "cases": []
+    },
+    {
+      "id": "FUTURE-SUBSESSION-LIFECYCLE",
+      "capability": "delegation",
+      "status": "planned",
+      "title": "SessionManager协调sub-session创建、Barrier状态机、部分失败、Join、逻辑归档和安全回收",
+      "risk": "状态事件漏项、失败或取消绕过Parent outcome提交、UNKNOWN按错误阶段恢复、确认点不清或同步硬删除会产生重复Child、双重唤醒、Parent永久等待、孤儿Session和不可恢复结果；详细验收为SES-JOIN-T-24至31",
+      "levels": [
+        "integration",
+        "system"
       ],
       "cases": []
     },
@@ -1628,6 +1795,934 @@
       "risk": "计划校验拆分后接受错误状态命令绑定",
       "levels": ["ut"],
       "cases": [{"id": "AK-FE-018", "level": "ut", "file": "test/ut/flow-engine.test.ts"}]
+    },
+    {
+      "id": "REQ-AK-FE-019",
+      "capability": "flow-engine",
+      "status": "implemented",
+      "title": "SQLite提交重开可查询且双连接旧版本不能再次提交",
+      "risk": "本地耐久执行、恢复或HTTP职责拆分导致一致性与授权回归",
+      "levels": [
+        "integration"
+      ],
+      "cases": [
+        {
+          "id": "AK-FE-019",
+          "level": "integration",
+          "file": "test/integration/flow-storage.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-FE-020",
+      "capability": "flow-engine",
+      "status": "implemented",
+      "title": "SQLite拒绝伪造计划并在取消栅栏后阻断业务命令",
+      "risk": "本地耐久执行、恢复或HTTP职责拆分导致一致性与授权回归",
+      "levels": [
+        "integration"
+      ],
+      "cases": [
+        {
+          "id": "AK-FE-020",
+          "level": "integration",
+          "file": "test/integration/flow-storage.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-FE-021",
+      "capability": "flow-engine",
+      "status": "implemented",
+      "title": "Artifact重开验证内容摘要并隔离作用域",
+      "risk": "本地耐久执行、恢复或HTTP职责拆分导致一致性与授权回归",
+      "levels": [
+        "integration"
+      ],
+      "cases": [
+        {
+          "id": "AK-FE-021",
+          "level": "integration",
+          "file": "test/integration/flow-artifacts.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-FE-022",
+      "capability": "flow-engine",
+      "status": "implemented",
+      "title": "Pi新Adapter从SQLite恢复私有历史消息并拒绝跨租户读取",
+      "risk": "本地耐久执行、恢复或HTTP职责拆分导致一致性与授权回归",
+      "levels": [
+        "integration"
+      ],
+      "cases": [
+        {
+          "id": "AK-FE-022",
+          "level": "integration",
+          "file": "test/integration/flow-artifacts.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-FE-023",
+      "capability": "flow-engine",
+      "status": "implemented",
+      "title": "耐久驱动器经真实Core提交完成并保存回答",
+      "risk": "本地耐久执行、恢复或HTTP职责拆分导致一致性与授权回归",
+      "levels": [
+        "integration"
+      ],
+      "cases": [
+        {
+          "id": "AK-FE-023",
+          "level": "integration",
+          "file": "test/integration/flow-runtime.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-FE-024",
+      "capability": "flow-engine",
+      "status": "implemented",
+      "title": "耐久工具路径经过PDP、Permit消费、PEP和真实只读Provider",
+      "risk": "本地耐久执行、恢复或HTTP职责拆分导致一致性与授权回归",
+      "levels": [
+        "integration"
+      ],
+      "cases": [
+        {
+          "id": "AK-FE-024",
+          "level": "integration",
+          "file": "test/integration/flow-runtime.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-FE-025",
+      "capability": "flow-engine",
+      "status": "implemented",
+      "title": "HTTP鉴权与同Run同内容幂等，不同内容拒绝且不增加模型调用",
+      "risk": "本地耐久执行、恢复或HTTP职责拆分导致一致性与授权回归",
+      "levels": [
+        "integration"
+      ],
+      "cases": [
+        {
+          "id": "AK-FE-025",
+          "level": "integration",
+          "file": "test/integration/flow-http.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-FE-026",
+      "capability": "flow-engine",
+      "status": "implemented",
+      "title": "租约到期以新Attempt接管待消费事件，旧持有者无法提交",
+      "risk": "本地耐久执行、恢复或HTTP职责拆分导致一致性与授权回归",
+      "levels": [
+        "integration"
+      ],
+      "cases": [
+        {
+          "id": "AK-FE-026",
+          "level": "integration",
+          "file": "test/integration/flow-storage.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-FE-027",
+      "capability": "flow-engine",
+      "status": "implemented",
+      "title": "子Run独立持久化并把结果交还父Run，禁止递归委派",
+      "risk": "本地耐久执行、恢复或HTTP职责拆分导致一致性与授权回归",
+      "levels": [
+        "integration"
+      ],
+      "cases": [
+        {
+          "id": "AK-FE-027",
+          "level": "integration",
+          "file": "test/integration/flow-runtime.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-FE-028",
+      "capability": "flow-engine",
+      "status": "implemented",
+      "title": "命令插入故障回滚同事务的Run快照和事件回执，修复后可提交",
+      "risk": "本地耐久执行、恢复或HTTP职责拆分导致一致性与授权回归",
+      "levels": [
+        "integration"
+      ],
+      "cases": [
+        {
+          "id": "AK-FE-028",
+          "level": "integration",
+          "file": "test/integration/flow-storage.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-FE-029",
+      "capability": "flow-engine",
+      "status": "implemented",
+      "title": "同Run并发驱动加入同一执行，所有调用者等到耐久完成",
+      "risk": "本地耐久执行、恢复或HTTP职责拆分导致一致性与授权回归",
+      "levels": [
+        "integration"
+      ],
+      "cases": [
+        {
+          "id": "AK-FE-029",
+          "level": "integration",
+          "file": "test/integration/flow-runtime.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-FS-001",
+      "capability": "flow-engine",
+      "status": "implemented",
+      "title": "四态完整矩阵拒绝非法迁移和终态出边",
+      "risk": "系统四态、追加日志、未知副作用及有向环恢复一致性",
+      "levels": [
+        "integration"
+      ],
+      "cases": [
+        {
+          "id": "AK-FS-001",
+          "level": "integration",
+          "file": "test/integration/flow-engine.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-FS-002",
+      "capability": "flow-engine",
+      "status": "implemented",
+      "title": "Completed持久回放及终态幂等不再调用外部实现",
+      "risk": "系统四态、追加日志、未知副作用及有向环恢复一致性",
+      "levels": [
+        "integration"
+      ],
+      "cases": [
+        {
+          "id": "AK-FS-002",
+          "level": "integration",
+          "file": "test/integration/flow-engine.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-FS-003",
+      "capability": "flow-engine",
+      "status": "implemented",
+      "title": "双连接竞争Started唯一资格及不同租户隔离",
+      "risk": "系统四态、追加日志、未知副作用及有向环恢复一致性",
+      "levels": [
+        "integration"
+      ],
+      "cases": [
+        {
+          "id": "AK-FS-003",
+          "level": "integration",
+          "file": "test/integration/flow-engine.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-FS-004",
+      "capability": "flow-engine",
+      "status": "implemented",
+      "title": "追加日志禁止UPDATE DELETE及陈旧代次提交",
+      "risk": "系统四态、追加日志、未知副作用及有向环恢复一致性",
+      "levels": [
+        "integration"
+      ],
+      "cases": [
+        {
+          "id": "AK-FS-004",
+          "level": "integration",
+          "file": "test/integration/flow-engine.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-FS-005",
+      "capability": "flow-engine",
+      "status": "implemented",
+      "title": "外部已生效后真实SIGKILL不重发，权威对账后回放",
+      "risk": "系统四态、追加日志、未知副作用及有向环恢复一致性",
+      "levels": [
+        "integration"
+      ],
+      "cases": [
+        {
+          "id": "AK-FS-005",
+          "level": "integration",
+          "file": "test/integration/flow-engine.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-FS-008",
+      "capability": "flow-engine",
+      "status": "implemented",
+      "title": "自环正常退出、未声明路径拒绝、定义漂移拒绝回放",
+      "risk": "系统四态、追加日志、未知副作用及有向环恢复一致性",
+      "levels": [
+        "integration"
+      ],
+      "cases": [
+        {
+          "id": "AK-FS-008",
+          "level": "integration",
+          "file": "test/integration/flow-engine.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-FS-009",
+      "capability": "flow-engine",
+      "status": "implemented",
+      "title": "吞掉未知Activity或主动Yield仍不能继续派发或报告成功",
+      "risk": "系统四态、追加日志、未知副作用及有向环恢复一致性",
+      "levels": [
+        "integration"
+      ],
+      "cases": [
+        {
+          "id": "AK-FS-009",
+          "level": "integration",
+          "file": "test/integration/flow-engine.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-FS-010",
+      "capability": "flow-engine",
+      "status": "implemented",
+      "title": "Started提交确认丢失不调用外部实现；取消隔离延迟回调",
+      "risk": "系统四态、追加日志、未知副作用及有向环恢复一致性",
+      "levels": [
+        "integration"
+      ],
+      "cases": [
+        {
+          "id": "AK-FS-010",
+          "level": "integration",
+          "file": "test/integration/flow-engine.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-FS-006",
+      "capability": "flow-engine",
+      "status": "implemented",
+      "title": "有向环多次访问不误用前轮结果，重放检查点不重复调用",
+      "risk": "系统四态、追加日志、未知副作用及有向环恢复一致性",
+      "levels": [
+        "integration"
+      ],
+      "cases": [
+        {
+          "id": "AK-FS-006",
+          "level": "integration",
+          "file": "test/integration/flow-engine.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-FS-007",
+      "capability": "flow-engine",
+      "status": "implemented",
+      "title": "环退出不可达拒绝，条件永不成立触发访问上限",
+      "risk": "系统四态、追加日志、未知副作用及有向环恢复一致性",
+      "levels": [
+        "integration"
+      ],
+      "cases": [
+        {
+          "id": "AK-FS-007",
+          "level": "integration",
+          "file": "test/integration/flow-engine.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-FS-012",
+      "capability": "flow-engine",
+      "status": "implemented",
+      "title": "状态唯一常量定义，静态检查拒绝裸判断、类型、表键、SQL和拼接子状态",
+      "risk": "状态值散落导致重命名漏改、类型与运行判断或持久化协议不一致",
+      "levels": ["contract"],
+      "cases": [{"id": "AK-FS-012", "level": "contract", "file": "test/contract/flow-state-constants.test.ts"}]
+    },
+    {
+      "id": "REQ-AK-FS-013",
+      "capability": "flow-engine",
+      "status": "implemented",
+      "title": "FlowRun命名变更保持v1身份与Completed回放，拒绝混入AgentRun字段",
+      "risk": "命名统一改变历史摘要或混淆执行身份，导致回放丢失与重复副作用",
+      "levels": ["integration"],
+      "cases": [{"id": "AK-FS-013", "level": "integration", "file": "test/integration/flow-engine.test.ts"}]
+    },
+    {
+      "id": "REQ-AK-FS-011",
+      "capability": "flow-engine",
+      "status": "implemented",
+      "title": "系统Completed与业务结果落盘之间故障，恢复消费历史且模型只调用一次",
+      "risk": "系统四态、追加日志、未知副作用及有向环恢复一致性",
+      "levels": [
+        "integration"
+      ],
+      "cases": [
+        {
+          "id": "AK-FS-011",
+          "level": "integration",
+          "file": "test/integration/flow-runtime.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-CTX-101",
+      "capability": "context",
+      "status": "implemented",
+      "title": "首次组装复用真实Pi映射与SQLite来源且不查询自身历史",
+      "risk": "冻结输入丢失、结构误配、取消或软预算契约失效",
+      "levels": [
+        "integration"
+      ],
+      "cases": [
+        {
+          "id": "AK-CTX-101",
+          "level": "integration",
+          "file": "test/integration/context-assembly.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-CTX-102",
+      "capability": "context",
+      "status": "implemented",
+      "title": "必选超Pi软目标保留并标记而硬字节超限失败",
+      "risk": "冻结输入丢失、结构误配、取消或软预算契约失效",
+      "levels": [
+        "integration"
+      ],
+      "cases": [
+        {
+          "id": "AK-CTX-102",
+          "level": "integration",
+          "file": "test/integration/context-assembly.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-CTX-103",
+      "capability": "context",
+      "status": "implemented",
+      "title": "两个Run相同callId在乱序输入中保持独立配对",
+      "risk": "冻结输入丢失、结构误配、取消或软预算契约失效",
+      "levels": [
+        "integration"
+      ],
+      "cases": [
+        {
+          "id": "AK-CTX-103",
+          "level": "integration",
+          "file": "test/integration/context-assembly.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-CTX-104",
+      "capability": "context",
+      "status": "implemented",
+      "title": "Child失败事实可组装而漏传补空及UNKNOWN不会沉默成功",
+      "risk": "冻结输入丢失、结构误配、取消或软预算契约失效",
+      "levels": [
+        "integration"
+      ],
+      "cases": [
+        {
+          "id": "AK-CTX-104",
+          "level": "integration",
+          "file": "test/integration/context-assembly.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-CTX-105",
+      "capability": "context",
+      "status": "implemented",
+      "title": "依赖缺失与环在选择前失败且Pi不作为修复回退",
+      "risk": "冻结输入丢失、结构误配、取消或软预算契约失效",
+      "levels": [
+        "integration"
+      ],
+      "cases": [
+        {
+          "id": "AK-CTX-105",
+          "level": "integration",
+          "file": "test/integration/context-assembly.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-CTX-106",
+      "capability": "context",
+      "status": "implemented",
+      "title": "取消等待原reader退出且不会启动新阶段或返回候选",
+      "risk": "冻结输入丢失、结构误配、取消或软预算契约失效",
+      "levels": [
+        "integration"
+      ],
+      "cases": [
+        {
+          "id": "AK-CTX-106",
+          "level": "integration",
+          "file": "test/integration/context-assembly.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-CTX-107",
+      "capability": "context",
+      "status": "implemented",
+      "title": "显式Pi备选复用真实截断且版本不匹配拒绝",
+      "risk": "冻结输入丢失、结构误配、取消或软预算契约失效",
+      "levels": [
+        "integration"
+      ],
+      "cases": [
+        {
+          "id": "AK-CTX-107",
+          "level": "integration",
+          "file": "test/integration/context-assembly.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-CTX-108",
+      "capability": "context",
+      "status": "implemented",
+      "title": "恶意策略漏必选被公共封装拒绝",
+      "risk": "冻结输入丢失、结构误配、取消或软预算契约失效",
+      "levels": [
+        "integration"
+      ],
+      "cases": [
+        {
+          "id": "AK-CTX-108",
+          "level": "integration",
+          "file": "test/integration/context-assembly.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-CTX-109",
+      "capability": "context",
+      "status": "implemented",
+      "title": "SQLite正文损坏或读取后撤权不会交出候选",
+      "risk": "冻结输入丢失、结构误配、取消或软预算契约失效",
+      "levels": [
+        "integration"
+      ],
+      "cases": [
+        {
+          "id": "AK-CTX-109",
+          "level": "integration",
+          "file": "test/integration/context-assembly.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-TUI-001",
+      "capability": "kernel-tui",
+      "status": "implemented",
+      "title": "查询在途收到最后通知后仍补查终态",
+      "risk": "TUI-03F局部规则失效；该用例不证明整链通过",
+      "levels": [
+        "ut"
+      ],
+      "cases": [
+        {
+          "id": "AK-TUI-001",
+          "level": "ut",
+          "file": "test/ut/kernel-tui-run-observation.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-TUI-002",
+      "capability": "kernel-tui",
+      "status": "implemented",
+      "title": "revision变化关闭旧订阅并在新cut订阅",
+      "risk": "TUI-03G局部规则失效；该用例不证明整链通过",
+      "levels": [
+        "ut"
+      ],
+      "cases": [
+        {
+          "id": "AK-TUI-002",
+          "level": "ut",
+          "file": "test/ut/kernel-tui-run-observation.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-TUI-003",
+      "capability": "kernel-tui",
+      "status": "implemented",
+      "title": "缺口重取且旧响应不能覆盖新前台",
+      "risk": "TUI-03B局部规则失效；该用例不证明整链通过",
+      "levels": [
+        "ut"
+      ],
+      "cases": [
+        {
+          "id": "AK-TUI-003",
+          "level": "ut",
+          "file": "test/ut/kernel-tui-run-observation.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-TUI-004",
+      "capability": "kernel-tui",
+      "status": "implemented",
+      "title": "服务持续返回落后cut时有限停止",
+      "risk": "TUI-03J局部规则失效；该用例不证明整链通过",
+      "levels": [
+        "ut"
+      ],
+      "cases": [
+        {
+          "id": "AK-TUI-004",
+          "level": "ut",
+          "file": "test/ut/kernel-tui-run-observation.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-TUI-005",
+      "capability": "kernel-tui",
+      "status": "implemented",
+      "title": "真实Pi Editor先清空时保护原文且迟到accepted不清新草稿",
+      "risk": "TUI-06F局部规则失效；该用例不证明整链通过",
+      "levels": [
+        "integration"
+      ],
+      "cases": [
+        {
+          "id": "AK-TUI-005",
+          "level": "integration",
+          "file": "test/integration/kernel-tui-terminal-interaction.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-TUI-006",
+      "capability": "kernel-tui",
+      "status": "implemented",
+      "title": "29列只拒绝普通对话，取消和退出保持可解析",
+      "risk": "TUI-06H局部规则失效；该用例不证明整链通过",
+      "levels": [
+        "integration"
+      ],
+      "cases": [
+        {
+          "id": "AK-TUI-006",
+          "level": "integration",
+          "file": "test/integration/kernel-tui-terminal-interaction.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-TUI-007",
+      "capability": "kernel-tui",
+      "status": "implemented",
+      "title": "真实Pi bracketed paste不产生提交",
+      "risk": "TUI-06A局部规则失效；该用例不证明整链通过",
+      "levels": [
+        "integration"
+      ],
+      "cases": [
+        {
+          "id": "AK-TUI-007",
+          "level": "integration",
+          "file": "test/integration/kernel-tui-terminal-interaction.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-TUI-008",
+      "capability": "kernel-tui",
+      "status": "implemented",
+      "title": "中文码点分页，失败保留当前页，旧版本不拼接",
+      "risk": "TUI-06I局部规则失效；该用例不证明整链通过",
+      "levels": [
+        "integration"
+      ],
+      "cases": [
+        {
+          "id": "AK-TUI-008",
+          "level": "integration",
+          "file": "test/integration/kernel-tui-content-page.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-TUI-009",
+      "capability": "kernel-tui",
+      "status": "implemented",
+      "title": "返回后迟到正文不能恢复已关闭页",
+      "risk": "TUI-06J局部规则失效；该用例不证明整链通过",
+      "levels": [
+        "integration"
+      ],
+      "cases": [
+        {
+          "id": "AK-TUI-009",
+          "level": "integration",
+          "file": "test/integration/kernel-tui-content-page.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-TUI-010",
+      "capability": "kernel-tui",
+      "status": "implemented",
+      "title": "真实文件仅有bookmark也能恢复且拒绝错误scope",
+      "risk": "TUI-04G局部规则失效；该用例不证明整链通过",
+      "levels": [
+        "integration"
+      ],
+      "cases": [
+        {
+          "id": "AK-TUI-010",
+          "level": "integration",
+          "file": "test/integration/kernel-tui-session-navigation.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-TUI-TRANSPORT",
+      "capability": "kernel-tui",
+      "status": "implemented",
+      "title": "正式客户端协议及持久模型临时观察接口",
+      "risk": "增量误当成功、响应丢失后重复写、身份错配、未ACK和非法JSON；仅局部集成，不证明整链",
+      "levels": ["integration"],
+      "cases": [
+        {"id": "AK-TUI-011", "level": "integration", "file": "test/integration/kernel-model-observation.test.ts"},
+        {"id": "AK-TUI-012", "level": "integration", "file": "test/integration/kernel-model-observation.test.ts"},
+        {"id": "AK-TUI-013", "level": "integration", "file": "test/integration/kernel-http-client.test.ts"},
+        {"id": "AK-TUI-014", "level": "integration", "file": "test/integration/kernel-http-client.test.ts"},
+        {"id": "AK-TUI-015", "level": "integration", "file": "test/integration/kernel-http-client.test.ts"},
+        {"id": "AK-TUI-016", "level": "integration", "file": "test/integration/kernel-http-client.test.ts"},
+        {"id": "AK-TUI-017", "level": "integration", "file": "test/integration/kernel-http-client.test.ts"}
+      ]
+    },
+    {
+      "id": "REQ-AK-TUI-CHAIN",
+      "capability": "kernel-tui",
+      "status": "planned",
+      "title": "真实TUI Launcher Host及Kernel连续会话链路",
+      "risk": "尚未接通持久会话采纳、公开HTTP/SSE与宿主装配",
+      "levels": [
+        "system"
+      ],
+      "cases": []
+    },
+    {
+      "id": "REQ-AK-CTX-110",
+      "capability": "context",
+      "status": "implemented",
+      "title": "真实资料及单Memory视图解析完整交付且排名稳定",
+      "risk": "冻结输入丢失、结构误配、取消或软预算契约失效",
+      "levels": [
+        "integration"
+      ],
+      "cases": [
+        {
+          "id": "AK-CTX-110",
+          "level": "integration",
+          "file": "test/integration/context-assembly.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-CTX-111",
+      "capability": "context",
+      "status": "implemented",
+      "title": "必需Memory成功空视图合法但缺必选记录失败",
+      "risk": "冻结输入丢失、结构误配、取消或软预算契约失效",
+      "levels": [
+        "integration"
+      ],
+      "cases": [
+        {
+          "id": "AK-CTX-111",
+          "level": "integration",
+          "file": "test/integration/context-assembly.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-CTX-112",
+      "capability": "context",
+      "status": "implemented",
+      "title": "父读取范围必须完整且必选父内容超软目标保留",
+      "risk": "冻结输入丢失、结构误配、取消或软预算契约失效",
+      "levels": [
+        "integration"
+      ],
+      "cases": [
+        {
+          "id": "AK-CTX-112",
+          "level": "integration",
+          "file": "test/integration/context-assembly.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-CTX-113",
+      "capability": "context",
+      "status": "implemented",
+      "title": "多工具结果按助手块顺序输出而非到达序",
+      "risk": "冻结输入丢失、结构误配、取消或软预算契约失效",
+      "levels": [
+        "integration"
+      ],
+      "cases": [
+        {
+          "id": "AK-CTX-113",
+          "level": "integration",
+          "file": "test/integration/context-assembly.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-CTX-114",
+      "capability": "context",
+      "status": "implemented",
+      "title": "可选来源只降级可用性错误且无内部重试",
+      "risk": "冻结输入丢失、结构误配、取消或软预算契约失效",
+      "levels": [
+        "integration"
+      ],
+      "cases": [
+        {
+          "id": "AK-CTX-114",
+          "level": "integration",
+          "file": "test/integration/context-assembly.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-CTX-201",
+      "capability": "context",
+      "status": "implemented",
+      "title": "固定估算表选择95且拒绝试选不会污染已选集合",
+      "risk": "结构、预算或适配边界失效",
+      "levels": [
+        "ut"
+      ],
+      "cases": [
+        {
+          "id": "AK-CTX-201",
+          "level": "ut",
+          "file": "test/ut/context-selection.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-CTX-202",
+      "capability": "context",
+      "status": "implemented",
+      "title": "可选闭包不能只保留依赖方而丢前驱",
+      "risk": "结构、预算或适配边界失效",
+      "levels": [
+        "ut"
+      ],
+      "cases": [
+        {
+          "id": "AK-CTX-202",
+          "level": "ut",
+          "file": "test/ut/context-selection.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-CTX-203",
+      "capability": "context",
+      "status": "implemented",
+      "title": "Pi未知后缀拒绝且空后缀不等于首条",
+      "risk": "结构、预算或适配边界失效",
+      "levels": [
+        "ut"
+      ],
+      "cases": [
+        {
+          "id": "AK-CTX-203",
+          "level": "ut",
+          "file": "test/ut/context-selection.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-CTX-301",
+      "capability": "context",
+      "status": "implemented",
+      "title": "Pi转换只允许专用适配目录而拒绝核心和近似目录",
+      "risk": "结构、预算或适配边界失效",
+      "levels": [
+        "dt"
+      ],
+      "cases": [
+        {
+          "id": "AK-CTX-301",
+          "level": "dt",
+          "file": "test/dt/context-adapter-boundary.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AK-CTX-RESTORE-001",
+      "capability": "context",
+      "status": "implemented",
+      "title": "候选边界解码与异步准备竞态保护",
+      "risk": "本项仅证明迁移基础能力，不代表两个运行入口已切换新版CE",
+      "levels": ["integration"],
+      "cases": [
+        {"id": "AK-CTX-115", "level": "integration", "file": "test/integration/context-candidate-codec.test.ts"},
+        {"id": "AK-CTX-116", "level": "integration", "file": "test/integration/context-candidate-codec.test.ts"},
+        {"id": "AK-CTX-117", "level": "integration", "file": "test/integration/context-preparation-race.test.ts"},
+        {"id": "AK-CTX-118", "level": "integration", "file": "test/integration/context-frozen-history.test.ts"},
+        {"id": "AK-CTX-119", "level": "integration", "file": "test/integration/context-frozen-history.test.ts"}
+      ]
+    },
+    {
+      "id": "REQ-AK-CTX-401",
+      "capability": "context",
+      "status": "implemented",
+      "title": "公开组装入口的完整候选经关闭重开SQLite后保持不变",
+      "risk": "结构、预算或适配边界失效",
+      "levels": [
+        "system"
+      ],
+      "cases": [
+        {
+          "id": "AK-CTX-401",
+          "level": "system",
+          "file": "test/system/context-assembly.test.ts"
+        }
+      ]
     }
   ]
 }

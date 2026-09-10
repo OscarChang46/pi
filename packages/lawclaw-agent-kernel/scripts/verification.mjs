@@ -378,6 +378,15 @@ export async function verify(options = {}) {
 					process.stderr.write(checked.stdout + checked.stderr);
 				}
 			}
+			const pty = await execute("python3", [path.join(scripts, "verify-kernel-tui-pty.py")], {
+				cwd: root, env, timeout: 180000,
+			});
+			const passed = pty.code === 0 && !pty.failure;
+			report.checks.push({ name: "kernel-tui-pty", result: passed ? "passed" : "failed" });
+			if (!passed) {
+				report.problems.push("门禁失败: kernel-tui-pty");
+				process.stderr.write(pty.stdout + pty.stderr);
+			}
 		}
 	} catch (error) {
 		report.problems.push(error.message);

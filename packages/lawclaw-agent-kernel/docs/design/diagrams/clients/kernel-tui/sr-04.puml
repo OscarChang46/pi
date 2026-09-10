@@ -1,0 +1,25 @@
+@startuml
+skinparam defaultFontName Hiragino Sans GB
+start
+if (有pending?) then (是)
+ :禁止切换，仅查询或退出;
+ stop
+endif
+if (草稿非空?) then (是)
+ if (明确放弃?) then (是)
+  :清草稿;
+ else (返回)
+  :保留原视图和订阅;
+  stop
+ endif
+endif
+:generation++，停止旧订阅，清旧页;
+:按需查询目标;
+if (旧generation响应?) then (是)
+ :直接丢弃，无缓存更新;
+ stop
+endif
+:展示当前页；活动Run则观察;
+:更换Agent进入新意图；模型选择仅下轮;
+stop
+@enduml

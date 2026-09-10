@@ -2,35 +2,23 @@ import assert from "node:assert/strict";
 
 import { test } from "node:test";
 import { createRunCommand } from "../../src/application/composition-root.ts";
+import { createInMemoryContextDependencies } from "../../src/application/context-assembly-composition.ts";
 import { AgentRuntime } from "../../src/cognitive/agent-runtime.ts";
 import { loadRuntimeSettings } from "../../src/config/index.ts";
 import type { AgentAdapter, ToolDescriptor } from "../../src/contracts/index.ts";
 import type { ToolCoordinatorPort } from "../../src/contracts/tool-runtime.ts";
-import type { ToolExecutionScope } from "../../src/contracts/tool-scope.ts";
-import { ContextEngine } from "../../src/control/context-engine.ts";
+import { AgentSystem } from "../../src/control/agent-system.ts";
 import { createReadOnlyPermissionCeiling } from "../../src/control/permission-scope.ts";
 import { RunFlow } from "../../src/control/run-flow.ts";
+import { RunRegistry } from "../../src/control/run-registry/run-registry.ts";
 import { testContext, testTimePort } from "../support/test-context.ts";
 
 const settings = loadRuntimeSettings();
 const command = {
-	...createRunCommand("/workspace", settings),
+	...createRunCommand({ sessionId: "session:integration-boundary", workspaceRoot: "/workspace" }, settings),
 	delegationPolicy: { ...settings.config.runtime.delegationPolicy, enabled: false },
 };
 const ceiling = createReadOnlyPermissionCeiling(command.toolPolicy, "workspace:test", 1024);
-const scope: ToolExecutionScope = {
-	runtimeId: "runtime:test",
-	agentId: "agent:test",
-	sessionId: command.sessionId,
-	runId: command.runId,
-	policySnapshotId: "snapshot-test",
-	runtimeCeiling: ceiling,
-	sessionCeiling: ceiling,
-	runCeiling: ceiling,
-	resourceClaims: ceiling.resources,
-	requestedEgress: [],
-	requestedSecrets: [],
-};
 const tool: ToolDescriptor = {
 	name: "lawclaw_read_text",
 	version: "1",
@@ -45,10 +33,16 @@ test("[AK-BND-001] 认知候选交回控制层，工具结果进入下一轮上�
 	let turns = 0;
 	const adapter: AgentAdapter = {
 		async *executeTurn(_context, request) {
+			assert.deepEqual(Object.keys(request).sort(), [
+				"formatVersion",
+				"modelAdapterVersion",
+				"payload",
+				"sessionId",
+			]);
 			assert.ok(Object.isFrozen(request));
-			assert.ok(Object.isFrozen(request.tools));
+			assert.ok(Object.isFrozen(request.payload.tools));
 			assert.deepEqual(
-				request.tools.map((item) => item.name),
+				request.payload.tools.map((item) => item.name),
 				[tool.name],
 			);
 			trace.push(`model:${++turns}`);
@@ -57,18 +51,30 @@ test("[AK-BND-001] 认知候选交回控制层，工具结果进入下一轮上�
 					type: "turn_completed",
 					message: {
 						role: "assistant",
-						runtimeMessageRef: "private:1",
 						stopReason: "tool_use",
 						content: [{ type: "tool_call", toolCallId: "call:1", toolName: tool.name, arguments: {} }],
 					},
 				};
 			else {
-				assert.ok(request.frame.messages.some((item) => item.role === "tool" && item.text === "checked result"));
+				assert.ok(request.payload.messages.some((item) => item.role === "tool" && item.text === "checked result"));
+				if (turns === 3) {
+					assert.equal(request.payload.task, "second task");
+					assert.deepEqual(
+						request.payload.messages.filter((item) => item.role === "user").map((item) => item.text),
+						[command.goal],
+					);
+					assert.ok(
+						request.payload.messages.some(
+							(item) =>
+								item.role === "assistant" &&
+								item.content.some((block) => block.type === "text" && block.text === "ok"),
+						),
+					);
+				}
 				yield {
 					type: "turn_completed",
 					message: {
 						role: "assistant",
-						runtimeMessageRef: "private:2",
 						stopReason: "stop",
 						content: [{ type: "text", text: "ok" }],
 					},
@@ -91,7 +97,7 @@ test("[AK-BND-001] 认知候选交回控制层，工具结果进入下一轮上�
 	};
 	const flow = new RunFlow(
 		new AgentRuntime(adapter),
-		new ContextEngine(settings.config.kernel.context),
+		createInMemoryContextDependencies(),
 		tools,
 		{
 			async delegate() {
@@ -102,13 +108,25 @@ test("[AK-BND-001] 认知候选交回控制层，工具结果进入下一轮上�
 		1024,
 		testTimePort,
 	);
-	const result = await flow.run(
-		testContext(),
-		command,
-		new AbortController().signal,
-		{ loopStarted() {}, loopFinished() {} },
-		scope,
-	);
+	const system = new AgentSystem("runtime:test", "agent:test", flow, { maxSessions: 4 }, ceiling, new RunRegistry());
+	const context = testContext();
+	const session = system.ensure(context, {
+		commandId: "ensure:test",
+		intent: {
+			logicalKey: "conversation",
+			agentDefinitionRef: "agent:test",
+			contextPolicyRef: "policy:test",
+			parent: null,
+		},
+	});
+	const first = { ...command, sessionId: session.anchor.sessionId };
+	const result = await system.run(context, first);
 	assert.equal(result.status, "completed");
 	assert.deepEqual(trace, ["catalog", "model:1", "control:tool", "model:2"]);
+	assert.equal(
+		(await system.run(context, { ...first, runId: "run:second", goal: "second task" })).status,
+		"completed",
+	);
+	assert.equal(system.lookup(context, "conversation").state, "found");
+	assert.equal(system.sessions[0].version, 2);
 });

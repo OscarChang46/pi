@@ -4,7 +4,7 @@ import ts from "typescript";
 
 const sourceRoot = path.resolve(import.meta.dirname, "../src");
 const scanRoot = process.argv[2] ? path.resolve(process.argv[2]) : sourceRoot;
-const definitions = ["contracts/flow-system-values.ts", "contracts/react-flow-values.ts"];
+const definitions = ["contracts/control/flow-engine/flow-engine-values.ts", "contracts/react-flow-values.ts"];
 const values = new Set();
 let suspendedState;
 for (const file of definitions) {
@@ -31,10 +31,14 @@ function files(directory) {
 const failures = [];
 for (const file of files(scanRoot)) {
 	const relative = path.relative(scanRoot, file);
-	if (!/flow/.test(relative) || definitions.includes(relative)) continue;
+	if (!/flow|state-storage\/adapters\/run-registry|contracts\/control\/run-registry/.test(relative) || definitions.includes(relative)) continue;
 	const source = ts.createSourceFile(file, fs.readFileSync(file, "utf8"), ts.ScriptTarget.Latest, true);
-	const system = /flow-system|flow-graph|flow-journal/.test(relative);
+	const system = /flow-system|flow-engine|flow-graph|flow-journal/.test(relative);
 	function inspect(node) {
+		if (ts.isIdentifier(node) && /^(?:FlowSystem(?:State|Action)|FLOW_SYSTEM_(?:STATE|ACTION)|resolveSystemTransition)$/.test(node.text)) {
+			const line = source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1;
+			failures.push(`${relative}:${line} 过时FE名称必须改为FlowRun领域名称。`);
+		}
 		const key = ts.isIdentifier(node) && ts.isPropertyAssignment(node.parent) && node.parent.name === node;
 		const literal = ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node);
 		const fragment = ts.isTemplateHead(node) || ts.isTemplateMiddle(node) || ts.isTemplateTail(node);

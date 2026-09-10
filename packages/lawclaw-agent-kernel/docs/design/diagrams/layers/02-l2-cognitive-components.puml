@@ -1,23 +1,34 @@
 @startuml
 !include ../theme.puml
 title L2 认知运行层组件图
-left to right direction
+top to bottom direction
+skinparam linetype polyline
+skinparam nodesep 90
+skinparam ranksep 100
 
-rectangle "L1 RuntimePool / FlowEngine" as L1 LC_EXTERNAL
+rectangle "L1 ReAct业务适配 / Activity" as L1 LC_EXTERNAL
 package "L2 Cognitive Runtime" LC_KERNEL {
   component "AgentRuntime / AgentLoop" as LOOP
   component "ParserNormalizer" as PARSER
   component "AgentAdapter Boundary" as ADAPTER_BOUNDARY
   component "PiAgentAdapter" as PI
+  package "Pi 核心库（进程内依赖）" {
+    component "ModelRuntime / Models\nstreamSimple" as SDK
+    component "Provider 编码与流解码" as CODEC
+  }
 }
+rectangle "共享 PiContextAdapter\n基础设施适配" as CTX LC_INFRASTRUCTURE
 rectangle "Model Provider" as MODEL LC_EXTERNAL
 rectangle "Operations Plane" as OPS LC_OPERATIONS
 
 L1 --> LOOP : BND-L12-001\nRuntimeControlPort
 LOOP --> ADAPTER_BOUNDARY : AgentAdapterPort
 ADAPTER_BOUNDARY --> PI : Adapter 私有映射
-PI --> MODEL : BND-MOD-001\n私有 Provider 协议
-PI --> PARSER : 规范化 AgentEvent
+PI --> CTX : CTX-CON-1\n同版输入转换
+PI --> SDK : 私有 ModelInvocationClient\n受控 Egress 内调用
+SDK --> CODEC : Pi Provider API
+CODEC --> MODEL : BND-MOD-001\n受控模型出口
+PI --> PARSER : 规范化事件与完整候选
 PARSER ..> LOOP : 已校验 RuntimeEvent
 LOOP ..> L1 : RuntimeEventPort\nToolCallCandidate / Progress
 LOOP ..> OPS : BND-OPS-001
@@ -25,5 +36,10 @@ LOOP ..> OPS : BND-OPS-001
 note bottom of PARSER
   Provider 私有解析留在 Adapter；
   本组件只校验规范化事件。
+end note
+note bottom of SDK
+  单轮调用；自动推理重试0。
+  不启动原生agentLoop或工具执行器。
+  原生队列限额/参数证据仍待闭合。
 end note
 @enduml

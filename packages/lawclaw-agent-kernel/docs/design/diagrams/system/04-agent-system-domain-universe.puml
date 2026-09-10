@@ -1,5 +1,9 @@
 @startuml
 !include ../drawio-theme.puml
+skinparam defaultFontName "Hiragino Sans GB"
+skinparam linetype polyline
+skinparam nodesep 45
+skinparam ranksep 90
 title Agent Kernel System 领域对象全集
 left to right direction
 hide methods
@@ -44,18 +48,25 @@ package "Agent Kernel System" as Kernel <<bounded_context>> {
     AgentRunAttempt o-- AgentCheckpoint
   }
 
-  package "Structured Subagent" as Collaboration <<domain_module>> {
-    class AgentExecutionScope <<aggregate_root>>
+  package "Session sub-session 协调" as Collaboration <<domain_module>> {
+    class JoinBarrier <<aggregate_root>>
+    class JoinMember <<entity>>
+    class JoinPolicy <<value_object>>
+    class ReductionRecord <<entity>>
+    JoinBarrier *-- JoinMember
+    JoinBarrier *-- JoinPolicy
+    JoinBarrier o-- ReductionRecord
+  }
+
+  package "外部业务输入（非FE模型）" as BusinessInput <<domain_module>> {
     class DelegationPolicy <<value_object>>
     class DelegationSpec <<value_object>>
-    class ParentChildRunLink <<entity>>
-    AgentExecutionScope *-- ParentChildRunLink
-    AgentExecutionScope *-- DelegationPolicy
-    ParentChildRunLink *-- DelegationSpec
+    DelegationSpec --> DelegationPolicy
   }
 
   package "Context" as ContextModule <<domain_module>> {
     class AgentSession <<aggregate_root>>
+    class ActiveRunBinding <<value_object>>
     class ContextDelta <<entity>>
     class ContextSpec <<value_object>>
     class ContextItem <<value_object>>
@@ -64,6 +75,7 @@ package "Agent Kernel System" as Kernel <<bounded_context>> {
     class ContextReductionTrace <<value_object>>
     AgentSession *-- ContextDelta
     AgentSession *-- ContextSnapshot
+    AgentSession o-- "0..1" ActiveRunBinding : 当前占用
     ContextSnapshot *-- ContextItem
     ContextSnapshot *-- ContextFrame
     ContextSnapshot *-- ContextReductionTrace
@@ -149,9 +161,9 @@ package "Agent Kernel System" as Kernel <<bounded_context>> {
   class MemoryManager <<application_service>>
   class PermissionSystem <<domain_service>>
   class ToolRuntime <<application_service>>
-  class SubagentCoordinator <<application_service>>
   class FlowEngine <<domain_service>>
-  class ResourceManager <<application_service>>
+  class SessionManager <<application_service>>
+  class SubSessionCoordinator <<application_service>>
 
   interface AgentRegistryQueryPort <<inbound_port>>
   interface RunCommandPort <<inbound_port>>
@@ -162,7 +174,9 @@ package "Agent Kernel System" as Kernel <<bounded_context>> {
   interface PermissionDecisionPort <<inbound_port>>
   interface PermitValidationPort <<inbound_port>>
   interface ToolRuntimePort <<inbound_port>>
-  interface ChildRunPort <<inbound_port>>
+  interface SessionForkJoinPort <<inbound_port>>
+  interface SessionRunCommandPort <<inbound_port>>
+  interface FlowRunCommandPort <<outbound_port>>
   interface AgentAdapterPort <<outbound_port>>
   interface RunRepositoryPort <<outbound_port>>
   interface ArtifactPort <<outbound_port>>
@@ -178,14 +192,24 @@ package "Agent Kernel System" as Kernel <<bounded_context>> {
   AgentControlPlane --> ToolRuntimePort : L1 授权后调用工具
   AgentControlPlane --> RuntimeControlPort : 回送 ToolResultRef
   RuntimeControlPort --> AgentRuntime : resumeAttempt
-  AgentRuntime --> ChildRunPort : 委派 Child Run
+  AgentRuntime --> SessionForkJoinPort : 委派 Child Run
   ContextEngine --> MemoryPort : 读取授权记忆视图
   ToolRuntime --> PermissionDecisionPort : 工具动作决策
   ToolRuntime --> PermitValidationPort : 执行前消费
   MemoryManager --> PermissionDecisionPort : 记忆访问决策
   MemoryManager --> PermitValidationPort : 提交前消费
-  SubagentCoordinator --> PermissionDecisionPort : Child Run 委派决策
-  SubagentCoordinator --> PermitValidationPort : 创建前消费
+  AgentControlPlane --> PermissionDecisionPort : 外部业务提出委派授权
+  AgentControlPlane --> DelegationSpec : 解释业务输入
+  AgentControlPlane --> PermitValidationPort : 受保护动作执行检查
+  SessionForkJoinPort --> SessionManager : Fork / Cancel / Query
+  SessionRunCommandPort --> SessionManager : reserve / confirm / release
+  SessionManager --> RunCommandPort : commit后outbox受理Run
+  ActiveRunBinding ..> AgentRun : runId only
+  SessionManager *-- SubSessionCoordinator
+  SubSessionCoordinator --> JoinBarrier : 关系 / Join / Reduce唯一权威
+  SubSessionCoordinator --> FlowRunCommandPort : outbox 命令
+  FlowRunCommandPort --> FlowEngine : 单Child Flow / Parent resume
+  FlowEngine ..> SubSessionCoordinator : 终态事件 -> inbox
   AgentRuntime --> AgentAdapterPort : executeTurn
   RunRegistry --> RunRepositoryPort : 权威 Run 状态
   ToolRuntime --> SandboxPort

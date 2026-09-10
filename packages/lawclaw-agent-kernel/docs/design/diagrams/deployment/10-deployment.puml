@@ -12,7 +12,7 @@ node "Python / Desktop Host" as HOST LC_ORCHESTRATION {
 node "Bun Sidecar（macOS ARM64）" as SIDECAR LC_KERNEL {
   component "JSONL Gateway" as JSONL
   component "RunRegistry + Scheduler" as RUN
-  component "RuntimePool + AgentRuntime" as RUNTIME
+  component "Activity业务适配 + AgentRuntime" as RUNTIME
   component "Context / Memory / Permission / Tool / Multi-agent" as SERVICES
   JSONL --> RUN
   RUN --> RUNTIME

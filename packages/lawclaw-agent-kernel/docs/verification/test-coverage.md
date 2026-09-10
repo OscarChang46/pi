@@ -1,3 +1,17 @@
+---
+doc_id: VER-COVERAGE-001
+level: verification
+layer: cross-layer
+component: Verification
+status: candidate
+baseline: AKB-2026-09-03-09
+authoritative_for: "测试覆盖率统计、报告协议与门禁使用说明"
+parent: VER-INDEX-001
+interfaces: []
+diagrams: []
+supersedes: []
+---
+
 # 测试覆盖率统计
 
 ## 统计范围

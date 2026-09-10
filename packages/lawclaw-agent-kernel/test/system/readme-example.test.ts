@@ -5,6 +5,7 @@ import { test } from "node:test";
 import {
 	createAgentKernel,
 	createRequestContext,
+	createRootSessionCommand,
 	createRunCommand,
 	loadRuntimeSettings,
 	resolveConfiguredPath,
@@ -13,11 +14,17 @@ import {
 const settings = loadRuntimeSettings();
 const workspace = resolveConfiguredPath(settings, settings.config.runtime.workspaceRoot);
 const kernel = await createAgentKernel(workspace, settings);
-const result = await kernel.run(
-	createRequestContext(settings),
-	createRunCommand(workspace, settings),
-	new AbortController().signal,
+const requestContext = createRequestContext(settings);
+const ensured = kernel.ensure(
+	requestContext,
+	createRootSessionCommand({
+		logicalKey: `logical-session:${crypto.randomUUID()}`,
+		agentDefinitionRef: kernel.agentId,
+		contextPolicyRef: settings.config.prompts.agentSystemPromptId,
+	}),
 );
+const command = createRunCommand({ sessionId: ensured.anchor.sessionId, workspaceRoot: workspace }, settings);
+const result = await kernel.run(requestContext, command, new AbortController().signal);
 console.log(result.status, result.output);
 // README 示例结束
 

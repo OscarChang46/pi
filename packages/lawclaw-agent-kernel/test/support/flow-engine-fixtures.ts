@@ -9,7 +9,10 @@ const data: {
 	canonicalVectors: { value: unknown; canonical: string; digest: string }[];
 } = JSON.parse(
 	readFileSync(
-		new URL("../../docs/design/layers/l1-control/components/flow-engine-contract-v1.examples.json", import.meta.url),
+		new URL(
+			"../../docs/design/layers/l1-control/components/flow-engine/history/react-contract-v1.examples.json",
+			import.meta.url,
+		),
 		"utf8",
 	),
 );

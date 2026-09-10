@@ -2,7 +2,7 @@
 
 结论：**有条件通过，以下两项 P1 修正前不建议冻结为开发契约。**
 
-评审范围：完整阅读 `packages/lawclaw-agent-kernel/docs/design/layers/l1-control/components/flow-engine.md`（2509 行），交叉阅读 RunRegistry、RunScheduler 组件设计。仅评审文档，不把候选状态、未实现代码或未执行测试列为缺陷。下列行号对应本次读取版本，统一修订后需更新。
+评审范围：完整阅读 `packages/lawclaw-agent-kernel/docs/design/layers/l1-control/components/flow-engine/README.md`（2509 行），交叉阅读 RunRegistry、RunScheduler 组件设计。仅评审文档，不把候选状态、未实现代码或未执行测试列为缺陷。下列行号对应本次读取版本，统一修订后需更新。
 
 Core 的纯计算边界、Coordinator 的 I/O 协调职责、RunRegistry 的权威状态所有权及提交后派发原则一致。FE-CON-1 明确了大部分早期概念名和恢复语义；剩余问题集中在失败收口和事件调度可实现性。
 

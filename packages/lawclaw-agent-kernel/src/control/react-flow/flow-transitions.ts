@@ -155,7 +155,8 @@ export const FLOW_TRANSITIONS = Object.freeze([
 				context.transcriptHeadRef !== run.transcriptHeadRef
 			)
 				return reject("FLOW_CONTEXT_REQUIRED", "context");
-			if (context.promptRef.bytes > budget.maxContextBytes || context.inputTokens > budget.maxInputTokens)
+			// CE 已验证模型字节硬限制；Token 为 Pi 软目标，完整候选含 Trace 使用独立容量。
+			if (context.inputBytes > budget.maxContextBytes || context.promptRef.bytes > 2 * 1024 * 1024)
 				return failed("FLOW_CONTEXT_LIMIT_EXCEEDED");
 			if (usage.turnsReserved >= budget.maxTurns) return failed("FLOW_BUDGET_EXCEEDED");
 			return plan(
@@ -290,7 +291,11 @@ export const FLOW_TRANSITIONS = Object.freeze([
 			const { plan, failed, entry, conflict } = transitionContext(input);
 
 			if (payload.childId !== position.childId || event.causationId !== position.commandId) return conflict();
-			if (payload.outcome !== "completed" || payload.resultRef === null) return failed("FLOW_CHILD_FAILED");
+			if (payload.outcome !== "completed" || payload.resultRef === null)
+				return failed(
+					"FLOW_CHILD_FAILED",
+					payload.resultRef ? [entry("child", payload.resultRef, null, position.childId)] : [],
+				);
 			if (payload.resultRef.bytes > budget.maxOutputBytes) return failed("FLOW_CONTEXT_LIMIT_EXCEEDED");
 			return plan({ kind: REACT_FLOW_STATE.READY }, [], [entry("child", payload.resultRef, null, position.childId)]);
 		},

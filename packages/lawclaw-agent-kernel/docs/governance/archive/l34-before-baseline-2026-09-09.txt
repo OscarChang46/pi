@@ -1,0 +1,57 @@
+---
+doc_id: BND-L34-001
+level: contract
+layer: cross-layer
+component: null
+status: candidate
+baseline: AKB-2026-09-03-09
+authoritative_for: "BND-L34-001 L3 Tool Runtime 与 L4 Execution Runtime 的边界契约"
+parent: SYS-DES-001
+interfaces: [BND-L34-001]
+diagrams: []
+supersedes: [docs/design/c4-boundary-protocols.md]
+---
+
+# BND-L34-001：L3 Tool Runtime ↔ L4 Execution Runtime
+
+`SandboxPort`表达一次性、有界隔离执行；业务Tool Provider使用独立`ToolProviderPort`，不得复用Sandbox Port。2026-09-09按L3-FD-2给出以下语义协议候选，替代L3-DD-1含混的执行计划；具体执行机制与传输适配仍由L4实现。
+
+首版本地子进程使用 stdout 纯净的 JSONL，stderr 只写脱敏日志；同进程只读 Adapter 仍受路径、权限和结果大小限制，且无 Shell 能力。初始化协商版本、能力和最大帧；输入、输出、时间、进程、挂载与出口均有上限。失败不得回退为宿主执行。
+
+## 1. 语义载荷与操作
+
+标量及ToolCallRequest/RouteBinding/ExecutionLocator见[L3-FD-2](l3-tool-runtime-detail.md)。ExecutionLimits复用L4依赖定义；以下所有字段必填，null仅用于显式联合。元数据版本固定l3-l4-2，不支持的版本拒绝，不自动沿用旧Grant协议。
+
+```text
+ExecutionPlan = {
+ commandId:Ref, operationKey:Ref, descriptorRef:Ref, argumentsRef:Artifact,
+ route:RouteBinding, scopeRef:Ref, startGrantRef:Ref,
+ deadlineAtMs:Millis, limits:ExecutionLimits
+}
+L4Reply = {
+ locator:ExecutionLocator, outcome:success|failed|unknown,
+ effect:none|applied|unknown, resultRef:Artifact|null,
+ error:Error|null, evidenceRef:Ref|null
+}
+L4Query = {state:pending|unknown,locator:ExecutionLocator}
+        | {state:completed,reply:L4Reply}
+L4Cancel = {locator:ExecutionLocator,state:requested|stopped|unknown,
+            evidenceRef:Ref|null}
+execute(plan:ExecutionPlan,signal:AbortSignal) -> Promise<L4Reply>
+inspect(locator:ExecutionLocator) -> Promise<L4Query>
+cancel(locator:ExecutionLocator) -> Promise<L4Cancel>
+```
+
+signal是进程内控制，不序列化；跨进程映射cancel命令。scopeRef由可信上下文生成，路由、参数和资源必须与Guard核验值相同；受信适配器句柄校验plan来源，外部JSON不能自行携带grantRef调用Provider。L4不做PDP决策，不能扩展limits或换route。operationKey在该scope内稳定等于commandId。
+
+success要求resultRef非null且error=null；failed/unknown要求error非null；effect=unknown必须outcome=unknown。已知效果证据缺失不可填写applied/none，明确派发前失败可none。结果必须满足outputSchema且≤limits.outputBytes；超过事件帧限额的合法结果通过Artifact，不能突破结果总量限制。evidenceRef为可信外部事实引用，不把回执到达当作效果证明。
+
+execute是一次有界调用，返回最终观察结果或unknown，不提供accepted=durable含义。inspect不支持时返回unknown；查无记录不能证明未执行。cancel的stopped必须附停止证据，仍不表示副作用撤销。L4必须在deadline内返回或由适配器超时归一化；执行、查询、取消均不隐藏execute重试。
+
+## 2. 传输及装配约束
+
+首版本地同进程Port按上述语义联调。JSONL线协议的握手帧、请求关联、取消帧和Artifact跨进程可读性由L4传输档案提供；未定义/未通过Contract验收前不得宣称跨进程协议可用。这里明确语义对象，保留线协议为L4集成依赖，不在L3功能域建设通用传输框架。
+
+契约验收L3-L4-CT-01：不同command/route回执必须拒绝；CT-02：failed+applied保留真实效果；CT-03：query不支持返回unknown、cancel requested不能转换stopped；CT-04：deadline只缩短、取消传播且执行计数1；CT-05：参数/结果上下界和未受信plan调用拒绝。均为候选测试设计，未执行。
+
+2026-09-09 候选细化见 [L4-DD-1](l4-execution-runtime-detail.md)：严格引用本文 l3-l4-2 的 ExecutionPlan/L4Reply/L4Query/L4Cancel，展开限额落实、单次调用、查询核对和独立资源回收。Sandbox 的业务 stdout/stderr 由 supervisor 使用独立管道采集，supervisor stdout 才是控制 JSONL；工作负载不能直接写控制帧。完整资源档案与安全摘要绑定、调用方可靠性接入及真实机制帧 Schema 尚待联合冻结。

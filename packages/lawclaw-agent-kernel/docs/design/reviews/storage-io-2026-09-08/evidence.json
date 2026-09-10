@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "kind": "design-review-input-fingerprints",
+  "capturedAt": "2026-09-08T08:17:04.645134+00:00",
+  "head": "d298825537b8dc4b98c214f0031a2fa4b893bb66",
+  "scope": "Current dirty worktree inputs; not a committed implementation or benchmark result",
+  "sourceAndArtifactSha256": {
+    "docs/design/agent-kernel-design.md": "049c1a4926bcdaaffc7672b88b476856d38fe09be1efd873427155212e2f6733",
+    "docs/design/layers/infrastructure-plane/README.md": "41769d4670a4fae4a83d55a0a1ae2341071398929a166139f377b0b050273a8a",
+    "docs/design/layers/infrastructure-plane/components/state-storage.md": "522ccce41ba3af3b3097971fb13a5363927a94905be2e3157bd667b69188e0cb",
+    "docs/design/layers/infrastructure-plane/components/artifact-storage.md": "1600e2c05ef6b8f7e151ad116d61834da184da69b9b90f37ec3c1b469c6bd5d4",
+    "docs/design/layers/operations-plane/README.md": "6ad1899bef56570008da674532a4067f4458fbdd56ff52bee65fbe8aab49520b",
+    "docs/design/layers/operations-plane/components/telemetry-pipeline.md": "1a8079ccd59fd73e9d5846131f2496ade49d1091e32cde00cd3466c917712d80",
+    "docs/design/layers/operations-plane/components/logging-tracing-metrics.md": "e1cb2b505e5fee88307a83e6c139e63b4631197f66b9e9bd125828129829178f",
+    "docs/design/layers/l1-control/components/flow-engine/README.md": "5c67cbf3bf6539b10f378750f353c6d96d13425b4c9cf73ae7c777e155adf184",
+    "docs/design/contracts/bnd-inf-001.md": "038d71d5eeab57907b9c356b79298e73a2943319354b44acad38c094e6618d35",
+    "docs/design/contracts/bnd-ops-001.md": "4d0a58c2c4afd5d5db82f859d1ebd3eae1d89bb60feb9cc32d11424e24eaab32",
+    "src/application/flow-composition.ts": "f0e962ff8d5becf2d5babc3e4d11676a6ffa0125c8470c812d3dac2ea8ef6578",
+    "src/infrastructure/state-storage/adapters/flow-engine/flow-journal-database.ts": "13670b54031c6d4ecbf0ad2cd88207e0b74e79e37f05580ae9816ca761619697",
+    "src/infrastructure/state-storage/adapters/flow-engine/sqlite-flow-journal.ts": "3c7e07ae8272a9b3b30aec52170bc1b241e1424b00dc82edfba0fd8b1cfe6b60",
+    "src/infrastructure/state-storage/adapters/run-registry/agent-run-database.ts": "43d23f2e3b1fdb5e58c1dd283a95df4e40cfdfdbecf0e904a5c184e7cada06be",
+    "src/infrastructure/state-storage/adapters/run-registry/agent-run-transaction.ts": "46f61a8666a5811ee7810a7b16166a12a0debe43bdb716373ec6ea7eb7127e37",
+    "src/infrastructure/state-storage/adapters/run-registry/sqlite-run-commits.ts": "ddf524deba01c6bee1f10c4aa1b7df52d9caad6fcad48ffb5481903e5743b0c0",
+    "src/infrastructure/adapters/sqlite-flow-artifacts.ts": "6bfdc380574c39391f40be4c89e00c859c4f9e18cebb39429499c209a7cf7a31",
+    "docs/design/reviews/storage-io-2026-09-08/README.md": "727bf0086fd365c6d232784e50f77d593b90a7d8b09570757de740221273082d",
+    "docs/design/reviews/storage-io-2026-09-08/storage-observation.puml": "bafd758363d77b24598d309f30057df93f05729ada59a34c1aac797e8faadc1d",
+    "docs/design/reviews/storage-io-2026-09-08/storage-observation.png": "18ea183cda36ca407e5503411382c85c594503655f333f308003bcc95745216f"
+  },
+  "verification": {
+    "documentArchitecture": "passed: 7 layers, 34 components, 84 governed documents; proposal is joint review input outside component registry",
+    "arithmeticAndAcceptanceIds": "passed",
+    "plantuml": "rendered using plantuml/plantuml:1.2026.7; full PNG visually inspected",
+    "diagramImage": "sha256:f2c8916a795483bf32ea61ca63b1c6726845c0085c997d86431e20b52ca1c257",
+    "runtimeTests": "not run",
+    "storageBenchmarks": "not run",
+    "gpuExperiments": "not run"
+  }
+}

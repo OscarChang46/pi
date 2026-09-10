@@ -1,14 +1,18 @@
+import type { AgentRunStore } from "../contracts/control/run-registry/run-storage.ts";
 import type { FlowArtifactStore } from "../contracts/flow-artifacts.ts";
 import type { FlowCommandHandler } from "../contracts/flow-dispatch.ts";
-import type { DurableFlowStore } from "../contracts/flow-storage.ts";
+import type { AdvanceInput } from "../contracts/flow-engine.ts";
+import { flowId } from "../contracts/flow-value.ts";
 import type { KernelToolCallBlock, TimePort } from "../contracts/index.ts";
-import { isTerminalReActState, REACT_FLOW_STATE } from "../contracts/react-flow-values.ts";
+import { FLOW_COMMAND_STATUS, isTerminalReActState, REACT_FLOW_STATE } from "../contracts/react-flow-values.ts";
 import type { FlowContext } from "./flow-context.ts";
 
 /** 子Run持久化与调度依赖，父子共享受信任作用域。 */
 export interface FlowChildDependencies {
+	/** 通过 SessionManager 占槽后受理，禁止绕过绑定。 */
+	readonly admit: (input: AdvanceInput, parent: AdvanceInput) => void;
 	/** Run权威存储。 */
-	readonly store: DurableFlowStore;
+	readonly store: AgentRunStore;
 	/** 目标及结果存储。 */
 	readonly artifacts: FlowArtifactStore;
 	/** 首轮上下文装配。 */
@@ -31,15 +35,18 @@ export function createFlowChildHandler(deps: FlowChildDependencies): FlowCommand
 			throw new Error("FLOW_CHILD_GOAL_INVALID");
 		signal.throwIfAborted();
 		if (!store.load(childId)) {
-			const child = frames.initial({
-				runId: childId,
-				goal: call.arguments.task,
-				nowMs: time.now().epochMilliseconds,
-				deadlineAtMs: spec.deadlineAtMs,
-				budget: spec.budget,
-				depth: input.run.depth + 1,
-			});
-			store.admit(child, input);
+			const child = await frames.initial(
+				{
+					runId: childId,
+					goal: call.arguments.task,
+					nowMs: time.now().epochMilliseconds,
+					deadlineAtMs: spec.deadlineAtMs,
+					budget: spec.budget,
+					depth: input.run.depth + 1,
+				},
+				signal,
+			);
+			deps.admit(child, input);
 		}
 		const cancel = () => {
 			store.cancel(childId);
@@ -56,16 +63,38 @@ export function createFlowChildHandler(deps: FlowChildDependencies): FlowCommand
 		const resultRef =
 			child.run.position.kind === REACT_FLOW_STATE.COMPLETED
 				? artifacts.put({
-						role: "tool",
-						toolCallId: call.toolCallId,
-						toolName: call.toolName,
+						role: "task_observation",
+						childId,
+						childRunId: childId,
+						outcome: FLOW_COMMAND_STATUS.SUCCEEDED,
+						resultRef: child.run.position.outputRef,
+						errorRef: null,
 						text: artifacts.get(child.run.position.outputRef),
-						isError: false,
 					})
-				: null;
+				: child.run.position.kind === REACT_FLOW_STATE.FAILED
+					? artifacts.put({
+							role: "task_observation",
+							childId,
+							childRunId: childId,
+							outcome: FLOW_COMMAND_STATUS.FAILED,
+							resultRef: null,
+							errorRef: flowId("child-error", { childId, code: child.run.position.code }),
+							text: `Child 执行失败：${child.run.position.code}`,
+						})
+					: null;
 		return {
 			source: "child",
-			payload: { kind: "ChildCompleted", childId, outcome: resultRef ? "completed" : "failed", resultRef },
+			payload: {
+				kind: "ChildCompleted",
+				childId,
+				outcome:
+					child.run.position.kind === REACT_FLOW_STATE.COMPLETED
+						? "completed"
+						: child.run.position.kind === REACT_FLOW_STATE.CANCELLED
+							? "cancelled"
+							: "failed",
+				resultRef,
+			},
 		};
 	};
 }

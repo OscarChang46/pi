@@ -2,7 +2,7 @@
 
 结论：**有条件通过**。FE-CON-1 的安全职责方向成立：Core 不判权限，L1 PEP 请求 PDP，L3 Guard 耐久消费 Permit；模型/工具 UNKNOWN 不自动重发；敏感正文与摘要不作为公开诊断数据。以下 3 项开发契约缺口应在冻结前补齐，其中 2 项 P1。未把 candidate、未实现或未执行测试本身列为缺陷。
 
-评审对象：`/Users/oscar/jurismind/code/pi-lawclaw/packages/lawclaw-agent-kernel/docs/design/layers/l1-control/components/flow-engine.md` 全文，重点第 21 章。交叉核对 `execution-permit.md`、`pep-enforcement.md`、`bnd-sec-001.md`。以下行号对应评审时 2509 行版本。本次只读设计，没有生产漏洞复现或代码变更。
+评审对象：`/Users/oscar/jurismind/code/pi-lawclaw/packages/lawclaw-agent-kernel/docs/design/layers/l1-control/components/flow-engine/README.md` 全文，重点第 21 章。交叉核对 `execution-permit.md`、`pep-enforcement.md`、`bnd-sec-001.md`。以下行号对应评审时 2509 行版本。本次只读设计，没有生产漏洞复现或代码变更。
 
 ## SEC-R1 [P1] 核对结果缺少与当前 incident 的精确绑定规则
 

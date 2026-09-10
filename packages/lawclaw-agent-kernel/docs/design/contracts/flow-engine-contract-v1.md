@@ -1,10 +1,26 @@
+---
+doc_id: FE-CON-1
+level: contract
+layer: L1 Control & Orchestration Runtime
+component: ReActFlowPolicy
+status: candidate
+baseline: AKB-2026-09-03-09
+authoritative_for: ReAct业务推进契约
+parent: L1-CMP-008
+interfaces: [FlowAdvancePort]
+diagrams: []
+supersedes: []
+---
+
 # FE-CON-1：项目级推进与运行边界契约
+
+定位修订：本文件解释ReAct业务状态与候选运行边界，通用FlowEngine的四态及追加日志以[系统SR](../layers/l1-control/components/flow-engine/protocol-index.md)为准。下文Core现为ReActFlowPolicy；这里的旧首版额度和运维目标不等于当前Docker实现。
 
 状态：candidate；协议版本1.0.0。本文件承接FlowEngine原21.1—21.9（含21.8.1），供Core及相关组件共同使用。保留原节号以维持追踪；迁移不代表架构批准或运行边界已实现。
 
 通用开发要求已提炼至本机code-development技能的references/development-contracts.md；本项目的具体类型、迁移、身份公式和数值仍以本项目契约为准，不提升为跨项目规则。
 
-[组件设计](../layers/l1-control/components/flow-engine.md)；[完整固定向量](../layers/l1-control/components/flow-engine-contract-v1.examples.json)。跨组件CD-1仍在独立工作中，不作为本次FlowEngine提交的已发布依赖。
+[组件设计](../layers/l1-control/components/flow-engine/README.md)；[完整固定向量](../layers/l1-control/components/flow-engine/history/react-contract-v1.examples.json)。跨组件CD-1仍在独立工作中，不作为本次FlowEngine提交的已发布依赖。
 
 真实性开放项：原21.5规定负零转换为0，当前canonical.ts与AK-FE-003拒绝负零；本次原文迁移保留该差异，不修改协议或代码掩盖问题。其他运行边界条款属于设计要求，不能推断真实T1/T2、Permit或崩溃恢复已通过验收。
 
@@ -422,7 +438,7 @@ claim 只用于提交/派发权限，不进入 Core 输入及 decisionDigest。�
 | StateCommitPort | CommitRequest、查询键 → CommitResult/CommitQuery/CommandRecord | RunRegistry；Repository 仅实现机制，不拥有迁移规则 |
 | ObservabilityPort | code、阶段、耗时、计数、受限相关引用 → 非阻塞受理/丢弃计数 | 调用方；禁止 Prompt/参数/digest 直接作为指标标签 |
 
-这些是对现有边界能力的细化门面，不增加新的聚合数据所有者。跨边界 RequestMetadata 沿用 traceparent/deadlineUtc，适配层在边界转换为本章 operation 毫秒字段。Core 只使用不透明 executionEnvelopeRef，不导入租户、用户或 RBAC 模型。现有 PermissionGrant 明确不等于耐久一次性 Permit，不能直接用于此设计的 DispatchTool 上线验收。
+这些是对现有边界能力的细化门面，不增加新的聚合数据所有者。跨边界 RequestMetadata 沿用 traceparent/deadlineUtc，适配层在边界转换为本章 operation 毫秒字段。Core 只使用不透明 executionEnvelopeRef，不导入租户、用户或 RBAC 模型。现有旧短时 Grant 明确不等于耐久一次性 Permit，不能直接用于此设计的 DispatchTool 上线验收，也不得复制进 Session 充当权限状态。
 
 ### 21.8.1 五角色评审后的补充协议
 

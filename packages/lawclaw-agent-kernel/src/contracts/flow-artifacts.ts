@@ -7,11 +7,3 @@ export interface FlowArtifactStore {
 	/** 验证引用后读取独立JSON对象。 */
 	get(ref: ArtifactRef): unknown;
 }
-
-/** Adapter私有消息持久化端口；正文保持不透明，不成为控制层协议。 */
-export interface AdapterMessageStore {
-	/** 同租户同引用只允许首次写入或相同内容。 */
-	put(tenantId: string, ref: string, value: unknown): void;
-	/** 返回同租户私有消息；未知引用返回null。 */
-	get(tenantId: string, ref: string): unknown;
-}

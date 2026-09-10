@@ -1,0 +1,52 @@
+@startuml
+!include ../../theme.puml
+title PDP：纯规则与耐久用例
+skinparam linetype polyline
+class PermissionDecisionEngine {
+  decide(request)
+  inspect(commandId)
+}
+class ProposalVerifier {
+  prepare(action, trustedFacts)
+}
+class ActionAdapterRegistry {
+  extractDemand(kind)
+  verifyBinding(kind)
+}
+class PolicySnapshotLoader {
+  loadFixed(policyRef)
+}
+class PolicyEvaluator {
+  evaluate(PreparedDecision)
+}
+class ResourceIntersection {
+  check(demand, ceilings)
+}
+class DecisionCommitter {
+  commit(evaluation, versions)
+}
+interface SecurityUnitOfWork
+class DecisionJournal
+class PermitIssuer
+class AskWriter
+class AuditGate
+PermissionDecisionEngine --> ProposalVerifier
+ProposalVerifier --> ActionAdapterRegistry
+PermissionDecisionEngine --> PolicySnapshotLoader
+PermissionDecisionEngine --> PolicyEvaluator
+PolicyEvaluator --> ResourceIntersection
+PermissionDecisionEngine --> DecisionCommitter
+DecisionCommitter --> SecurityUnitOfWork : T-D
+DecisionCommitter --> DecisionJournal
+DecisionCommitter --> PermitIssuer : allow
+DecisionCommitter --> AskWriter : ask
+PermissionDecisionEngine --> AuditGate : 交付前确认
+note bottom of PolicyEvaluator
+  冻结值输入，无 I/O
+  deny → ceiling → ask → allow → default deny
+end note
+note bottom of SecurityUnitOfWork
+  只读当前 Run 资格；写安全事实
+  不写 ToolCall，不含外部调用
+end note
+@enduml

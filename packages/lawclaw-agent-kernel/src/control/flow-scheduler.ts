@@ -1,4 +1,4 @@
-import type { DurableFlowStore } from "../contracts/flow-storage.ts";
+import type { AgentRunStore } from "../contracts/control/run-registry/run-storage.ts";
 import { FLOW_COMMAND_STATUS, REACT_FLOW_STATE } from "../contracts/react-flow-values.ts";
 import type { FlowDriver } from "./flow-driver.ts";
 
@@ -7,14 +7,16 @@ export const FLOW_SCHEDULER_LIMITS = Object.freeze({ maxConcurrentRoots: 2, maxR
 
 /** 负责发现和有界调度根Run；不解析HTTP、不拥有数据库生命周期。 */
 export class FlowScheduler {
-	readonly #store: DurableFlowStore;
+	readonly #store: AgentRunStore;
 	readonly #driver: Pick<FlowDriver, "drive" | "abort">;
+	readonly #recoverSessions: (() => void) | undefined;
 	readonly #running = new Map<string, Promise<void>>();
 	readonly #failures = new Map<string, string>();
 	#timer: ReturnType<typeof setInterval> | undefined;
 	#stopping = false;
 	/** 注入耐久目录和执行驱动；构造不启动后台任务。 */
-	constructor(store: DurableFlowStore, driver: Pick<FlowDriver, "drive" | "abort">) {
+	constructor(store: AgentRunStore, driver: Pick<FlowDriver, "drive" | "abort">, recoverSessions?: () => void) {
+		this.#recoverSessions = recoverSessions;
 		this.#store = store;
 		this.#driver = driver;
 	}
@@ -66,6 +68,7 @@ export class FlowScheduler {
 	}
 	#scan(): void {
 		try {
+			this.#recoverSessions?.();
 			for (const agentRunId of this.#store.listRunIds(FLOW_SCHEDULER_LIMITS.maxRuns)) {
 				const input = this.#store.load(agentRunId);
 				if (!input || input.run.depth !== 0) continue;

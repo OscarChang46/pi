@@ -10,13 +10,14 @@
 
 ## 接口、依赖与生命周期
 
-composition-root.ts 返回 AgentSystem；flow-composition.ts 装配耐久Flow服务；flow-http-server.ts 负责HTTP传输与生命周期，flow-http-routes.ts 按用例处理请求，后台调度在控制层。具体Adapter仅在装配边界创建。
+composition-root.ts 返回 AgentSystem；调用方以稳定 logicalKey 和 `SessionCreationIntent` 调用 `lookup/ensure`，Session ID 只从 `EnsureSessionResult.anchor` 取得。`RootSessionPreparationCoordinator` 编排 `lookup → candidate → ensure`，并在竞争失败时丢弃空历史候选、按赢家锚点重组；它不保存或采纳候选。flow-composition.ts 装配耐久Flow服务；flow-http-server.ts 负责HTTP传输与生命周期，flow-http-routes.ts 按用例处理请求，后台调度在控制层。具体Adapter仅在装配边界创建。
 
 ## 文件与子目录
 
 - [composition-root.ts](composition-root.ts)
 - [index.ts](index.ts)
 - [run-kernel.ts](run-kernel.ts)
+- [root-session-preparation.ts](root-session-preparation.ts)
 - [tool-composition.ts](tool-composition.ts)
 
 - [flow-composition.ts](flow-composition.ts)

@@ -28,12 +28,9 @@ layers:
       L1-CMP-005: "docs/design/layers/l1-control/components/session-manager.md"
       L1-CMP-006: "docs/design/layers/l1-control/components/run-registry.md"
       L1-CMP-007: "docs/design/layers/l1-control/components/run-scheduler.md"
-      L1-CMP-008: "docs/design/layers/l1-control/components/flow-engine.md"
+      L1-CMP-008: "docs/design/layers/l1-control/components/flow-engine/README.md"
       L1-CMP-009: "docs/design/layers/l1-control/components/context-engine.md"
       L1-CMP-010: "docs/design/layers/l1-control/components/memory-manager.md"
-      L1-CMP-011: "docs/design/layers/l1-control/components/resource-manager.md"
-      L1-CMP-012: "docs/design/layers/l1-control/components/runtime-pool.md"
-      L1-CMP-013: "docs/design/layers/l1-control/components/subagent-coordinator.md"
   - doc_id: "L2-DES-001"
     path: "docs/design/layers/l2-cognitive/README.md"
     diagram: "docs/design/diagrams/layers/02-l2-cognitive-components.puml"
@@ -46,9 +43,9 @@ layers:
     path: "docs/design/layers/security-plane/README.md"
     diagram: "docs/design/diagrams/layers/03-security-plane-components.puml"
     components:
-      SEC-CMP-001: "docs/design/layers/security-plane/components/permission-decision-engine.md"
+      SEC-CMP-001: "docs/design/layers/security-plane/components/permission-decision-engine/README.md"
       SEC-CMP-002: "docs/design/layers/security-plane/components/execution-permit.md"
-      SEC-CMP-003: "docs/design/layers/security-plane/components/pep-enforcement.md"
+      SEC-CMP-003: "docs/design/layers/security-plane/components/pep-enforcement/README.md"
       SEC-CMP-004: "docs/design/layers/security-plane/components/approval-bridge.md"
   - doc_id: "L3-DES-001"
     path: "docs/design/layers/l3-tool-runtime/README.md"
@@ -57,6 +54,7 @@ layers:
       L3-CMP-001: "docs/design/layers/l3-tool-runtime/components/tool-catalog-router.md"
       L3-CMP-002: "docs/design/layers/l3-tool-runtime/components/tool-call-runtime.md"
       L3-CMP-003: "docs/design/layers/l3-tool-runtime/components/tool-execution-guard.md"
+      L3-CMP-004: "docs/design/layers/l3-tool-runtime/components/tool-registry.md"
   - doc_id: "L4-DES-001"
     path: "docs/design/layers/l4-execution-runtime/README.md"
     diagram: "docs/design/diagrams/layers/05-l4-execution-runtime-components.puml"
@@ -77,14 +75,54 @@ layers:
     components:
       INF-CMP-001: "docs/design/layers/infrastructure-plane/components/state-storage.md"
       INF-CMP-002: "docs/design/layers/infrastructure-plane/components/artifact-storage.md"
-      INF-CMP-003: "docs/design/layers/infrastructure-plane/components/execution-capacity.md"
       INF-CMP-004: "docs/design/layers/infrastructure-plane/components/process-container.md"
       INF-CMP-005: "docs/design/layers/infrastructure-plane/components/transport.md"
       INF-CMP-006: "docs/design/layers/infrastructure-plane/components/model-egress.md"
       INF-CMP-007: "docs/design/layers/infrastructure-plane/components/secret-resolver.md"
       INF-CMP-008: "docs/design/layers/infrastructure-plane/components/clock-time.md"
 
+sr_documents:
+  SR-SESSION-01: "docs/design/layers/l1-control/components/session-manager/sr-01-root-session-lifecycle.md"
+  SR-SESSION-02: "docs/design/layers/l1-control/components/session-manager/sr-02-single-active-run.md"
+  SR-SESSION-03: "docs/design/layers/l1-control/components/session-manager/sr-03-subsession-fork-join.md"
+  AR-SM-JOIN-001: "docs/design/layers/l1-control/components/session-manager/join-barrier-state-machine.md"
+  SR-FE-SYS-01: "docs/design/layers/l1-control/components/flow-engine/sr-01-lifecycle.md"
+  SR-FE-SYS-02: "docs/design/layers/l1-control/components/flow-engine/sr-02-activity.md"
+  SR-FE-SYS-03: "docs/design/layers/l1-control/components/flow-engine/sr-03-task-graph.md"
+  SR-FE-SYS-04: "docs/design/layers/l1-control/components/flow-engine/deferred-scheduling-index.md"
+  FE-SYS-INDEX: "docs/design/layers/l1-control/components/flow-engine/protocol-index.md"
+
 document_sets:
+  l3_registry_domains:
+    root: "docs/design/layers/l3-tool-runtime/components/tool-registry"
+    required_ids: [L3-RG-01, L3-RG-02]
+  l3_catalog_domains:
+    root: "docs/design/layers/l3-tool-runtime/components/tool-catalog-router"
+    required_ids: [L3-CR-01, L3-CR-02]
+  l3_runtime_domains:
+    root: "docs/design/layers/l3-tool-runtime/components/tool-call-runtime"
+    required_ids: [L3-RT-01, L3-RT-02]
+  l3_guard_domains:
+    root: "docs/design/layers/l3-tool-runtime/components/tool-execution-guard"
+    required_ids: [L3-GD-01]
+  l4_provider_functional_domains:
+    root: "docs/design/layers/l4-execution-runtime/components/tool-provider-adapter"
+    required_ids: [L4-PROV-FD-INDEX, L4-PROV-FD-01, L4-PROV-FD-02]
+  l4_sandbox_functional_domains:
+    root: "docs/design/layers/l4-execution-runtime/components/sandbox-runtime"
+    required_ids: [L4-SBX-FD-INDEX, L4-SBX-FD-01, L4-SBX-FD-02]
+  pi_adapter_functional_domains:
+    root: "docs/design/layers/l2-cognitive/components/pi-agent-adapter"
+    required_ids: [PI-FD-INDEX, PI-FD-01, PI-FD-02, PI-FD-03]
+  client_components:
+    root: "docs/design/clients"
+    required_ids: [CLI-DES-001, CLI-CMP-001, CLI-PROTOCOL-INDEX, SR-TUI-01, SR-TUI-02, SR-TUI-03, SR-TUI-04, SR-TUI-05, SR-TUI-06]
+  context_functional_domains:
+    root: "docs/design/layers/l1-control/components/context-engine"
+    required_ids: [CTX-FD-INDEX, CTX-FD-01, CTX-FD-02, CTX-FD-03, CTX-FD-04, CTX-FD-05]
+  security_contracts:
+    root: "docs/design/layers/security-plane/contracts"
+    required_ids: [SEC-CON-001]
   contracts:
     root: "docs/design/contracts"
     required_ids: [SYS-CON-002, SYS-CON-003, BND-EXT-001, BND-L1-001, BND-L12-001, BND-SEC-001, BND-L13-001, BND-L34-001, BND-MEM-001, BND-MOD-001, BND-OPS-001, BND-INF-001]

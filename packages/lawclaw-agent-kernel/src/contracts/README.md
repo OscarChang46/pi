@@ -31,13 +31,14 @@ types.ts 承载既有模型边界；control.ts、tool-runtime.ts、permissions.t
 - [flow-dispatch.ts](flow-dispatch.ts)
 - [flow-engine.ts](flow-engine.ts)
 - [flow-permits.ts](flow-permits.ts)
-- [flow-storage.ts](flow-storage.ts)
+- [flow-storage.ts](control/run-registry/run-storage.ts)
 
-- [flow-system.ts](flow-system.ts)：通用系统四态和日志端口。
-- [flow-system-values.ts](flow-system-values.ts)：系统四态、生命周期动作、日志事件与图路由常量；类型从常量推导。
+- [flow-engine-contract.ts](control/flow-engine/flow-engine-contract.ts)：通用系统四态和日志端口。
+- [flow-engine-values.ts](control/flow-engine/flow-engine-values.ts)：系统四态、生命周期动作、日志事件与图路由常量；类型从常量推导。
 - [react-flow-values.ts](react-flow-values.ts)：ReAct位置、等待原因、命令状态、副作用与工单状态常量；系统执行框架不依赖此文件。
-- [flow-system-transitions.ts](flow-system-transitions.ts)：共享状态合法性表。
-- [flow-graph.ts](flow-graph.ts)：允许有向环的节点和路由契约。
+- [flow-engine-transitions.ts](control/flow-engine/flow-engine-transitions.ts)：共享状态合法性表。
+- [flow-graph.ts](control/flow-engine/flow-graph.ts)：允许有向环的节点和路由契约。
+- [session-manager-contract.ts](control/session-manager/session-manager-contract.ts)：Session 当前 Run 绑定状态和值对象。
 - [flow-value.ts](flow-value.ts)：有界规范JSON与摘要。
 
 flow-engine.ts保留ReAct业务输入和决策类型，不是通用系统状态协议。

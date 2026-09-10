@@ -1,0 +1,30 @@
+@startuml
+skinparam defaultFontName Hiragino Sans GB
+start
+:关闭旧订阅，getRun替换当前快照;
+:subscribe(after=快照cut);
+if (未知必填事件/协议不兼容?) then (是)
+ :关闭订阅，提示不兼容并停止;
+ stop
+endif
+if (缺口/订阅GONE?) then (是)
+ :关闭订阅并丢当前事件;
+ :重取快照；连续失败3次停stale;
+ stop
+endif
+if (耐久通知?) then (是)
+ :重复cursor丢弃；连续cursor推进;
+ :合并刷新getRun，不重放领域状态;
+ :查询cut落后cursor则有界补查;
+ :revision改变且非终态，换代重订阅等待start;
+else (临时文本)
+ if (偏移不连续或冲突?) then (是)
+  :清临时文本，重新同步;
+ else (否)
+  :当前block有界追加，旧流丢弃;
+ endif
+endif
+:一次展示一个消息/执行摘要页;
+:最终输出取快照；切换后无后台缓存;
+stop
+@enduml

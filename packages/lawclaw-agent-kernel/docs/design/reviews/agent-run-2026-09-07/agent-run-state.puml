@@ -1,0 +1,44 @@
+@startuml
+!include ../../diagrams/theme.puml
+title AgentRun 生命周期状态（评审提案）
+left to right direction
+skinparam linetype polyline
+skinparam ranksep 35
+skinparam nodesep 30
+
+[*] --> ACCEPTED : Run + 幂等回执已提交
+ACCEPTED --> QUEUED : Scheduler.enqueue
+QUEUED --> ACTIVE : 创建 Attempt\n获得有效 claim
+ACTIVE --> COMPLETED : 最终输出
+ACTIVE --> FAILED : 不可恢复失败
+ACTIVE --> SUSPENDED : 等待审批 / 结果未知
+SUSPENDED --> QUEUED : 可信唤醒事实
+ACTIVE --> RECOVERING : claim 丢失 / 崩溃
+RECOVERING --> QUEUED : 安全恢复，新 Attempt
+RECOVERING --> SUSPENDED : 外部效果未知
+RECOVERING --> FAILED : 无安全恢复路径
+ACTIVE --> CANCELLED : 取消栅栏 + 收敛
+
+COMPLETED --> [*]
+FAILED --> [*]
+CANCELLED --> [*]
+
+note left of ACTIVE
+  ACTIVE 内部位置：
+  Ready
+  AwaitingModel
+  AwaitingPermission
+  AwaitingTool
+  AwaitingChild
+end note
+
+note right of ACTIVE
+  生命周期与内部位置来自同一 Run 快照。
+  Session 不保存状态副本。
+end note
+
+note right of CANCELLED
+  任意非终态均可建立取消栅栏。
+  栅栏之后禁止创建新外部动作。
+end note
+@enduml

@@ -2,8 +2,8 @@ import { createModels, fauxAssistantMessage, fauxProvider, fauxText, fauxToolCal
 import { builtinModels } from "@earendil-works/pi-ai/providers/all";
 import { ModelRuntime } from "@earendil-works/pi-coding-agent";
 import { RuntimeConfigurationError, type RuntimeSettings } from "../../config/index.ts";
-import type { AdapterMessageStore } from "../../contracts/flow-artifacts.ts";
 import type { AgentAdapter, TimePort } from "../../contracts/index.ts";
+import { PiContextAdapter } from "../../infrastructure/adapters/pi-context/pi-context-adapter.ts";
 import { PiAgentAdapter } from "./pi-agent-adapter.ts";
 
 /** Pi 私有装配工厂；仅返回规范化 AgentAdapter，模型 SDK 类型不进入应用入口。 */
@@ -11,6 +11,7 @@ export function createPiAdapter(settings: RuntimeSettings, timePort: TimePort): 
 	let adapter: PiAgentAdapter;
 	const selection = settings.config.model;
 	const scenario = settings.config.runtime.fauxScenario;
+	const converter = new PiContextAdapter();
 
 	if (selection.source === "faux") {
 		const faux = fauxProvider({
@@ -43,6 +44,7 @@ export function createPiAdapter(settings: RuntimeSettings, timePort: TimePort): 
 			models.streamSimple.bind(models),
 			settings.config.kernel.piAdapter,
 			timePort,
+			(payload) => converter.toModelInput(payload),
 		);
 	} else {
 		const models = builtinModels();
@@ -50,7 +52,13 @@ export function createPiAdapter(settings: RuntimeSettings, timePort: TimePort): 
 		if (!model) {
 			throw new RuntimeConfigurationError(`模型目录中不存在配置项 ${selection.providerId}/${selection.modelId}。`);
 		}
-		adapter = new PiAgentAdapter(model, models.streamSimple.bind(models), settings.config.kernel.piAdapter, timePort);
+		adapter = new PiAgentAdapter(
+			model,
+			models.streamSimple.bind(models),
+			settings.config.kernel.piAdapter,
+			timePort,
+			(payload) => converter.toModelInput(payload),
+		);
 	}
 
 	return adapter;
@@ -68,13 +76,12 @@ export interface ConfiguredFlowModelOptions {
 	readonly modelId: string;
 	/** 可信时钟。 */
 	readonly time: TimePort;
-	/** Adapter私有消息持久端口。 */
-	readonly messages: AdapterMessageStore;
 }
 
-/** 复用Pi的models.json加载与认证机制，返回具备耐久私有消息的单轮Adapter。 */
+/** 复用 Pi 模型配置及认证；单轮 Adapter 只转换已采纳的规范载荷。 */
 export async function createConfiguredFlowModel(options: ConfiguredFlowModelOptions): Promise<AgentAdapter> {
-	const { modelsPath, dataDirectory, providerId, modelId, time, messages } = options;
+	const { modelsPath, dataDirectory, providerId, modelId, time } = options;
+	const converter = new PiContextAdapter();
 	const runtime = await ModelRuntime.create({
 		modelsPath,
 		authPath: `${dataDirectory}/model-auth.json`,
@@ -83,11 +90,7 @@ export async function createConfiguredFlowModel(options: ConfiguredFlowModelOpti
 	});
 	const model = runtime.getModel(providerId, modelId);
 	if (!model || !runtime.hasConfiguredAuth(providerId)) throw new Error("FLOW_MODEL_CONFIG_UNAVAILABLE");
-	return new PiAgentAdapter(
-		model,
-		runtime.streamSimple.bind(runtime),
-		{ maxPrivateMessages: 1024, maxRetries: 0 },
-		time,
-		messages,
+	return new PiAgentAdapter(model, runtime.streamSimple.bind(runtime), { maxRetries: 0 }, time, (payload) =>
+		converter.toModelInput(payload),
 	);
 }

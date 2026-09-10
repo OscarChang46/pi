@@ -270,10 +270,16 @@ function checkSessionSnapshot(value: unknown): boolean {
 	);
 }
 
-function checkContextFrame(value: unknown): boolean {
+function checkRunContextBinding(value: unknown): boolean {
 	return (
 		record(value) &&
-		Object.keys(value).length === 6 &&
+		Object.keys(value).length === 12 &&
+		checkCounter(value.inputBytes) &&
+		checkArtifactRef(value.basisRef) &&
+		checkRef(value.inputDigest) &&
+		checkRef(value.payloadDigest) &&
+		checkRef(value.formatVersion) &&
+		checkRef(value.modelAdapterVersion) &&
 		Object.hasOwn(value, "frameId") &&
 		checkRef(value.frameId) &&
 		Object.hasOwn(value, "bindings") &&
@@ -523,7 +529,7 @@ function checkAdvanceInput(value: unknown): boolean {
 		Object.hasOwn(value, "session") &&
 		checkSessionSnapshot(value.session) &&
 		Object.hasOwn(value, "context") &&
-		(checkContextFrame(value.context) || value.context === null) &&
+		(checkRunContextBinding(value.context) || value.context === null) &&
 		Object.hasOwn(value, "contextFailure") &&
 		(value.contextFailure === "unavailable" ||
 			value.contextFailure === "limit_exceeded" ||

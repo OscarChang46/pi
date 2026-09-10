@@ -1,0 +1,56 @@
+@startuml
+!include ../../theme.puml
+title D1：PDP 决策（S1 / S4 / S5）
+start
+:L1提交冻结请求;
+if (可信身份 / Scope / Schema 合法?) then (否)
+ :返回安全/契约错误，执行0;
+ stop
+endif
+if (同 command 有记录?) then (是)
+ :进入D3，校验同键同载荷及审计;
+ stop
+endif
+:Verifier复算动作与目标摘要;
+:Loader读取固定策略、全部上限、
+当前授权、Run资格与批准事实;
+if (输入完整且版本有效?) then (否)
+ :拒绝或 unavailable；不求值;
+ stop
+endif
+if (命中显式 deny?) then (是)
+ :Evaluation = deny;
+elseif (需求超出任一上限?) then (是)
+ :Evaluation = deny;
+elseif (命中 ask?) then (是)
+ if (批准未提供 / pending?) then (是)
+  :Evaluation = ask;
+ elseif (批准完整绑定且未到期?) then (是)
+  :Evaluation = allow;
+ else (否)
+  :Evaluation = deny;
+ endif
+elseif (命中显式 allow?) then (是)
+ :Evaluation = allow;
+else (否)
+ :Evaluation = deny（默认）;
+endif
+:T-D 重读版本、取消、截止及批准;
+if (当前守卫仍成立?) then (否)
+ :错误返回；不提交旧求值结果;
+ stop
+endif
+if (非工具动作且Evaluation = ask?) then (是)
+ :映射deny(ACTION_APPROVAL_REQUIRED)；
+不创建审批请求或等待;
+endif
+:原子写Decision + Permit或工具Approval
+及必要审计/投递意图;
+if (必要审计确认?) then (否)
+ :audit_pending；进入D3，依赖动作0;
+ stop
+endif
+:返回 Allow / Ask / Deny；
+PDP不执行受保护动作;
+stop
+@enduml

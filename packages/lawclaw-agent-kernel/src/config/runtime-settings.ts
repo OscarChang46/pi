@@ -40,30 +40,16 @@ export interface PromptSelectionConfig {
 	readonly childAgentSystemPromptId: string;
 }
 
-/** ContextEngine 的保守 Token 估算参数。 */
-export interface ContextEngineConfig {
-	/** 一个 Token 对应的估算字符数。 */
-	readonly estimatedCharactersPerToken: number;
-	/** 系统提示词和目标之外的固定协议开销。 */
-	readonly fixedPromptOverheadTokens: number;
-	/** 工具消息或工具调用的协议开销。 */
-	readonly messageOverheadTokens: number;
-	/** 单个 ContextItem 的包装开销。 */
-	readonly contextItemOverheadTokens: number;
-}
-
 /** ToolCoordinator 的目录容量配置。 */
 export interface ToolRuntimeConfig {
 	/** 单个 Runtime 可注册的最大工具数。 */
 	readonly maxRegisteredTools: number;
 }
 
-/** 控制入口的会话和关联 Run 容量配置；键名沿用现有配置。 */
+/** 控制入口的会话容量配置。 */
 export interface AgentObjectModelConfig {
 	/** 控制入口在内存中最多管理的 Session 数。 */
 	readonly maxSessions: number;
-	/** 单个 Session 最多关联的 Run 数；Run 由独立目录持有。 */
-	readonly maxRunsPerSession: number;
 }
 
 /** DelegationEngine 和委派工具配置。 */
@@ -74,27 +60,23 @@ export interface DelegationEngineConfig {
 	readonly delegationToolMaxResultBytes: number;
 }
 
-/** PiAgentAdapter 私有状态配置。 */
+/** PiAgentAdapter 重试配置。 */
 export interface PiAdapterConfig {
-	/** Adapter 私有原生消息引用缓存上限。 */
-	readonly maxPrivateMessages: number;
 	/** 单次 Pi 模型 Turn 的底层重试次数。 */
 	readonly maxRetries: number;
 }
 
 /** Kernel 内部组件的可调运行配置。 */
 export interface KernelRuntimeConfig {
-	/** 控制入口会话与 Run 关联数量的容量上限。 */
+	/** 控制入口会话数量的容量上限。 */
 	readonly objectModel: AgentObjectModelConfig;
-	/** Context 估算参数。 */
-	readonly context: ContextEngineConfig;
 	/** 工具目录参数。 */
 	readonly toolRuntime: ToolRuntimeConfig;
 	/** 技术委派参数。 */
 	readonly delegation: DelegationEngineConfig;
 	/** 单次 Run 请求不能突破的配置上限。 */
 	readonly runLimits: AgentExecutionBudget;
-	/** Pi Adapter 缓存和重试参数。 */
+	/** Pi Adapter 重试参数。 */
 	readonly piAdapter: PiAdapterConfig;
 }
 
@@ -418,27 +400,14 @@ function parseRuntimeConfig(value: unknown): RuntimeConfig {
 		"cliSafetyAppendixId",
 		"childAgentSystemPromptId",
 	]);
-	const kernel = object(root.kernel, "kernel", [
-		"objectModel",
-		"context",
-		"toolRuntime",
-		"delegation",
-		"runLimits",
-		"piAdapter",
-	]);
-	const objectModel = object(kernel.objectModel, "kernel.objectModel", ["maxSessions", "maxRunsPerSession"]);
-	const context = object(kernel.context, "kernel.context", [
-		"estimatedCharactersPerToken",
-		"fixedPromptOverheadTokens",
-		"messageOverheadTokens",
-		"contextItemOverheadTokens",
-	]);
+	const kernel = object(root.kernel, "kernel", ["objectModel", "toolRuntime", "delegation", "runLimits", "piAdapter"]);
+	const objectModel = object(kernel.objectModel, "kernel.objectModel", ["maxSessions"]);
 	const toolRuntime = object(kernel.toolRuntime, "kernel.toolRuntime", ["maxRegisteredTools"]);
 	const delegation = object(kernel.delegation, "kernel.delegation", [
 		"maxTrackedParents",
 		"delegationToolMaxResultBytes",
 	]);
-	const piAdapter = object(kernel.piAdapter, "kernel.piAdapter", ["maxPrivateMessages", "maxRetries"]);
+	const piAdapter = object(kernel.piAdapter, "kernel.piAdapter", ["maxRetries"]);
 	const tools = object(root.tools, "tools", ["readOnly"]);
 	const readOnly = object(tools.readOnly, "tools.readOnly", [
 		"maxFileBytes",
@@ -521,31 +490,6 @@ function parseRuntimeConfig(value: unknown): RuntimeConfig {
 					min: 1,
 					max: 65_536,
 				}),
-				maxRunsPerSession: safeInteger(objectModel.maxRunsPerSession, "kernel.objectModel.maxRunsPerSession", {
-					min: 1,
-					max: 65_536,
-				}),
-			}),
-			context: Object.freeze({
-				estimatedCharactersPerToken: safeInteger(
-					context.estimatedCharactersPerToken,
-					"kernel.context.estimatedCharactersPerToken",
-					{ min: 1, max: 16 },
-				),
-				fixedPromptOverheadTokens: safeInteger(
-					context.fixedPromptOverheadTokens,
-					"kernel.context.fixedPromptOverheadTokens",
-					{ min: 0, max: 4096 },
-				),
-				messageOverheadTokens: safeInteger(context.messageOverheadTokens, "kernel.context.messageOverheadTokens", {
-					min: 0,
-					max: 4096,
-				}),
-				contextItemOverheadTokens: safeInteger(
-					context.contextItemOverheadTokens,
-					"kernel.context.contextItemOverheadTokens",
-					{ min: 0, max: 4096 },
-				),
 			}),
 			toolRuntime: Object.freeze({
 				maxRegisteredTools: safeInteger(toolRuntime.maxRegisteredTools, "kernel.toolRuntime.maxRegisteredTools", {
@@ -566,10 +510,6 @@ function parseRuntimeConfig(value: unknown): RuntimeConfig {
 			}),
 			runLimits: parseBudget(kernel.runLimits, "kernel.runLimits"),
 			piAdapter: Object.freeze({
-				maxPrivateMessages: safeInteger(piAdapter.maxPrivateMessages, "kernel.piAdapter.maxPrivateMessages", {
-					min: 1,
-					max: 65_536,
-				}),
 				maxRetries: safeInteger(piAdapter.maxRetries, "kernel.piAdapter.maxRetries", { min: 0, max: 3 }),
 			}),
 		}),

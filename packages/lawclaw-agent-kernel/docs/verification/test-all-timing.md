@@ -1,3 +1,17 @@
+---
+doc_id: VER-TIMING-001
+level: verification
+layer: cross-layer
+component: Verification
+status: candidate
+baseline: AKB-2026-09-03-09
+authoritative_for: "全量测试执行、耗时统计口径与报告使用说明"
+parent: VER-INDEX-001
+interfaces: []
+diagrams: []
+supersedes: []
+---
+
 # 全量测试与耗时统计
 
 ## 使用方法

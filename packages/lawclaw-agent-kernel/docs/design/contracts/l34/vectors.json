@@ -1,0 +1,1590 @@
+{
+  "schemaVectors": [
+    {
+      "id": "valid-hello",
+      "definition": "Frame",
+      "valid": true,
+      "value": {
+        "protocol": "l34",
+        "version": "1.0",
+        "sessionId": "s1",
+        "requestId": "hello",
+        "seq": 1,
+        "type": "hello",
+        "body": {
+          "versions": [
+            "1.0"
+          ],
+          "maxFrameBytes": 65536
+        }
+      }
+    },
+    {
+      "id": "valid-helloAck",
+      "definition": "Frame",
+      "valid": true,
+      "value": {
+        "protocol": "l34",
+        "version": "1.0",
+        "sessionId": "s1",
+        "requestId": "hello",
+        "seq": 1,
+        "type": "helloAck",
+        "body": {
+          "selectedVersion": "1.0",
+          "maxFrameBytes": 65536,
+          "maxInFlight": 6,
+          "querySupported": true,
+          "cancelSupported": true
+        }
+      }
+    },
+    {
+      "id": "valid-execute",
+      "definition": "Frame",
+      "valid": true,
+      "value": {
+        "protocol": "l34",
+        "version": "1.0",
+        "sessionId": "s1",
+        "requestId": "e1",
+        "seq": 2,
+        "type": "execute",
+        "body": {
+          "plan": {
+            "commandId": "c1",
+            "operationKey": "c1",
+            "descriptorRef": "d1",
+            "argumentsRef": {
+              "id": "a1",
+              "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+              "bytes": 2
+            },
+            "route": {
+              "routeRef": "r1",
+              "version": 1,
+              "kind": "provider",
+              "adapterBindingRef": "p1",
+              "resourceScopeRef": "rs1",
+              "querySupported": true,
+              "cancelSupported": true
+            },
+            "scopeRef": "s1",
+            "startGrantRef": "g1",
+            "deadlineAtMs": 1800000060000,
+            "limits": {
+              "cpuMillis": 0,
+              "memoryBytes": 0,
+              "pids": 0,
+              "diskBytes": 0,
+              "outputBytes": 262144,
+              "network": "deny",
+              "mountsRef": "none"
+            },
+            "resourceProfileRef": {
+              "id": "profile1",
+              "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+              "bytes": 256
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "valid-inspect",
+      "definition": "Frame",
+      "valid": true,
+      "value": {
+        "protocol": "l34",
+        "version": "1.0",
+        "sessionId": "s1",
+        "requestId": "e1",
+        "seq": 2,
+        "type": "inspect",
+        "body": {
+          "locator": {
+            "commandId": "c1",
+            "operationKey": "c1",
+            "routeRef": "r1"
+          },
+          "deadlineAtMs": 1800000002000
+        }
+      }
+    },
+    {
+      "id": "valid-cancel",
+      "definition": "Frame",
+      "valid": true,
+      "value": {
+        "protocol": "l34",
+        "version": "1.0",
+        "sessionId": "s1",
+        "requestId": "e1",
+        "seq": 2,
+        "type": "cancel",
+        "body": {
+          "locator": {
+            "commandId": "c1",
+            "operationKey": "c1",
+            "routeRef": "r1"
+          },
+          "deadlineAtMs": 1800000002000
+        }
+      }
+    },
+    {
+      "id": "valid-result",
+      "definition": "Frame",
+      "valid": true,
+      "value": {
+        "protocol": "l34",
+        "version": "1.0",
+        "sessionId": "s1",
+        "requestId": "e1",
+        "seq": 2,
+        "type": "result",
+        "body": {
+          "reply": {
+            "locator": {
+              "commandId": "c1",
+              "operationKey": "c1",
+              "routeRef": "r1"
+            },
+            "outcome": "success",
+            "effect": "none",
+            "resultRef": {
+              "id": "a1",
+              "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+              "bytes": 2
+            },
+            "error": null,
+            "evidenceRef": "ev1"
+          }
+        }
+      }
+    },
+    {
+      "id": "valid-inspected",
+      "definition": "Frame",
+      "valid": true,
+      "value": {
+        "protocol": "l34",
+        "version": "1.0",
+        "sessionId": "s1",
+        "requestId": "e1",
+        "seq": 2,
+        "type": "inspected",
+        "body": {
+          "query": {
+            "state": "unknown",
+            "locator": {
+              "commandId": "c1",
+              "operationKey": "c1",
+              "routeRef": "r1"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "valid-cancelled",
+      "definition": "Frame",
+      "valid": true,
+      "value": {
+        "protocol": "l34",
+        "version": "1.0",
+        "sessionId": "s1",
+        "requestId": "e1",
+        "seq": 2,
+        "type": "cancelled",
+        "body": {
+          "cancel": {
+            "locator": {
+              "commandId": "c1",
+              "operationKey": "c1",
+              "routeRef": "r1"
+            },
+            "state": "requested",
+            "evidenceRef": null
+          }
+        }
+      }
+    },
+    {
+      "id": "valid-fault",
+      "definition": "Frame",
+      "valid": true,
+      "value": {
+        "protocol": "l34",
+        "version": "1.0",
+        "sessionId": "s1",
+        "requestId": "e1",
+        "seq": 2,
+        "type": "fault",
+        "body": {
+          "error": {
+            "code": "UNKNOWN",
+            "retryable": false,
+            "detailsRef": null
+          }
+        }
+      }
+    },
+    {
+      "id": "valid-close",
+      "definition": "Frame",
+      "valid": true,
+      "value": {
+        "protocol": "l34",
+        "version": "1.0",
+        "sessionId": "s1",
+        "requestId": "e1",
+        "seq": 2,
+        "type": "close",
+        "body": {
+          "reason": "normal"
+        }
+      }
+    },
+    {
+      "id": "provider-profile",
+      "definition": "ResourceProfile",
+      "valid": true,
+      "value": {
+        "kind": "provider",
+        "profileId": "profile1",
+        "resourceScopeRef": "rs1",
+        "inputBytes": 65536,
+        "outputBytes": 262144,
+        "frameBytes": 65536,
+        "queueBytes": 262144,
+        "cleanupTimeoutMs": 30000,
+        "egressRefs": [],
+        "secretHandleRefs": []
+      }
+    },
+    {
+      "id": "sandbox-profile",
+      "definition": "ResourceProfile",
+      "valid": true,
+      "value": {
+        "kind": "sandbox",
+        "profileId": "profile1",
+        "resourceScopeRef": "rs1",
+        "inputBytes": 65536,
+        "outputBytes": 262144,
+        "frameBytes": 65536,
+        "queueBytes": 262144,
+        "cleanupTimeoutMs": 30000,
+        "egressRefs": [],
+        "secretHandleRefs": [],
+        "workloadRef": {
+          "id": "a1",
+          "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+          "bytes": 2
+        },
+        "cpuMillis": 5000,
+        "memoryBytes": 67108864,
+        "pids": 8,
+        "diskBytes": 0,
+        "maxOpenFiles": 32,
+        "mountsRef": "m1",
+        "mounts": []
+      }
+    },
+    {
+      "id": "tool-target",
+      "definition": "ToolTargetV1",
+      "valid": true,
+      "value": {
+        "version": "l34-target-1",
+        "proposal": {
+          "proposalId": "p1",
+          "toolDescriptorRef": "d1",
+          "toolDescriptorDigest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+          "argumentsRef": {
+            "id": "a1",
+            "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+            "bytes": 2
+          },
+          "actionDigest": "sha256:3333333333333333333333333333333333333333333333333333333333333333"
+        },
+        "route": {
+          "routeRef": "r1",
+          "version": 1,
+          "kind": "provider",
+          "adapterBindingRef": "p1",
+          "resourceScopeRef": "rs1",
+          "querySupported": true,
+          "cancelSupported": true
+        },
+        "resourceProfileRef": {
+          "id": "profile1",
+          "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+          "bytes": 256
+        },
+        "limits": {
+          "cpuMillis": 0,
+          "memoryBytes": 0,
+          "pids": 0,
+          "diskBytes": 0,
+          "outputBytes": 262144,
+          "network": "deny",
+          "mountsRef": "none"
+        },
+        "scopeRef": "s1",
+        "deadlineAtMs": 1800000060000
+      }
+    },
+    {
+      "id": "admission",
+      "definition": "ExecutionAdmission",
+      "valid": true,
+      "value": {
+        "scopeRef": "s1",
+        "commandId": "c1",
+        "executorRef": "ex1",
+        "startGrantRef": "g1",
+        "planDigest": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+        "expiresAtMs": 1800000060000
+      }
+    },
+    {
+      "id": "unknown-version",
+      "definition": "Frame",
+      "valid": false,
+      "value": {
+        "protocol": "l34",
+        "version": "2.0",
+        "sessionId": "s1",
+        "requestId": "e1",
+        "seq": 2,
+        "type": "execute",
+        "body": {
+          "plan": {
+            "commandId": "c1",
+            "operationKey": "c1",
+            "descriptorRef": "d1",
+            "argumentsRef": {
+              "id": "a1",
+              "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+              "bytes": 2
+            },
+            "route": {
+              "routeRef": "r1",
+              "version": 1,
+              "kind": "provider",
+              "adapterBindingRef": "p1",
+              "resourceScopeRef": "rs1",
+              "querySupported": true,
+              "cancelSupported": true
+            },
+            "scopeRef": "s1",
+            "startGrantRef": "g1",
+            "deadlineAtMs": 1800000060000,
+            "limits": {
+              "cpuMillis": 0,
+              "memoryBytes": 0,
+              "pids": 0,
+              "diskBytes": 0,
+              "outputBytes": 262144,
+              "network": "deny",
+              "mountsRef": "none"
+            },
+            "resourceProfileRef": {
+              "id": "profile1",
+              "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+              "bytes": 256
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "unknown-field",
+      "definition": "Frame",
+      "valid": false,
+      "value": {
+        "protocol": "l34",
+        "version": "1.0",
+        "sessionId": "s1",
+        "requestId": "e1",
+        "seq": 2,
+        "type": "execute",
+        "body": {
+          "plan": {
+            "commandId": "c1",
+            "operationKey": "c1",
+            "descriptorRef": "d1",
+            "argumentsRef": {
+              "id": "a1",
+              "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+              "bytes": 2
+            },
+            "route": {
+              "routeRef": "r1",
+              "version": 1,
+              "kind": "provider",
+              "adapterBindingRef": "p1",
+              "resourceScopeRef": "rs1",
+              "querySupported": true,
+              "cancelSupported": true
+            },
+            "scopeRef": "s1",
+            "startGrantRef": "g1",
+            "deadlineAtMs": 1800000060000,
+            "limits": {
+              "cpuMillis": 0,
+              "memoryBytes": 0,
+              "pids": 0,
+              "diskBytes": 0,
+              "outputBytes": 262144,
+              "network": "deny",
+              "mountsRef": "none"
+            },
+            "resourceProfileRef": {
+              "id": "profile1",
+              "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+              "bytes": 256
+            }
+          }
+        },
+        "debug": true
+      }
+    },
+    {
+      "id": "missing-profile",
+      "definition": "Frame",
+      "valid": false,
+      "value": {
+        "protocol": "l34",
+        "version": "1.0",
+        "sessionId": "s1",
+        "requestId": "e1",
+        "seq": 2,
+        "type": "execute",
+        "body": {
+          "plan": {
+            "commandId": "c1",
+            "operationKey": "c1",
+            "descriptorRef": "d1",
+            "argumentsRef": {
+              "id": "a1",
+              "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+              "bytes": 2
+            },
+            "route": {
+              "routeRef": "r1",
+              "version": 1,
+              "kind": "provider",
+              "adapterBindingRef": "p1",
+              "resourceScopeRef": "rs1",
+              "querySupported": true,
+              "cancelSupported": true
+            },
+            "scopeRef": "s1",
+            "startGrantRef": "g1",
+            "deadlineAtMs": 1800000060000,
+            "limits": {
+              "cpuMillis": 0,
+              "memoryBytes": 0,
+              "pids": 0,
+              "diskBytes": 0,
+              "outputBytes": 262144,
+              "network": "deny",
+              "mountsRef": "none"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "null-grant",
+      "definition": "Frame",
+      "valid": false,
+      "value": {
+        "protocol": "l34",
+        "version": "1.0",
+        "sessionId": "s1",
+        "requestId": "e1",
+        "seq": 2,
+        "type": "execute",
+        "body": {
+          "plan": {
+            "commandId": "c1",
+            "operationKey": "c1",
+            "descriptorRef": "d1",
+            "argumentsRef": {
+              "id": "a1",
+              "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+              "bytes": 2
+            },
+            "route": {
+              "routeRef": "r1",
+              "version": 1,
+              "kind": "provider",
+              "adapterBindingRef": "p1",
+              "resourceScopeRef": "rs1",
+              "querySupported": true,
+              "cancelSupported": true
+            },
+            "scopeRef": "s1",
+            "startGrantRef": null,
+            "deadlineAtMs": 1800000060000,
+            "limits": {
+              "cpuMillis": 0,
+              "memoryBytes": 0,
+              "pids": 0,
+              "diskBytes": 0,
+              "outputBytes": 262144,
+              "network": "deny",
+              "mountsRef": "none"
+            },
+            "resourceProfileRef": {
+              "id": "profile1",
+              "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+              "bytes": 256
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "zero-seq",
+      "definition": "Frame",
+      "valid": false,
+      "value": {
+        "protocol": "l34",
+        "version": "1.0",
+        "sessionId": "s1",
+        "requestId": "e1",
+        "seq": 0,
+        "type": "execute",
+        "body": {
+          "plan": {
+            "commandId": "c1",
+            "operationKey": "c1",
+            "descriptorRef": "d1",
+            "argumentsRef": {
+              "id": "a1",
+              "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+              "bytes": 2
+            },
+            "route": {
+              "routeRef": "r1",
+              "version": 1,
+              "kind": "provider",
+              "adapterBindingRef": "p1",
+              "resourceScopeRef": "rs1",
+              "querySupported": true,
+              "cancelSupported": true
+            },
+            "scopeRef": "s1",
+            "startGrantRef": "g1",
+            "deadlineAtMs": 1800000060000,
+            "limits": {
+              "cpuMillis": 0,
+              "memoryBytes": 0,
+              "pids": 0,
+              "diskBytes": 0,
+              "outputBytes": 262144,
+              "network": "deny",
+              "mountsRef": "none"
+            },
+            "resourceProfileRef": {
+              "id": "profile1",
+              "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+              "bytes": 256
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "float-deadline",
+      "definition": "Frame",
+      "valid": false,
+      "value": {
+        "protocol": "l34",
+        "version": "1.0",
+        "sessionId": "s1",
+        "requestId": "e1",
+        "seq": 2,
+        "type": "execute",
+        "body": {
+          "plan": {
+            "commandId": "c1",
+            "operationKey": "c1",
+            "descriptorRef": "d1",
+            "argumentsRef": {
+              "id": "a1",
+              "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+              "bytes": 2
+            },
+            "route": {
+              "routeRef": "r1",
+              "version": 1,
+              "kind": "provider",
+              "adapterBindingRef": "p1",
+              "resourceScopeRef": "rs1",
+              "querySupported": true,
+              "cancelSupported": true
+            },
+            "scopeRef": "s1",
+            "startGrantRef": "g1",
+            "deadlineAtMs": 1.5,
+            "limits": {
+              "cpuMillis": 0,
+              "memoryBytes": 0,
+              "pids": 0,
+              "diskBytes": 0,
+              "outputBytes": 262144,
+              "network": "deny",
+              "mountsRef": "none"
+            },
+            "resourceProfileRef": {
+              "id": "profile1",
+              "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+              "bytes": 256
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "output-over-limit",
+      "definition": "Frame",
+      "valid": false,
+      "value": {
+        "protocol": "l34",
+        "version": "1.0",
+        "sessionId": "s1",
+        "requestId": "e1",
+        "seq": 2,
+        "type": "execute",
+        "body": {
+          "plan": {
+            "commandId": "c1",
+            "operationKey": "c1",
+            "descriptorRef": "d1",
+            "argumentsRef": {
+              "id": "a1",
+              "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+              "bytes": 2
+            },
+            "route": {
+              "routeRef": "r1",
+              "version": 1,
+              "kind": "provider",
+              "adapterBindingRef": "p1",
+              "resourceScopeRef": "rs1",
+              "querySupported": true,
+              "cancelSupported": true
+            },
+            "scopeRef": "s1",
+            "startGrantRef": "g1",
+            "deadlineAtMs": 1800000060000,
+            "limits": {
+              "cpuMillis": 0,
+              "memoryBytes": 0,
+              "pids": 0,
+              "diskBytes": 0,
+              "outputBytes": 262145,
+              "network": "deny",
+              "mountsRef": "none"
+            },
+            "resourceProfileRef": {
+              "id": "profile1",
+              "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+              "bytes": 256
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "unknown-route-kind",
+      "definition": "Frame",
+      "valid": false,
+      "value": {
+        "protocol": "l34",
+        "version": "1.0",
+        "sessionId": "s1",
+        "requestId": "e1",
+        "seq": 2,
+        "type": "execute",
+        "body": {
+          "plan": {
+            "commandId": "c1",
+            "operationKey": "c1",
+            "descriptorRef": "d1",
+            "argumentsRef": {
+              "id": "a1",
+              "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+              "bytes": 2
+            },
+            "route": {
+              "routeRef": "r1",
+              "version": 1,
+              "kind": "shell",
+              "adapterBindingRef": "p1",
+              "resourceScopeRef": "rs1",
+              "querySupported": true,
+              "cancelSupported": true
+            },
+            "scopeRef": "s1",
+            "startGrantRef": "g1",
+            "deadlineAtMs": 1800000060000,
+            "limits": {
+              "cpuMillis": 0,
+              "memoryBytes": 0,
+              "pids": 0,
+              "diskBytes": 0,
+              "outputBytes": 262144,
+              "network": "deny",
+              "mountsRef": "none"
+            },
+            "resourceProfileRef": {
+              "id": "profile1",
+              "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+              "bytes": 256
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "bad-ref",
+      "definition": "Frame",
+      "valid": false,
+      "value": {
+        "protocol": "l34",
+        "version": "1.0",
+        "sessionId": "s1",
+        "requestId": "e1",
+        "seq": 2,
+        "type": "execute",
+        "body": {
+          "plan": {
+            "commandId": "c1",
+            "operationKey": "c1",
+            "descriptorRef": "d1",
+            "argumentsRef": {
+              "id": "a1",
+              "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+              "bytes": 2
+            },
+            "route": {
+              "routeRef": "r1",
+              "version": 1,
+              "kind": "provider",
+              "adapterBindingRef": "p1",
+              "resourceScopeRef": "rs1",
+              "querySupported": true,
+              "cancelSupported": true
+            },
+            "scopeRef": "../s1",
+            "startGrantRef": "g1",
+            "deadlineAtMs": 1800000060000,
+            "limits": {
+              "cpuMillis": 0,
+              "memoryBytes": 0,
+              "pids": 0,
+              "diskBytes": 0,
+              "outputBytes": 262144,
+              "network": "deny",
+              "mountsRef": "none"
+            },
+            "resourceProfileRef": {
+              "id": "profile1",
+              "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+              "bytes": 256
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "ref-trailing-lf",
+      "definition": "Frame",
+      "valid": false,
+      "value": {
+        "protocol": "l34",
+        "version": "1.0",
+        "sessionId": "s1",
+        "requestId": "e1",
+        "seq": 2,
+        "type": "execute",
+        "body": {
+          "plan": {
+            "commandId": "c1",
+            "operationKey": "c1",
+            "descriptorRef": "d1",
+            "argumentsRef": {
+              "id": "a1",
+              "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+              "bytes": 2
+            },
+            "route": {
+              "routeRef": "r1",
+              "version": 1,
+              "kind": "provider",
+              "adapterBindingRef": "p1",
+              "resourceScopeRef": "rs1",
+              "querySupported": true,
+              "cancelSupported": true
+            },
+            "scopeRef": "s1\n",
+            "startGrantRef": "g1",
+            "deadlineAtMs": 1800000060000,
+            "limits": {
+              "cpuMillis": 0,
+              "memoryBytes": 0,
+              "pids": 0,
+              "diskBytes": 0,
+              "outputBytes": 262144,
+              "network": "deny",
+              "mountsRef": "none"
+            },
+            "resourceProfileRef": {
+              "id": "profile1",
+              "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+              "bytes": 256
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "wrong-digest",
+      "definition": "Frame",
+      "valid": false,
+      "value": {
+        "protocol": "l34",
+        "version": "1.0",
+        "sessionId": "s1",
+        "requestId": "e1",
+        "seq": 2,
+        "type": "execute",
+        "body": {
+          "plan": {
+            "commandId": "c1",
+            "operationKey": "c1",
+            "descriptorRef": "d1",
+            "argumentsRef": {
+              "id": "a1",
+              "digest": "sha256:abc",
+              "bytes": 2
+            },
+            "route": {
+              "routeRef": "r1",
+              "version": 1,
+              "kind": "provider",
+              "adapterBindingRef": "p1",
+              "resourceScopeRef": "rs1",
+              "querySupported": true,
+              "cancelSupported": true
+            },
+            "scopeRef": "s1",
+            "startGrantRef": "g1",
+            "deadlineAtMs": 1800000060000,
+            "limits": {
+              "cpuMillis": 0,
+              "memoryBytes": 0,
+              "pids": 0,
+              "diskBytes": 0,
+              "outputBytes": 262144,
+              "network": "deny",
+              "mountsRef": "none"
+            },
+            "resourceProfileRef": {
+              "id": "profile1",
+              "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+              "bytes": 256
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "success-no-result",
+      "definition": "Frame",
+      "valid": false,
+      "value": {
+        "protocol": "l34",
+        "version": "1.0",
+        "sessionId": "s1",
+        "requestId": "e1",
+        "seq": 2,
+        "type": "result",
+        "body": {
+          "reply": {
+            "locator": {
+              "commandId": "c1",
+              "operationKey": "c1",
+              "routeRef": "r1"
+            },
+            "outcome": "success",
+            "effect": "none",
+            "resultRef": null,
+            "error": null,
+            "evidenceRef": "ev1"
+          }
+        }
+      }
+    },
+    {
+      "id": "success-unknown-effect",
+      "definition": "Frame",
+      "valid": false,
+      "value": {
+        "protocol": "l34",
+        "version": "1.0",
+        "sessionId": "s1",
+        "requestId": "e1",
+        "seq": 2,
+        "type": "result",
+        "body": {
+          "reply": {
+            "locator": {
+              "commandId": "c1",
+              "operationKey": "c1",
+              "routeRef": "r1"
+            },
+            "outcome": "success",
+            "effect": "unknown",
+            "resultRef": {
+              "id": "a1",
+              "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+              "bytes": 2
+            },
+            "error": null,
+            "evidenceRef": "ev1"
+          }
+        }
+      }
+    },
+    {
+      "id": "success-no-evidence",
+      "definition": "Frame",
+      "valid": false,
+      "value": {
+        "protocol": "l34",
+        "version": "1.0",
+        "sessionId": "s1",
+        "requestId": "e1",
+        "seq": 2,
+        "type": "result",
+        "body": {
+          "reply": {
+            "locator": {
+              "commandId": "c1",
+              "operationKey": "c1",
+              "routeRef": "r1"
+            },
+            "outcome": "success",
+            "effect": "none",
+            "resultRef": {
+              "id": "a1",
+              "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+              "bytes": 2
+            },
+            "error": null,
+            "evidenceRef": null
+          }
+        }
+      }
+    },
+    {
+      "id": "stopped-no-evidence",
+      "definition": "Frame",
+      "valid": false,
+      "value": {
+        "protocol": "l34",
+        "version": "1.0",
+        "sessionId": "s1",
+        "requestId": "e1",
+        "seq": 2,
+        "type": "cancelled",
+        "body": {
+          "cancel": {
+            "locator": {
+              "commandId": "c1",
+              "operationKey": "c1",
+              "routeRef": "r1"
+            },
+            "state": "stopped",
+            "evidenceRef": null
+          }
+        }
+      }
+    },
+    {
+      "id": "unknown-frame",
+      "definition": "Frame",
+      "valid": false,
+      "value": {
+        "protocol": "l34",
+        "version": "1.0",
+        "sessionId": "s1",
+        "requestId": "e1",
+        "seq": 2,
+        "type": "chunk",
+        "body": {
+          "reply": {
+            "locator": {
+              "commandId": "c1",
+              "operationKey": "c1",
+              "routeRef": "r1"
+            },
+            "outcome": "success",
+            "effect": "none",
+            "resultRef": {
+              "id": "a1",
+              "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+              "bytes": 2
+            },
+            "error": null,
+            "evidenceRef": "ev1"
+          }
+        }
+      }
+    },
+    {
+      "id": "provider-cpu-field",
+      "definition": "ResourceProfile",
+      "valid": false,
+      "value": {
+        "kind": "provider",
+        "profileId": "profile1",
+        "resourceScopeRef": "rs1",
+        "inputBytes": 65536,
+        "outputBytes": 262144,
+        "frameBytes": 65536,
+        "queueBytes": 262144,
+        "cleanupTimeoutMs": 30000,
+        "egressRefs": [],
+        "secretHandleRefs": [],
+        "cpuMillis": 100
+      }
+    },
+    {
+      "id": "sandbox-zero-pids",
+      "definition": "ResourceProfile",
+      "valid": false,
+      "value": {
+        "kind": "sandbox",
+        "profileId": "profile1",
+        "resourceScopeRef": "rs1",
+        "inputBytes": 65536,
+        "outputBytes": 262144,
+        "frameBytes": 65536,
+        "queueBytes": 262144,
+        "cleanupTimeoutMs": 30000,
+        "egressRefs": [],
+        "secretHandleRefs": [],
+        "workloadRef": {
+          "id": "a1",
+          "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+          "bytes": 2
+        },
+        "cpuMillis": 5000,
+        "memoryBytes": 67108864,
+        "pids": 0,
+        "diskBytes": 0,
+        "maxOpenFiles": 32,
+        "mountsRef": "m1",
+        "mounts": []
+      }
+    },
+    {
+      "id": "sandbox-too-many-mounts",
+      "definition": "ResourceProfile",
+      "valid": false,
+      "value": {
+        "kind": "sandbox",
+        "profileId": "profile1",
+        "resourceScopeRef": "rs1",
+        "inputBytes": 65536,
+        "outputBytes": 262144,
+        "frameBytes": 65536,
+        "queueBytes": 262144,
+        "cleanupTimeoutMs": 30000,
+        "egressRefs": [],
+        "secretHandleRefs": [],
+        "workloadRef": {
+          "id": "a1",
+          "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+          "bytes": 2
+        },
+        "cpuMillis": 5000,
+        "memoryBytes": 67108864,
+        "pids": 8,
+        "diskBytes": 0,
+        "maxOpenFiles": 32,
+        "mountsRef": "m1",
+        "mounts": [
+          {
+            "resourceRef": "r0",
+            "mode": "read",
+            "targetSlot": "t0"
+          },
+          {
+            "resourceRef": "r1",
+            "mode": "read",
+            "targetSlot": "t1"
+          },
+          {
+            "resourceRef": "r2",
+            "mode": "read",
+            "targetSlot": "t2"
+          },
+          {
+            "resourceRef": "r3",
+            "mode": "read",
+            "targetSlot": "t3"
+          },
+          {
+            "resourceRef": "r4",
+            "mode": "read",
+            "targetSlot": "t4"
+          },
+          {
+            "resourceRef": "r5",
+            "mode": "read",
+            "targetSlot": "t5"
+          },
+          {
+            "resourceRef": "r6",
+            "mode": "read",
+            "targetSlot": "t6"
+          },
+          {
+            "resourceRef": "r7",
+            "mode": "read",
+            "targetSlot": "t7"
+          },
+          {
+            "resourceRef": "r8",
+            "mode": "read",
+            "targetSlot": "t8"
+          },
+          {
+            "resourceRef": "r9",
+            "mode": "read",
+            "targetSlot": "t9"
+          },
+          {
+            "resourceRef": "r10",
+            "mode": "read",
+            "targetSlot": "t10"
+          },
+          {
+            "resourceRef": "r11",
+            "mode": "read",
+            "targetSlot": "t11"
+          },
+          {
+            "resourceRef": "r12",
+            "mode": "read",
+            "targetSlot": "t12"
+          },
+          {
+            "resourceRef": "r13",
+            "mode": "read",
+            "targetSlot": "t13"
+          },
+          {
+            "resourceRef": "r14",
+            "mode": "read",
+            "targetSlot": "t14"
+          },
+          {
+            "resourceRef": "r15",
+            "mode": "read",
+            "targetSlot": "t15"
+          },
+          {
+            "resourceRef": "r16",
+            "mode": "read",
+            "targetSlot": "t16"
+          },
+          {
+            "resourceRef": "r17",
+            "mode": "read",
+            "targetSlot": "t17"
+          },
+          {
+            "resourceRef": "r18",
+            "mode": "read",
+            "targetSlot": "t18"
+          },
+          {
+            "resourceRef": "r19",
+            "mode": "read",
+            "targetSlot": "t19"
+          },
+          {
+            "resourceRef": "r20",
+            "mode": "read",
+            "targetSlot": "t20"
+          },
+          {
+            "resourceRef": "r21",
+            "mode": "read",
+            "targetSlot": "t21"
+          },
+          {
+            "resourceRef": "r22",
+            "mode": "read",
+            "targetSlot": "t22"
+          },
+          {
+            "resourceRef": "r23",
+            "mode": "read",
+            "targetSlot": "t23"
+          },
+          {
+            "resourceRef": "r24",
+            "mode": "read",
+            "targetSlot": "t24"
+          },
+          {
+            "resourceRef": "r25",
+            "mode": "read",
+            "targetSlot": "t25"
+          },
+          {
+            "resourceRef": "r26",
+            "mode": "read",
+            "targetSlot": "t26"
+          },
+          {
+            "resourceRef": "r27",
+            "mode": "read",
+            "targetSlot": "t27"
+          },
+          {
+            "resourceRef": "r28",
+            "mode": "read",
+            "targetSlot": "t28"
+          },
+          {
+            "resourceRef": "r29",
+            "mode": "read",
+            "targetSlot": "t29"
+          },
+          {
+            "resourceRef": "r30",
+            "mode": "read",
+            "targetSlot": "t30"
+          },
+          {
+            "resourceRef": "r31",
+            "mode": "read",
+            "targetSlot": "t31"
+          },
+          {
+            "resourceRef": "r32",
+            "mode": "read",
+            "targetSlot": "t32"
+          },
+          {
+            "resourceRef": "r33",
+            "mode": "read",
+            "targetSlot": "t33"
+          },
+          {
+            "resourceRef": "r34",
+            "mode": "read",
+            "targetSlot": "t34"
+          },
+          {
+            "resourceRef": "r35",
+            "mode": "read",
+            "targetSlot": "t35"
+          },
+          {
+            "resourceRef": "r36",
+            "mode": "read",
+            "targetSlot": "t36"
+          },
+          {
+            "resourceRef": "r37",
+            "mode": "read",
+            "targetSlot": "t37"
+          },
+          {
+            "resourceRef": "r38",
+            "mode": "read",
+            "targetSlot": "t38"
+          },
+          {
+            "resourceRef": "r39",
+            "mode": "read",
+            "targetSlot": "t39"
+          },
+          {
+            "resourceRef": "r40",
+            "mode": "read",
+            "targetSlot": "t40"
+          },
+          {
+            "resourceRef": "r41",
+            "mode": "read",
+            "targetSlot": "t41"
+          },
+          {
+            "resourceRef": "r42",
+            "mode": "read",
+            "targetSlot": "t42"
+          },
+          {
+            "resourceRef": "r43",
+            "mode": "read",
+            "targetSlot": "t43"
+          },
+          {
+            "resourceRef": "r44",
+            "mode": "read",
+            "targetSlot": "t44"
+          },
+          {
+            "resourceRef": "r45",
+            "mode": "read",
+            "targetSlot": "t45"
+          },
+          {
+            "resourceRef": "r46",
+            "mode": "read",
+            "targetSlot": "t46"
+          },
+          {
+            "resourceRef": "r47",
+            "mode": "read",
+            "targetSlot": "t47"
+          },
+          {
+            "resourceRef": "r48",
+            "mode": "read",
+            "targetSlot": "t48"
+          },
+          {
+            "resourceRef": "r49",
+            "mode": "read",
+            "targetSlot": "t49"
+          },
+          {
+            "resourceRef": "r50",
+            "mode": "read",
+            "targetSlot": "t50"
+          },
+          {
+            "resourceRef": "r51",
+            "mode": "read",
+            "targetSlot": "t51"
+          },
+          {
+            "resourceRef": "r52",
+            "mode": "read",
+            "targetSlot": "t52"
+          },
+          {
+            "resourceRef": "r53",
+            "mode": "read",
+            "targetSlot": "t53"
+          },
+          {
+            "resourceRef": "r54",
+            "mode": "read",
+            "targetSlot": "t54"
+          },
+          {
+            "resourceRef": "r55",
+            "mode": "read",
+            "targetSlot": "t55"
+          },
+          {
+            "resourceRef": "r56",
+            "mode": "read",
+            "targetSlot": "t56"
+          },
+          {
+            "resourceRef": "r57",
+            "mode": "read",
+            "targetSlot": "t57"
+          },
+          {
+            "resourceRef": "r58",
+            "mode": "read",
+            "targetSlot": "t58"
+          },
+          {
+            "resourceRef": "r59",
+            "mode": "read",
+            "targetSlot": "t59"
+          },
+          {
+            "resourceRef": "r60",
+            "mode": "read",
+            "targetSlot": "t60"
+          },
+          {
+            "resourceRef": "r61",
+            "mode": "read",
+            "targetSlot": "t61"
+          },
+          {
+            "resourceRef": "r62",
+            "mode": "read",
+            "targetSlot": "t62"
+          },
+          {
+            "resourceRef": "r63",
+            "mode": "read",
+            "targetSlot": "t63"
+          },
+          {
+            "resourceRef": "r64",
+            "mode": "read",
+            "targetSlot": "t64"
+          }
+        ]
+      }
+    },
+    {
+      "id": "retryable-fault",
+      "definition": "Frame",
+      "valid": false,
+      "value": {
+        "protocol": "l34",
+        "version": "1.0",
+        "sessionId": "s1",
+        "requestId": "e1",
+        "seq": 2,
+        "type": "fault",
+        "body": {
+          "error": {
+            "code": "UNKNOWN",
+            "retryable": true,
+            "detailsRef": null
+          }
+        }
+      }
+    },
+    {
+      "id": "hello-too-small-frame",
+      "definition": "Frame",
+      "valid": false,
+      "value": {
+        "protocol": "l34",
+        "version": "1.0",
+        "sessionId": "s1",
+        "requestId": "hello",
+        "seq": 1,
+        "type": "hello",
+        "body": {
+          "versions": [
+            "1.0"
+          ],
+          "maxFrameBytes": 1024
+        }
+      }
+    }
+  ],
+  "semanticVectors": [
+    {
+      "id": "wrong-operation-key",
+      "base": "execute",
+      "change": [
+        "body",
+        "plan",
+        "operationKey"
+      ],
+      "value": "other",
+      "expected": "BINDING_MISMATCH"
+    },
+    {
+      "id": "wrong-scope",
+      "base": "execute",
+      "change": [
+        "body",
+        "plan",
+        "scopeRef"
+      ],
+      "value": "other",
+      "expected": "SCOPE_MISMATCH"
+    },
+    {
+      "id": "query-expired",
+      "base": "inspect",
+      "change": [
+        "body",
+        "deadlineAtMs"
+      ],
+      "value": 1799999999999,
+      "expected": "DEADLINE_EXCEEDED"
+    },
+    {
+      "id": "unknown-session",
+      "base": "result",
+      "change": [
+        "sessionId"
+      ],
+      "value": "other",
+      "expected": "close"
+    },
+    {
+      "id": "seq-gap",
+      "base": "result",
+      "change": [
+        "seq"
+      ],
+      "value": 7,
+      "expected": "close"
+    }
+  ],
+  "canonicalVectors": [
+    {
+      "id": "empty-object",
+      "value": {},
+      "utf8": "{}",
+      "digest": "sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+    },
+    {
+      "id": "key-order",
+      "value": {
+        "b": 2,
+        "a": 1
+      },
+      "utf8": "{\"a\":1,\"b\":2}",
+      "digest": "sha256:43258cff783fe7036d8a43033f830adfc60ec037382473548ac742b888292777"
+    }
+  ],
+  "wireVectors": [
+    {
+      "id": "split-utf8",
+      "hexChunks": [
+        "7b2278223a22e4",
+        "b8",
+        "ad227d0a"
+      ],
+      "expected": "single JSON frame then Schema reject: unknown fields"
+    },
+    {
+      "id": "duplicate-key",
+      "line": "{\"x\":1,\"x\":2}\n",
+      "expected": "lexical rejection"
+    },
+    {
+      "id": "negative-zero",
+      "line": "{\"x\":-0}\n",
+      "expected": "lexical rejection"
+    },
+    {
+      "id": "missing-lf",
+      "line": "{\"x\":1}",
+      "expected": "EOF partial frame: close"
+    }
+  ]
+}

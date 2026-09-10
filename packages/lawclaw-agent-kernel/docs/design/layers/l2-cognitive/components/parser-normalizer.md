@@ -33,3 +33,7 @@ ParserNormalizer 接收 Adapter 已经去除 Provider 私有类型的规范化�
 ## 契约边界
 
 候选和事件的完整 DTO、版本兼容与错误码在 contracts 中定义；本文不复制字段清单。
+
+## CD-1实现粒度（2026-09-07）
+
+能力保留原层级与Port所有权，首版随[agent-runtime-loop内部协作设计](agent-runtime-loop.md)交付，不独立建设服务或状态库。详细流程与测试见目标文档`L2-CMP-002 / CD-1`节；数据见[CD-1](../../../contracts/component-development-contracts-v1.md#parser-normalizer)。只合并开发任务，不移动架构层、不删除安全检查。

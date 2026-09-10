@@ -1,21 +1,23 @@
+import type { FlowExecutionContext, FlowJournal } from "../contracts/control/flow-engine/flow-engine-contract.ts";
+import type { AgentRunStore } from "../contracts/control/run-registry/run-storage.ts";
 import type { FlowCommandOutcome } from "../contracts/flow-dispatch.ts";
 import type { AdvanceInput, EngineCommand } from "../contracts/flow-engine.ts";
-import type { DurableFlowStore } from "../contracts/flow-storage.ts";
-import type { FlowExecutionContext, FlowJournal } from "../contracts/flow-system.ts";
 import { isTerminalReActState } from "../contracts/react-flow-values.ts";
 import type { FlowDriver } from "./flow-driver.ts";
-import { FlowEngine } from "./flow-system/flow-engine.ts";
+import { FlowEngine } from "./flow-engine/flow-engine.ts";
 
 /** ReAct业务检查点适配器；系统框架只看到不透明输入和Activity。 */
 export class ReActFlowHost {
-	readonly #store: DurableFlowStore;
+	readonly #store: AgentRunStore;
 	readonly #system: FlowEngine;
 	readonly #journal: FlowJournal;
 	readonly #contexts = new Map<string, FlowExecutionContext>();
 	readonly #active = new Map<string, Promise<void>>();
+	readonly #finalize: ((runId: string) => void) | undefined;
 	#driver: FlowDriver | undefined;
 	/** 业务存储与系统日志分别拥有各自的协议。 */
-	constructor(store: DurableFlowStore, journal: FlowJournal) {
+	constructor(store: AgentRunStore, journal: FlowJournal, finalize?: (runId: string) => void) {
+		this.#finalize = finalize;
 		this.#store = store;
 		this.#journal = journal;
 		this.#system = new FlowEngine(journal);
@@ -31,6 +33,7 @@ export class ReActFlowHost {
 		if (active) return active;
 		const task = Promise.resolve()
 			.then(() => this.#run(agentRunId))
+			.then(() => this.#finalize?.(agentRunId))
 			.finally(() => this.#active.delete(agentRunId));
 		this.#active.set(agentRunId, task);
 		return task;

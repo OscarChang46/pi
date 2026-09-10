@@ -1,0 +1,156 @@
+{
+  "baselineId": "L34-SPEC-1.0.0",
+  "protocolVersion": "1.0",
+  "effectiveDate": "2026-09-09",
+  "kind": "specification",
+  "status": "BASELINED",
+  "sourceChange": "ACR-2026-0021",
+  "authorization": "这个边界要明确下来，达到可开发水准并基线",
+  "baseCommit": "51b5a71f306ba59f65d890da45a822c5385b8831",
+  "gitDelivery": "uncommitted local workspace",
+  "runtimeStatus": "NOT_STARTED",
+  "activeImplementationBaselineUnchanged": "AKB-2026-09-03-08",
+  "supportingScope": "Caller documents are snapshots of propagated L34 fields only; unrelated candidate sections are not approved by this baseline. Paths relative to docs/.",
+  "files": [
+    {
+      "path": "design/contracts/bnd-l34-001.md",
+      "role": "normative",
+      "sha256": "ad3589b6396a876e57f93108c1784051e63018cb0a2626c12adea6b613796488"
+    },
+    {
+      "path": "design/contracts/l34/protocol.schema.json",
+      "role": "normative",
+      "sha256": "f118991cfeb7059d68081fbd9460591394ffd2dac64d2b1dcc3a0c3fefb08236"
+    },
+    {
+      "path": "design/contracts/l34/vectors.json",
+      "role": "normative",
+      "sha256": "f73b5e01b5b170803fa030ea17fedb68a87153bea11f027b19b46084347ad2fc"
+    },
+    {
+      "path": "design/contracts/bnd-l13-001.md",
+      "role": "supporting-snapshot",
+      "sha256": "5848d33c29d31e174cb4d2441fcbafa69b7e5b4ff9459babf503fa72d1e9b752"
+    },
+    {
+      "path": "design/contracts/bnd-sec-001.md",
+      "role": "supporting-snapshot",
+      "sha256": "39d8a0e27de5f4b2d74b40c977007a408bcd9e5158c9adcb899217014cf4f4bc"
+    },
+    {
+      "path": "design/contracts/l3-tool-runtime-detail.md",
+      "role": "supporting-snapshot",
+      "sha256": "5791f61895868900b21caa7d6d1e0825e8d1e6bdddd4dc5c45b22a303c415c81"
+    },
+    {
+      "path": "design/contracts/l4-execution-runtime-detail.md",
+      "role": "supporting-snapshot",
+      "sha256": "7c36078332e1a2aa3b0e681fe9e9144c6db7f4934491d50f187da99edba32c1c"
+    },
+    {
+      "path": "design/layers/security-plane/contracts/security-decision-contract.md",
+      "role": "supporting-snapshot",
+      "sha256": "502df07aea3b2ed35b8778a19587c15e0c854ad646d4fd00d6b98664ab01ecbf"
+    },
+    {
+      "path": "design/layers/l3-tool-runtime/components/tool-call-runtime.md",
+      "role": "supporting-snapshot",
+      "sha256": "e609dc07b0840b65c5ceb79d50ead098d58f09a22daee73e62dba0c71fb071c3"
+    },
+    {
+      "path": "design/layers/l3-tool-runtime/components/tool-execution-guard.md",
+      "role": "supporting-snapshot",
+      "sha256": "b7b4fcb131b686b13db771052715e10fb19977d481a53c26d63da538b9705670"
+    },
+    {
+      "path": "design/layers/l3-tool-runtime/components/tool-call-runtime/functional-domains/invocation-dispatch/sr-01-invocation-dispatch.md",
+      "role": "supporting-snapshot",
+      "sha256": "19b88f75d603b33f16a83408eb632e80c714fd8f3cb09b5425110d366851da63"
+    },
+    {
+      "path": "design/layers/l3-tool-runtime/components/tool-execution-guard/functional-domains/execution-authorization/sr-01-execution-authorization.md",
+      "role": "supporting-snapshot",
+      "sha256": "f1e15eb5c89ab8d454f84a38c7a646116c1c0ca84125bb20564b0b65091fdfc9"
+    },
+    {
+      "path": "design/layers/l4-execution-runtime/README.md",
+      "role": "supporting-snapshot",
+      "sha256": "3e85a7f39fbc88ead0289f16e6e3759490bd622dddd007f367700777bfa1072d"
+    },
+    {
+      "path": "design/layers/l4-execution-runtime/components/tool-provider-adapter.md",
+      "role": "supporting-snapshot",
+      "sha256": "aacdd95b7883a531b595cfea660981963592ef02d45b2dae9060c2e630bc8155"
+    },
+    {
+      "path": "design/layers/l4-execution-runtime/components/sandbox-runtime.md",
+      "role": "supporting-snapshot",
+      "sha256": "78bfb8b9c2293654a512e902c8d8a782660c48f60d5096dec11203bf45fbea81"
+    },
+    {
+      "path": "design/deployment/local-first-profile.md",
+      "role": "supporting-snapshot",
+      "sha256": "e90024ac284fd808a1472f39ebf0d86bb5e6fc2d1a43da9d952d61882ecf7e56"
+    },
+    {
+      "path": "design/diagrams/contracts/12-c4-boundary-protocols.puml",
+      "role": "supporting-snapshot",
+      "sha256": "5f9fbf915a0e3dc46b3f1c6ade81e222a52faa26ea5a66dca4beb9335a2dac09"
+    },
+    {
+      "path": "design/diagrams/drawio-theme.puml",
+      "role": "supporting-snapshot",
+      "sha256": "f95e920d1d61a546a9ded7921427b6a06bf084165be52a188dfb019b6d3eea06"
+    },
+    {
+      "path": "design/diagrams/rendered/contracts/12-c4-boundary-protocols.svg",
+      "role": "supporting-snapshot",
+      "sha256": "16f2cee2a719d7a081e6474df716615f89b74733d23c1a44eb76c05b53c44f1a"
+    },
+    {
+      "path": "governance/reviews/l34-baseline-2026-09-09.md",
+      "role": "supporting-snapshot",
+      "sha256": "2dd8d17957f7c19fabea1ba0c9518964fd61e7c8ad2be11e4a27a62482025835"
+    },
+    {
+      "path": "governance/reviews/l34-protocol-validation-2026-09-09.json",
+      "role": "supporting-snapshot",
+      "sha256": "83f4dc931b38449ef888e8c3d4ec01f50bd01127ee2fa72fe80671fa8c4a87fb"
+    },
+    {
+      "path": "governance/reviews/l34-document-checks-2026-09-09.json",
+      "role": "supporting-snapshot",
+      "sha256": "7bf7b8091d6710e1ae8cec4fa89a93fe7c0b61a5518bdd7b3028cd7205e1673a"
+    },
+    {
+      "path": "governance/archive/l34-validation-script-2026-09-09.txt",
+      "role": "supporting-snapshot",
+      "sha256": "82113aeabb5c6d8ef96c9f7e2abe0795d9b20096a878e394c75df8ed4efef4f7"
+    },
+    {
+      "path": "governance/changes/ACR-2026-0021-l34-protocol-baseline.md",
+      "role": "supporting-snapshot",
+      "sha256": "8873905a48a8c0df5804445953a3758645d32b7ca8cfe18c4ec8d030f5526097"
+    },
+    {
+      "path": "design/layers/l4-execution-runtime/components/tool-provider-adapter/functional-domains/invocation/README.md",
+      "role": "supporting-snapshot",
+      "sha256": "70ed2bc45332d3f1cfbe0938b8563706c7f261c93ac6430e84551f42015be8ff"
+    },
+    {
+      "path": "design/layers/l4-execution-runtime/components/tool-provider-adapter/functional-domains/evidence/README.md",
+      "role": "supporting-snapshot",
+      "sha256": "659687d9a96392e5a4b3567579f6b8f387f8432813366c0667548575f5ecaa0c"
+    },
+    {
+      "path": "design/layers/l4-execution-runtime/components/sandbox-runtime/functional-domains/reclamation/README.md",
+      "role": "supporting-snapshot",
+      "sha256": "50039d3540bbcba94ac4d3139c72f891607a13424c136a874ab14fb4fae9bcf5"
+    },
+    {
+      "path": "design/layers/l4-execution-runtime/components/sandbox-runtime/functional-domains/environment/README.md",
+      "role": "supporting-snapshot",
+      "sha256": "1e0fa91a6668155f2a144d18d440c8596c09ad2cd0a1e0aaeb036dccff6bc24a"
+    }
+  ]
+}

@@ -5,50 +5,56 @@ layer: L3 Tool Runtime
 component: null
 status: candidate
 baseline: AKB-2026-09-03-09
-authoritative_for: 工具目录、ToolCall 生命周期、Permit 强制与 L4 协调
+authoritative_for: 工具注册、目录路由和受控调用
 parent: SYS-DES-001
-interfaces: [BND-L13-001, BND-L34-001]
-diagrams: [VIEW-L3-COMPONENTS]
-supersedes: ["[归档工具调用子系统设计](../../../governance/archive/design-v3-pre-layering/tool-call-subsystem-design.md) 中 ToolRuntime 部分"]
+interfaces: []
+diagrams: []
+supersedes: []
 ---
 
 # L3 Tool Runtime 层设计
 
-![L3 受控工具运行层组件图](../../diagrams/rendered/layers/04-l3-tool-runtime-components.svg)
+## 1. 职责与适用范围
 
-[查看 PlantUML 权威源](../../diagrams/layers/04-l3-tool-runtime-components.puml)
+L3提供工具注册、可见目录、精确路由、最终授权检查和一次有界调用。工具业务和执行机制归L4，权限策略及Permit权威归Security，业务编排、调用身份和可靠恢复由L1/宿主提供。合法执行路径保持`L2候选 → L1 PEP/PDP → L3 → L4`。
 
-## 1. 职责与边界
+2026-09-09按用户反馈调整设计深度：持久化和一致性作为调用前提与集成约束，不在L3功能域设计数据库表、CAS实现、outbox、墓碑、扫描器或恢复状态机。ToolCall仍是独立工具事实的逻辑边界，不能把这一简化解释为允许重复执行或把工具事实混入Session权威。原候选的可靠性实现草案由本版替代，历史与迁移见[本次评审](../../../governance/reviews/l3-functional-domains-2026-09-09.md)。
 
-L3 是 Kernel 内工具执行的唯一协调入口，拥有 ToolDefinition 目录投影和 ToolCall 执行聚合，校验并消费已由 Security Plane 签发的 Permit，选择 L4 Provider 或 Sandbox 路径并归一化结果。
+## 2. 组件与功能域
 
-L3 不进行 Allow/Ask/Deny 权限裁决，不解释 Token/Tenant/RBAC，不直接实现容器、进程或远程 Provider 协议。L2 不得调用 L3；只有 L1 PEP 可以提交已授权动作。
-
-## 2. 组件
-
-| 组件 | 唯一职责 | 详细设计 |
+| 组件设计（交互标准） | 功能域 | 功能域索引 |
 |---|---|---|
-| ToolCatalogRouter | 提供版本化、作用域化的可见工具目录与路由快照 | [ToolCatalogRouter](components/tool-catalog-router.md) |
-| ToolCallRuntime | 管理 ToolCall 生命周期并协调一次有界执行 | [ToolCallRuntime](components/tool-call-runtime.md) |
-| ToolExecutionGuard | 在真实执行点校验并消费 Permit | [ToolExecutionGuard](components/tool-execution-guard.md) |
+| [ToolRegistry](components/tool-registry.md) | 定义注册与版本；可用状态管理 | [注册表功能域](components/tool-registry/README.md) |
+| [ToolCatalogRouter](components/tool-catalog-router.md) | 可见目录投影；固定路由解析 | [目录路由功能域](components/tool-catalog-router/README.md) |
+| [ToolCallRuntime](components/tool-call-runtime.md) | 调用准备与派发；结果与取消处理 | [调用功能域](components/tool-call-runtime/README.md) |
+| [ToolExecutionGuard](components/tool-execution-guard.md) | 执行授权检查（不可再分的内部职责） | [Guard功能域](components/tool-execution-guard/README.md) |
 
-## 3. 依赖规则
+功能域是组件内部功能分类，不是新增服务或聚合。域文档仅向上引用所属组件；组件统一域间字段、顺序和错误语义，索引只导航。四个组件可装配在一个进程，Guard随Runtime交付。
 
-合法路径是 `L2 Candidate → L1 PEP/PDP → L3 → L4`。L1 可查询可见工具目录快照和提交已授权 ToolCall；L3 经 `ToolProviderPort` 或 `SandboxPort` 使用 L4。禁止 L2→L3、L1→L4、Provider 反向访问 Kernel 聚合，以及任何无 Permit 的受保护执行路径。
+## 3. 正常业务与数据流
 
-## 4. 主控制流
+管理员注册完整ToolDefinition（含输入/输出Schema和执行绑定）→Registry返回不可变版本，初始disabled→启用后Router生成PublicTool目录→L1冻结目录交L2→模型提出参数→L1准备稳定调用身份、资源与授权→Runtime解析原工具/路由→Guard核验并取得执行许可→Runtime调用L4→结果域返回ToolOutcome供L1保存和采纳。
 
-1. L1 在派发 Attempt 前从 L3 取得并冻结可见 ToolCatalogSnapshotRef。
-2. L2 依据该快照产生 ToolCallCandidate 并返回 L1。
-3. L1 冻结实际动作并完成安全判定，将 Permit 与动作引用提交 L3。
-4. ToolCallRuntime 创建或恢复 ToolCall；ToolExecutionGuard 校验实际参数摘要并原子消费 Permit。
-5. L3 依据冻结路由选择远程 Tool Provider 或一次性 Sandbox 执行。
-6. L4 返回有界结果或状态引用；L3 归一化并耐久记录终态，再把结果引用交回 L1。
+新版定义不覆盖旧版；停用阻止后续目录和新派发，已发出动作只传播取消。停用不是Security撤销替代品，严格即时阻断需Security执行资格控制。默认工具升级不自动切换正在使用的版本。
 
-## 5. 数据、重试与故障隔离
+![L3组件协作](../../diagrams/rendered/layers/04-l3-tool-runtime-components.svg)
 
-ToolCall 是独立聚合，记录动作摘要、路由版本、Permit 引用、执行尝试和结果引用。副作用调用超时后不得盲重试；先查询已知状态，无法确认则标记未知并由 L1 决定。目录、参数、输出、日志和执行时间均有界，Secret 不进入 ToolCall 领域数据。
+## 4. 外部保证与失效行为
 
-## 6. 非目标与评审边界
+| 约束ID | 保证方与要求 | L3使用方式与不能满足时的行为 |
+|---|---|---|
+| L3-C01 | L1/宿主：同一command只发起一次有效执行；先确认意图与执行资格，接管先隔离旧执行 | L3不做分布式去重；旧资格拒绝；丢响应不得直接重调execute |
+| L3-C02 | 装配：Registry管理调用串行；Runtime每次调用独立实例、不重入；取消可经同一事件循环交错 | L3不建队列/锁/lease；本地实例重复进入返回INVALID_STATE；跨线程由宿主隔离 |
+| L3-C03 | Security：消费、启动检查、当前授权与审计保证；暴露受信Port | Guard失败关闭，不自行缓存成功授权、补发Permit或解释策略 |
+| L3-C04 | 存储适配/宿主：注册表完整版本发布及历史引用保留；工具事实持久化与查询；结果保存后再发布业务事件 | L3只返回事实和引用；不承诺Promise返回即耐久；保存失败由调用方处理，禁止再执行工具 |
+| L3-C05 | L4：一次派发、参数与资源不扩权、输出有界、无隐藏重试、取消及效果证据 | 通道失败/效果不明返回unknown；查询只代理原操作，不推断未发生 |
+| L3-C06 | L1/FE恢复协调：根据可信证据处理未知结果、重启和迟到事实 | L3无自动恢复扫描及reconcile账本；终态Run不得因迟到结果复活 |
+| L3-C07 | Host/基础设施：可信Scope、Clock、Artifact授权读取、Secret与Adapter装配 | 缺失依赖不派发；Ref不是访问权，L3不访问明文Secret |
 
-L3 不拥有具体工具业务逻辑、沙箱机制、业务补偿或 Multi-agent 协作。本层只收敛接口所有权和安全顺序，不冻结 DTO、错误码、Provider 协议或 Tool Schema 格式。
+这些是必须在接入时验证的前提，不是“文档写了就已实现”。同实例串行不代表失联旧进程不再运行。总设计保留ToolCall独立事实边界；具体耐久实现由依赖方提供，本轮不重新设计。
+
+## 5. 接口、验收与非目标
+
+[L3边界契约](../../contracts/l3-tool-runtime-detail.md)定义当前轻量调用档案及L1输入输出；[L3→L4协议](../../contracts/bnd-l34-001.md)定义语义载荷。参数64KiB、结果256KiB、目录256条/1MiB、工具60秒且只可缩短，均为设计限额，执行重试0。
+
+组件与域内测试采用UT/DT、跨组件用Contract/Integration；真实持久化、故障接管和外部执行可靠性是C01—C07集成验收，不用L3单元测试代替。所有本轮新增用例仅为设计，未运行。首版不提供远程工具包安装、自动最新版本选择或任意Provider反射。

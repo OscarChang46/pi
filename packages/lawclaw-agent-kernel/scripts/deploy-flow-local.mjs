@@ -49,7 +49,7 @@ writeFileSync(path.join(configDirectory, "agent-kernel.yaml"), stringify(config)
 copyFileSync(path.join(packageRoot, "config/prompts.zh-CN.yaml"), path.join(configDirectory, "prompts.zh-CN.yaml"));
 for (const file of ["Dockerfile", "package.json", "package-lock.json"]) copyFileSync(path.join(packageRoot, "deploy/flow-local", file), path.join(buildDirectory, file));
 await build({ entryPoints: [path.join(packageRoot, "src/application/run-flow-server.ts")], outfile: path.join(buildDirectory, "flow-server.mjs"), bundle: true, platform: "node", target: "node24", format: "esm", packages: "external", external: ["@earendil-works/pi-ai", "@earendil-works/pi-ai/*", "@earendil-works/pi-coding-agent"], sourcemap: false });
-for (const [source, output] of [["test/integration/flow-system.test.ts", "flow-system-test.mjs"], ["test/support/flow-crash-worker.ts", "flow-crash-worker.mjs"], ["scripts/flow-system-admin.ts", "flow-system-admin.mjs"]]) {
+for (const [source, output] of [["test/integration/flow-engine.test.ts", "flow-engine-test.mjs"], ["test/support/flow-crash-worker.ts", "flow-crash-worker.mjs"], ["scripts/flow-engine-admin.ts", "flow-engine-admin.mjs"]]) {
   await build({ entryPoints: [path.join(packageRoot, source)], outfile: path.join(buildDirectory, output), bundle: true, platform: "node", target: "node24", format: "esm", packages: "external", sourcemap: false });
 }
 

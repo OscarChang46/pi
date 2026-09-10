@@ -1,7 +1,7 @@
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { FlowEngine } from "../../src/control/flow-system/flow-engine.ts";
-import { SqliteFlowJournal } from "../../src/infrastructure/adapters/sqlite-flow-journal.ts";
+import { FlowEngine } from "../../src/control/flow-engine/flow-engine.ts";
+import { SqliteFlowJournal } from "../../src/infrastructure/state-storage/adapters/flow-engine/sqlite-flow-journal.ts";
 
 // 故障进程只修改临时合成账本，在外部生效与Completed之间真实终止。
 const directory = process.argv[2];

@@ -1,0 +1,126 @@
+{
+  "date": "2026-09-08",
+  "scope": "ACR-2026-0014 candidate documentation only",
+  "documentArchitectureCheck": {
+    "exitCode": 0,
+    "output": "三级文档架构检查通过：7 个层、34 个组件、82 份受治理文档。"
+  },
+  "diffCheckExitCode": 0,
+  "targetedLinksAndAnchors": "passed for five entry/component/contract documents",
+  "jsonExamplesAndCanonicalVector": "passed; not runtime algorithm tests",
+  "plantumlImage": "plantuml/plantuml:1.2026.7",
+  "themeSha256": "da9e11e74d4bc7e5ecc33cdc3de086fdecc94243237d3c0a03bdd0b051eed534",
+  "diagramChecks": "checkonly, SVG and PNG rendering performed for these 10 sources; SVG XML parsed",
+  "visualReview": "manual whole-image inspection; layer diagram overlap corrected and re-inspected",
+  "runtimeTests": "not run; no implementation changes",
+  "inputs": [
+    {
+      "path": "docs/design/agent-kernel-design.md",
+      "sha256": "ecc4d624e16e5ae303dde6c63bed3c458fd1780aafc9186f9883e6a58bebad9e"
+    },
+    {
+      "path": "docs/design/layers/security-plane/README.md",
+      "sha256": "ebcf74842681c44210b5d658d5b18bf0d68e465082da54a4460dec744c547789"
+    },
+    {
+      "path": "docs/design/contracts/component-development-contracts-v1.md",
+      "sha256": "e8e00a7ab85258d7c5f4a3fff39ffebd15ba3139ad271e071fce92d3929c26d1"
+    },
+    {
+      "path": "docs/design/contracts/bnd-sec-001.md",
+      "sha256": "b41f27f67931658113a1943d113c8ba812c9274c7abeeeb90aca81a41a11f03f"
+    },
+    {
+      "path": "docs/design/contracts/flow-engine-contract-v1.md",
+      "sha256": "370bff500d18e852397075258362e98380c9bfc4e169ec7fd75d26539e951180"
+    },
+    {
+      "path": "docs/governance/changes/ADR-0012-flow-association-and-execution-gate.md",
+      "sha256": "dd20ce2e24bd2cad1406a4700bb079966326913a9412c65a316035c1189153dd"
+    }
+  ],
+  "documents": [
+    {
+      "path": "docs/design/contracts/security-decision-contract.md",
+      "sha256": "60c1ce81e26fe37b7e75906415c4b01f5325cc7160b51da4de754615f48e4fcc"
+    },
+    {
+      "path": "docs/design/layers/security-plane/components/permission-decision-engine.md",
+      "sha256": "20e64e08053c99bfccbf6ea6999e1859c82242fde79b8441991de6bc489b6c64"
+    },
+    {
+      "path": "docs/design/layers/security-plane/components/pep-enforcement.md",
+      "sha256": "189070238b4eb67670d96c2c6fa1f7744410dd10f8fe706a857f1fc8572a1e46"
+    },
+    {
+      "path": "docs/design/layers/security-plane/README.md",
+      "sha256": "ebcf74842681c44210b5d658d5b18bf0d68e465082da54a4460dec744c547789"
+    },
+    {
+      "path": "docs/design/agent-kernel-design.md",
+      "sha256": "ecc4d624e16e5ae303dde6c63bed3c458fd1780aafc9186f9883e6a58bebad9e"
+    }
+  ],
+  "diagrams": [
+    {
+      "source": "docs/design/diagrams/components/security-plane/pdp-approval.puml",
+      "sourceSha256": "b86ec81b6cbe7f76ed0925915f91635f6212f4384754b618fbfe8fea32319f51",
+      "svg": "docs/design/diagrams/rendered/components/security-plane/pdp-approval.svg",
+      "svgSha256": "47b7b9025f9f5811f413bfd0c841f89b2c1fe96d59b2e3a694c2d32f23c046ea"
+    },
+    {
+      "source": "docs/design/diagrams/components/security-plane/pdp-decision.puml",
+      "sourceSha256": "b8707c7cefcd1a6af1627c1fbbb344a5207775d7d15ff0ffa359724d7483e663",
+      "svg": "docs/design/diagrams/rendered/components/security-plane/pdp-decision.svg",
+      "svgSha256": "fe291bb78754ec7c24596d1a4cd4b04f8f3c83cf0396807034c463695a22ae43"
+    },
+    {
+      "source": "docs/design/diagrams/components/security-plane/pdp-recovery.puml",
+      "sourceSha256": "53fd0f19c267b97e138d3fa67b59533047b91a44aaf7529f0188aa6d63162591",
+      "svg": "docs/design/diagrams/rendered/components/security-plane/pdp-recovery.svg",
+      "svgSha256": "626c0f3d9e8f51c73bf1135b6b05e0564d1f1362c28ce07e5f3d95e2f107c1c4"
+    },
+    {
+      "source": "docs/design/diagrams/components/security-plane/pdp-structure.puml",
+      "sourceSha256": "9d7441465c6be9d2ae492c2d4d3fd2a2491f9ea21ed970dc0e019a71258aefbb",
+      "svg": "docs/design/diagrams/rendered/components/security-plane/pdp-structure.svg",
+      "svgSha256": "394ed6d95befdf1583bb6d872fe98233eb6a03aa21fe11a4b4a05d4ac9ea7048"
+    },
+    {
+      "source": "docs/design/diagrams/components/security-plane/pep-execution.puml",
+      "sourceSha256": "f3159c2eb6b54188155a6ae5c8fa6adcc58f88797907c790beee0f789e4b5d69",
+      "svg": "docs/design/diagrams/rendered/components/security-plane/pep-execution.svg",
+      "svgSha256": "90e690ce388d33b169a1363e0bb1fafa78909ea6a568ba20c4a7871b8c1ecdfc"
+    },
+    {
+      "source": "docs/design/diagrams/components/security-plane/pep-local-actions.puml",
+      "sourceSha256": "1f3ab86395d341f0af0ce8393689c61968b9e8a1b2f3b2cf295ba34e4abbe4c2",
+      "svg": "docs/design/diagrams/rendered/components/security-plane/pep-local-actions.svg",
+      "svgSha256": "904dd9c5acae881da54f14681c6be9e807ac9ab005a79a95f93f59fd989258f1"
+    },
+    {
+      "source": "docs/design/diagrams/components/security-plane/pep-recovery.puml",
+      "sourceSha256": "bf1cad728a2964133fd2a5ad839fbd9c31c12d5a2522528ddc4f67f668a5dbc4",
+      "svg": "docs/design/diagrams/rendered/components/security-plane/pep-recovery.svg",
+      "svgSha256": "0b346150ab5064a3070e2d5d626fb50e90536756e3c2a01c3528a6e2a9f79971"
+    },
+    {
+      "source": "docs/design/diagrams/components/security-plane/pep-structure.puml",
+      "sourceSha256": "06d3ed7719cd26af6dd34e473f4b23c1095512af2b804324f6e363d29545fc8c",
+      "svg": "docs/design/diagrams/rendered/components/security-plane/pep-structure.svg",
+      "svgSha256": "7b8fceda75b38b8195b90e271e281f70dfe590a46af962ed692d9ae267505167"
+    },
+    {
+      "source": "docs/design/diagrams/layers/03-security-plane-components.puml",
+      "sourceSha256": "e52e3d2be95e56b2df3843a5c1249580b678b44bcb6b8034b145f7e6be85f761",
+      "svg": "docs/design/diagrams/rendered/layers/03-security-plane-components.svg",
+      "svgSha256": "d8aa916db62aa01a123469992cd6d3c05712e10e7b7b41ed7faec352b037cbb8"
+    },
+    {
+      "source": "docs/design/diagrams/scenarios/06-tool-approval-sequence.puml",
+      "sourceSha256": "3c31014d4ff00eef7b206fac67fcf3b924ff5f4dcbf51644685f0bc41e980141",
+      "svg": "docs/design/diagrams/rendered/scenarios/06-tool-approval-sequence.svg",
+      "svgSha256": "2dc1724d1ab5b3e47cf3d2b28291723994453209fb30f96e1e351c1ec939ea07"
+    }
+  ]
+}

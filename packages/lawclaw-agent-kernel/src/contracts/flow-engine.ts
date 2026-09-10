@@ -1,3 +1,4 @@
+import type { CandidateIdentity } from "./control/context-engine/candidate-codec.ts";
 import type { FLOW_COMMAND_STATUS, FLOW_EFFECT, FLOW_WAIT_REASON, REACT_FLOW_STATE } from "./react-flow-values.ts";
 /** 不透明引用，限128个ASCII标识字符；不得作为访问授权。 */
 export type Ref = string;
@@ -282,7 +283,11 @@ export interface SessionSnapshot {
 }
 
 /** 绑定Run版本与转录头的上下文引用。 */
-export interface ContextFrame {
+export interface RunContextBinding extends CandidateIdentity {
+	/** 完整模型映射的字节数，与含 Trace 的 Artifact 字节数分别约束。 */
+	readonly inputBytes: Counter;
+	/** 宿主冻结的完整组装输入；恢复准备不能从回答反推任务。 */
+	readonly basisRef: ArtifactRef;
 	/** 协议字段 frameId；必填，取值及空值语义遵循 FE-CON-1。 */
 	readonly frameId: Ref;
 
@@ -535,7 +540,7 @@ export interface AdvanceInput {
 	readonly session: SessionSnapshot;
 
 	/** 协议字段 context；必填，取值及空值语义遵循 FE-CON-1。 */
-	readonly context: ContextFrame | null;
+	readonly context: RunContextBinding | null;
 
 	/** 协议字段 contextFailure；必填，取值及空值语义遵循 FE-CON-1。 */
 	readonly contextFailure: "unavailable" | "limit_exceeded" | null;

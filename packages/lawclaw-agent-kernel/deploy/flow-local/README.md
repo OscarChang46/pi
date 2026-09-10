@@ -27,7 +27,7 @@ node packages/lawclaw-agent-kernel/scripts/flow-local-client.mjs /runs/manual-00
 node packages/lawclaw-agent-kernel/scripts/flow-local-client.mjs /runs/manual-001/cancel '{}'
 node packages/lawclaw-agent-kernel/scripts/test-flow-live.mjs
 node packages/lawclaw-agent-kernel/scripts/test-flow-recovery-live.mjs
-docker exec -e FLOW_CRASH_WORKER_BUNDLE=/app/flow-crash-worker.mjs lawclaw-flow-local-flow-1 node --test /app/flow-system-test.mjs
+docker exec -e FLOW_CRASH_WORKER_BUNDLE=/app/flow-crash-worker.mjs lawclaw-flow-local-flow-1 node --test /app/flow-engine-test.mjs
 ```
 
 恢复脚本会强制终止并重启这个专用Compose服务，应在没有手工测试进行时运行。它在杀死原容器后通过一次性维护进程显式recover，再启动服务并等待旧业务租约过期；核对系统Yield、新业务Attempt与UNKNOWN。新框架不会仅凭重启擅自接管Running。容器内系统测试使用独立临时库，覆盖有向环、自环、双连接竞争、真实SIGKILL及对账回放，不访问模型或业务数据卷。真实测试使用现有模型并产生模型调用费用；离线集成测试不使用外部模型。
@@ -130,7 +130,7 @@ docker stats --no-stream lawclaw-flow-local-flow-1
 
 ## 持久化与升级
 
-系统Schema见[SR-FE-SYS-02](../../docs/design/layers/l1-control/components/flow-system-activity.md)，仅INSERT并在UPDATE/DELETE时拒绝。旧业务数据库不是系统权威日志。业务物理Schema见 [flow-sqlite-database.ts](../../src/infrastructure/adapters/flow-sqlite-database.ts)，当前 `user_version=1`。所有键包含可信scope；Run行含version/cancel_epoch/owner/fence/claim_until；事件按Run唯一序号；提交按commit_id幂等；命令按command_id唯一；转录按event_id+ordinal唯一。
+系统Schema见[SR-FE-SYS-02](../../docs/design/layers/l1-control/components/flow-engine/sr-02-activity.md)，仅INSERT并在UPDATE/DELETE时拒绝。旧业务数据库不是系统权威日志。业务物理Schema见 [flow-sqlite-database.ts](../../src/infrastructure/adapters/flow-sqlite-database.ts)，当前 `user_version=1`。所有键包含可信scope；Run行含version/cancel_epoch/owner/fence/claim_until；事件按Run唯一序号；提交按commit_id幂等；命令按command_id唯一；转录按event_id+ordinal唯一。
 
 `SqliteFlowCommits` 的单个 `BEGIN IMMEDIATE` 包围校验和快照、事件消费、提交回执、命令、转录写入。摘要同键异内容拒绝。事件consumed值0待消费、1经Core提交、2被取消/Attempt切换替代，原事件仍保留。Artifact按内容摘要验证，Adapter私有消息按scope、tenant、ref不可变保存。Permit和事件属于本部署单元的本地表，不能据此宣称拥有跨系统事务。
 
@@ -150,11 +150,11 @@ docker stats --no-stream lawclaw-flow-local-flow-1
 
 ```sh
 docker compose -p lawclaw-flow-local -f .artifacts/flow-local/compose.yaml stop flow
-docker compose -p lawclaw-flow-local -f .artifacts/flow-local/compose.yaml run --rm --no-deps flow node flow-system-admin.mjs inspect RUN_ID
-docker compose -p lawclaw-flow-local -f .artifacts/flow-local/compose.yaml run --rm --no-deps flow node flow-system-admin.mjs recover RUN_ID
+docker compose -p lawclaw-flow-local -f .artifacts/flow-local/compose.yaml run --rm --no-deps flow node flow-engine-admin.mjs inspect RUN_ID
+docker compose -p lawclaw-flow-local -f .artifacts/flow-local/compose.yaml run --rm --no-deps flow node flow-engine-admin.mjs recover RUN_ID
 docker compose -p lawclaw-flow-local -f .artifacts/flow-local/compose.yaml up -d --wait flow
 ```
 
-recover只适用于Running。Started没有Completed时恢复仍会Yield；必须核验外部权威凭据后，通过flow-system-admin.mjs reconcile RUN_ID /path/receipt.json追加结果，或使用terminate明确放弃。receipt包含activity（key/name/version/input）、result、evidence；文件须由维护者准备并以只读挂载传入。它不是通用业务系统对账适配器。ReAct已消费UNKNOWN业务事件后的自动业务继续未实现，须通过专门业务恢复协议处理，不能只补系统Completed就宣称业务恢复完成。
+recover只适用于Running。Started没有Completed时恢复仍会Yield；必须核验外部权威凭据后，通过flow-engine-admin.mjs reconcile RUN_ID /path/receipt.json追加结果，或使用terminate明确放弃。receipt包含activity（key/name/version/input）、result、evidence；文件须由维护者准备并以只读挂载传入。它不是通用业务系统对账适配器。ReAct已消费UNKNOWN业务事件后的自动业务继续未实现，须通过专门业务恢复协议处理，不能只补系统Completed就宣称业务恢复完成。
 
-本次版本的验收结果见[系统框架验证](../../docs/verification/flow-system-validation.md)。
+当前源码命名及本机结果见[当前验证](../../docs/verification/flow-engine-naming-validation.md)。[历史系统框架验证](../../docs/verification/flow-system-validation.md)对应旧镜像；本次改名未重新部署，以上新产物命令须在重新生成镜像后使用。

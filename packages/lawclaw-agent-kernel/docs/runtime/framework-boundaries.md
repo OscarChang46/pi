@@ -1,43 +1,31 @@
-# 当前框架与候选设计的映射
+# 当前运行装配与设计入口
 
-本记录说明边界重构事实，不批准候选架构、不更新历史基线，不声称完成 V3.1 全部协议。目录以职责命名，设计编号仅用于追踪。
+2026-09-08按当前工作区源码核对。本页只记录实际装配与阅读入口，不批准候选架构，不将已有代码视为全部设计已实现。
 
-| 目录 / 组件 | 所有权与当前接口 | 设计边界 |
+## 两条现存运行路径
+
+| 路径 | 源码证据 | 已有机制与边界 |
 |---|---|---|
-| control / AgentSystem、RunRegistry、AgentSession | 独立 Run 目录、会话 ID 关联；run/getRun | BND-EXT-001、BND-L1-001 |
-| control / RunFlow、ContextEngine、DelegationEngine | 无状态推进、有界 Frame、现有单层委派；ContextEnginePort、DelegationPort | BND-L1-001、BND-L12-001 |
-| cognitive / AgentRuntime | 单轮临时执行，候选交还控制；AgentAdapter | BND-L12-001 |
-| cognitive/adapters / PiAgentAdapter | Pi 私有消息及模型目录，不暴露原生类型 | BND-MOD-001 |
-| control / ToolCoordinator | 判定前检查与权限协调；PermissionDecisionPort、ToolRuntimePort | BND-SEC-001、BND-L13-001 |
-| security / PermissionApprovalService、InMemoryKillSwitch | 现有 Grant、撤销复核、停止状态 | BND-SEC-001 的过渡子集 |
-| tools / ToolRuntime | 工具目录、Grant 绑定与有效性复核；GrantValidationPort | BND-L13-001、BND-L34-001 |
-| execution / ToolExecutor、SandboxPlanner、只读 Adapter | 单次执行及 finally 清理；ToolExecutionPort、SandboxPort、ToolProviderPort | BND-L34-001 的过渡子集 |
-| observability | 仅传播 OperationContext，未绑定后端 | BND-OPS-001 |
-| infrastructure / 本地 Adapter | 时间、内存权限快照、Fake 子调用 | BND-INF-001 |
+| 单次进程内运行 | [run-kernel](../../src/application/run-kernel.ts) → [composition-root](../../src/application/composition-root.ts) | 装配AgentSystem、内存RunRegistry、RunFlow、ContextEngine、Pi Adapter、只读工具和FakeDelegationProvider |
+| 持久Flow服务 | [flow-composition](../../src/application/flow-composition.ts) | 装配AgentRunDatabase、SqliteRunRepository、SqliteFlowJournal、Artifact/Permit适配、FlowContext及ReActFlowHost；分别使用业务库flow.sqlite和系统日志flow-system.sqlite |
 
-## 待实现边界与装配点
+[RunRegistry目录说明](../../src/control/run-registry/README.md)明确：内存注册目录与耐久存储仍是两条调用路径，尚未统一。不能把第一条路径的“无持久化”推广到整个Kernel，也不能把第二条路径的本地持久化推广为全部Session、Memory、安全或跨组件协议已经完成。
 
-以下只登记组件责任与接口方向，不臆造未评审的完整方法签名，不创建空成功实现。正式签名继续以 contracts 设计评审为准。
+## 职责与唯一阅读入口
 
-| 归属 | 待实现组件 | 依赖方向 / 装配点 |
+| 内容 | 当前实现入口 | 设计入口 |
 |---|---|---|
-| control | ProtocolFacade、Gateway 完整协议、AgentRegistry、CapabilityRouter | 主机 → 控制入口；application 注入 |
-| control | RunScheduler、RuntimePool、ResourceManager | 控制调度 → 认知执行及基础设施资源端口；application 注入 |
-| control | SessionManager 持久化、RunRegistry 持久化、Attempt/Lease 恢复 | 控制 → 独立仓储 / Journal 端口；application 注入 |
-| control | MemoryManager、SubagentCoordinator / ExecutionScope | Context → Memory；Child Run → Scheduler；application 注入 |
-| security | ExecutionPermit、ApprovalBridge | 控制请求判定 / 审批；工具执行点消费 Permit；application 注入 |
-| observability | Logging、Tracing、Metrics、TelemetryPipeline、HealthDiagnostics、SecurityAudit | 各职责 → 运维窄端口；禁止运维反向写领域状态 |
-| infrastructure | StateStorage、ArtifactStorage、ExecutionCapacity、ProcessContainer、Transport、ModelEgress、SecretResolver | 消费者定义 Port，application 注入机制 Adapter |
-| execution | 生产 Sandbox、远程 ToolProvider | tools → execution → 基础设施机制；application 注入 |
+| Run对象与注册目录 | [RunRegistry](../../src/control/run-registry/README.md) | [RunRegistry设计](../design/layers/l1-control/components/run-registry.md) |
+| 系统Flow与Activity | [FlowEngine](../../src/control/flow-engine/README.md) | [FlowEngine设计](../design/layers/l1-control/components/flow-engine/README.md) |
+| ReAct业务策略 | [ReAct策略](../../src/control/react-flow/README.md) | [L1层](../design/layers/l1-control/README.md) |
+| 上下文准备与组装 | [FlowContext](../../src/control/flow-context.ts)、[ContextEngine](../../src/control/context-engine/context-engine.ts) | [Context设计与评审](../design/layers/l1-control/components/context-engine.md) |
+| 模型适配 | [Pi Adapter工厂](../../src/cognitive/adapters/pi-adapter-factory.ts) | [L2层](../design/layers/l2-cognitive/README.md) |
+| 业务存储与系统日志 | [SQLite Run仓储](../../src/infrastructure/state-storage/adapters/run-registry/sqlite-run-repository.ts)、[Flow Journal](../../src/infrastructure/state-storage/adapters/flow-engine/sqlite-flow-journal.ts) | [StateStorage](../design/layers/infrastructure-plane/components/state-storage.md) |
 
-## 当前保留的限制
+父子关系、Session、权限和工具的目标职责以当前层级设计及有效变更为准；本页不复制旧RuntimePool、ResourceManager或独立SubagentCoordinator待实现清单。
 
-- Run/事件保存在内存，没有事务提交、Journal 或 UNKNOWN_SIDE_EFFECT 恢复流程。
-- 现有单层委派仍通过 DelegationProviderPort；没有冒充 Scheduler 或完整 Child Run 聚合。
-- Grant 仍为短时可复核授权，没有原子消费；原有 Sandbox create/terminate 端口由一次调用的 ToolExecutor 包装。
-- 配置保留 objectModel 等现有键名以保持配置行为，其注释已调整为控制入口容量。
-- 尚未具备完整执行信封和技术身份模型；当前快照隔离检查被保留。
+## 验证边界
 
-## 验证入口
+运行命令见[运行说明](pi-kernel-runtime.md)，本地服务操作见[Flow部署说明](../../deploy/flow-local/README.md)，验证证据从[Verification](../verification/README.md)进入。已有报告只证明对应代码、配置及执行环境；目录迁移不证明行为验收完成。
 
-在本包执行 `npm run typecheck`、`npm test`、`npm run check:boundaries`、`npm run check:comments`、`npm run check:docs`。这些检查不表示候选文档已经通过完整评审。
+旧说明和跨组件草稿已移至[历史归档](../governance/archive/runtime-before-cleanup-2026-09-08/README.md)，不再作为当前事实或开发规范。

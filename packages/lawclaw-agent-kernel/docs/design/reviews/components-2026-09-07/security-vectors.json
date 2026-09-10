@@ -1,0 +1,738 @@
+{
+  "status": "design-expectations-not-runtime-results",
+  "contractVersion": "CD-1-R1",
+  "trustedScope": "constructed by test harness; never deserialize from request",
+  "artifacts": [
+    {
+      "artifact": {
+        "id": "artifact:synthetic",
+        "digest": "sha256:b3cc0475bb78a5026098858e9889acf666d31062d513d303314eca31d36e72f2",
+        "bytes": 9
+      },
+      "syntheticContent": "synthetic"
+    }
+  ],
+  "vectors": [
+    {
+      "id": "child.create-allow",
+      "meta": {
+        "protocolVersion": "1.0.0",
+        "requestId": "request:1",
+        "correlationId": "correlation:1",
+        "traceparent": "00-11111111111111111111111111111111-2222222222222222-01",
+        "deadlineAtMs": 110000,
+        "commandId": "command:child.create:allow",
+        "idempotencyKey": "command:child.create:allow"
+      },
+      "nowMs": 100000,
+      "authorizationState": {
+        "envelopeRef": "envelope:parent",
+        "scopeRef": "scope:1",
+        "epoch": 7,
+        "state": "active",
+        "policyRef": "policy:7",
+        "validUntilMs": 120000,
+        "version": 0,
+        "sourceReceiptRef": "auth-source:7"
+      },
+      "policy": {
+        "policyRef": "policy:7",
+        "epoch": 7,
+        "scopeRef": "scope:1",
+        "denyActions": [],
+        "allowActions": [
+          "child.create"
+        ],
+        "askActions": [],
+        "resourceLimitsRef": "limits:1",
+        "expiresAtMs": 120000
+      },
+      "request": {
+        "action": {
+          "kind": "child.create",
+          "payload": {
+            "parentRunId": "run:parent",
+            "childId": "child:1",
+            "originCommandId": "command:child",
+            "spec": {
+              "goalRef": {
+                "id": "artifact:synthetic",
+                "digest": "sha256:b3cc0475bb78a5026098858e9889acf666d31062d513d303314eca31d36e72f2",
+                "bytes": 9
+              },
+              "envelopeSubsetRef": "envelope:child",
+              "budget": {
+                "maxTurns": 15,
+                "maxToolCalls": 15,
+                "maxChildren": 0,
+                "maxDepth": 1,
+                "maxContextBytes": 1048576,
+                "maxInputTokens": 32768,
+                "outputReserveTokens": 4096,
+                "maxOutputBytes": 262144
+              },
+              "deadlineAtMs": 180000
+            },
+            "admission": {
+              "agentId": "agent:1",
+              "agentVersion": 7,
+              "sessionId": "session:1",
+              "sessionVersion": 7,
+              "routeProposalRef": "route-proposal:1",
+              "routeSnapshotRef": "route:7"
+            },
+            "reservationId": "reservation:1"
+          }
+        },
+        "binding": {
+          "runId": "run:parent",
+          "agentId": "agent:1",
+          "envelopeRef": "envelope:parent",
+          "policyEpoch": 7,
+          "kind": "child.create",
+          "actionDigest": "sha256:9cb60133b256205206e74d8d397a1454262ff2057ee9d0ecb4164f90511f16c7",
+          "targetDigest": "sha256:0c20190eb8f0c54b79af64c8b65a54fed999d7c33a5c704b950cf83b28f27ebb",
+          "resourceScopeRef": "resource:1"
+        },
+        "approvalRef": null
+      },
+      "expected": {
+        "pdpKind": "allow",
+        "consumerResult": "execute_once",
+        "newEffects": 1,
+        "approvalWaits": 0
+      },
+      "changedPayloadMustInvalidatePermit": true
+    },
+    {
+      "id": "child.create-ask",
+      "meta": {
+        "protocolVersion": "1.0.0",
+        "requestId": "request:1",
+        "correlationId": "correlation:1",
+        "traceparent": "00-11111111111111111111111111111111-2222222222222222-01",
+        "deadlineAtMs": 110000,
+        "commandId": "command:child.create:ask",
+        "idempotencyKey": "command:child.create:ask"
+      },
+      "nowMs": 100000,
+      "authorizationState": {
+        "envelopeRef": "envelope:parent",
+        "scopeRef": "scope:1",
+        "epoch": 7,
+        "state": "active",
+        "policyRef": "policy:7",
+        "validUntilMs": 120000,
+        "version": 0,
+        "sourceReceiptRef": "auth-source:7"
+      },
+      "policy": {
+        "policyRef": "policy:7",
+        "epoch": 7,
+        "scopeRef": "scope:1",
+        "denyActions": [],
+        "allowActions": [],
+        "askActions": [
+          "child.create"
+        ],
+        "resourceLimitsRef": "limits:1",
+        "expiresAtMs": 120000
+      },
+      "request": {
+        "action": {
+          "kind": "child.create",
+          "payload": {
+            "parentRunId": "run:parent",
+            "childId": "child:1",
+            "originCommandId": "command:child",
+            "spec": {
+              "goalRef": {
+                "id": "artifact:synthetic",
+                "digest": "sha256:b3cc0475bb78a5026098858e9889acf666d31062d513d303314eca31d36e72f2",
+                "bytes": 9
+              },
+              "envelopeSubsetRef": "envelope:child",
+              "budget": {
+                "maxTurns": 15,
+                "maxToolCalls": 15,
+                "maxChildren": 0,
+                "maxDepth": 1,
+                "maxContextBytes": 1048576,
+                "maxInputTokens": 32768,
+                "outputReserveTokens": 4096,
+                "maxOutputBytes": 262144
+              },
+              "deadlineAtMs": 180000
+            },
+            "admission": {
+              "agentId": "agent:1",
+              "agentVersion": 7,
+              "sessionId": "session:1",
+              "sessionVersion": 7,
+              "routeProposalRef": "route-proposal:1",
+              "routeSnapshotRef": "route:7"
+            },
+            "reservationId": "reservation:1"
+          }
+        },
+        "binding": {
+          "runId": "run:parent",
+          "agentId": "agent:1",
+          "envelopeRef": "envelope:parent",
+          "policyEpoch": 7,
+          "kind": "child.create",
+          "actionDigest": "sha256:9cb60133b256205206e74d8d397a1454262ff2057ee9d0ecb4164f90511f16c7",
+          "targetDigest": "sha256:0c20190eb8f0c54b79af64c8b65a54fed999d7c33a5c704b950cf83b28f27ebb",
+          "resourceScopeRef": "resource:1"
+        },
+        "approvalRef": null
+      },
+      "expected": {
+        "pdpKind": "ask",
+        "consumerResult": "ACTION_APPROVAL_REQUIRED",
+        "newEffects": 0,
+        "approvalWaits": 0
+      },
+      "changedPayloadMustInvalidatePermit": true
+    },
+    {
+      "id": "child.create-deny",
+      "meta": {
+        "protocolVersion": "1.0.0",
+        "requestId": "request:1",
+        "correlationId": "correlation:1",
+        "traceparent": "00-11111111111111111111111111111111-2222222222222222-01",
+        "deadlineAtMs": 110000,
+        "commandId": "command:child.create:deny",
+        "idempotencyKey": "command:child.create:deny"
+      },
+      "nowMs": 100000,
+      "authorizationState": {
+        "envelopeRef": "envelope:parent",
+        "scopeRef": "scope:1",
+        "epoch": 7,
+        "state": "active",
+        "policyRef": "policy:7",
+        "validUntilMs": 120000,
+        "version": 0,
+        "sourceReceiptRef": "auth-source:7"
+      },
+      "policy": {
+        "policyRef": "policy:7",
+        "epoch": 7,
+        "scopeRef": "scope:1",
+        "denyActions": [
+          "child.create"
+        ],
+        "allowActions": [],
+        "askActions": [],
+        "resourceLimitsRef": "limits:1",
+        "expiresAtMs": 120000
+      },
+      "request": {
+        "action": {
+          "kind": "child.create",
+          "payload": {
+            "parentRunId": "run:parent",
+            "childId": "child:1",
+            "originCommandId": "command:child",
+            "spec": {
+              "goalRef": {
+                "id": "artifact:synthetic",
+                "digest": "sha256:b3cc0475bb78a5026098858e9889acf666d31062d513d303314eca31d36e72f2",
+                "bytes": 9
+              },
+              "envelopeSubsetRef": "envelope:child",
+              "budget": {
+                "maxTurns": 15,
+                "maxToolCalls": 15,
+                "maxChildren": 0,
+                "maxDepth": 1,
+                "maxContextBytes": 1048576,
+                "maxInputTokens": 32768,
+                "outputReserveTokens": 4096,
+                "maxOutputBytes": 262144
+              },
+              "deadlineAtMs": 180000
+            },
+            "admission": {
+              "agentId": "agent:1",
+              "agentVersion": 7,
+              "sessionId": "session:1",
+              "sessionVersion": 7,
+              "routeProposalRef": "route-proposal:1",
+              "routeSnapshotRef": "route:7"
+            },
+            "reservationId": "reservation:1"
+          }
+        },
+        "binding": {
+          "runId": "run:parent",
+          "agentId": "agent:1",
+          "envelopeRef": "envelope:parent",
+          "policyEpoch": 7,
+          "kind": "child.create",
+          "actionDigest": "sha256:9cb60133b256205206e74d8d397a1454262ff2057ee9d0ecb4164f90511f16c7",
+          "targetDigest": "sha256:0c20190eb8f0c54b79af64c8b65a54fed999d7c33a5c704b950cf83b28f27ebb",
+          "resourceScopeRef": "resource:1"
+        },
+        "approvalRef": null
+      },
+      "expected": {
+        "pdpKind": "deny",
+        "consumerResult": "ACCESS_DENIED",
+        "newEffects": 0,
+        "approvalWaits": 0
+      },
+      "changedPayloadMustInvalidatePermit": true
+    },
+    {
+      "id": "memory.read-allow",
+      "meta": {
+        "protocolVersion": "1.0.0",
+        "requestId": "request:1",
+        "correlationId": "correlation:1",
+        "traceparent": "00-11111111111111111111111111111111-2222222222222222-01",
+        "deadlineAtMs": 110000,
+        "commandId": "command:memory.read:allow",
+        "idempotencyKey": "command:memory.read:allow"
+      },
+      "nowMs": 100000,
+      "authorizationState": {
+        "envelopeRef": "envelope:parent",
+        "scopeRef": "scope:1",
+        "epoch": 7,
+        "state": "active",
+        "policyRef": "policy:7",
+        "validUntilMs": 120000,
+        "version": 0,
+        "sourceReceiptRef": "auth-source:7"
+      },
+      "policy": {
+        "policyRef": "policy:7",
+        "epoch": 7,
+        "scopeRef": "scope:1",
+        "denyActions": [],
+        "allowActions": [
+          "memory.read"
+        ],
+        "askActions": [],
+        "resourceLimitsRef": "limits:1",
+        "expiresAtMs": 120000
+      },
+      "request": {
+        "action": {
+          "kind": "memory.read",
+          "payload": {
+            "source": {
+              "spaceId": "memory:1",
+              "spaceVersion": 7,
+              "queryRef": {
+                "id": "artifact:synthetic",
+                "digest": "sha256:b3cc0475bb78a5026098858e9889acf666d31062d513d303314eca31d36e72f2",
+                "bytes": 9
+              },
+              "indexVersion": "idx:7",
+              "algorithmVersion": "rank:1",
+              "epoch": 7,
+              "required": true
+            },
+            "limit": 16
+          }
+        },
+        "binding": {
+          "runId": "run:parent",
+          "agentId": "agent:1",
+          "envelopeRef": "envelope:parent",
+          "policyEpoch": 7,
+          "kind": "memory.read",
+          "actionDigest": "sha256:cad29ab329eb5666aece34ad07f2b888191cb5ff556de4b7174d55f840d83d56",
+          "targetDigest": "sha256:cff3872ebc0822d0aa7e6b0ec9a762bda87f25ab26cd4319394c16a56b585e09",
+          "resourceScopeRef": "resource:1"
+        },
+        "approvalRef": null
+      },
+      "expected": {
+        "pdpKind": "allow",
+        "consumerResult": "execute_once",
+        "newEffects": 1,
+        "approvalWaits": 0
+      },
+      "changedPayloadMustInvalidatePermit": true
+    },
+    {
+      "id": "memory.read-ask",
+      "meta": {
+        "protocolVersion": "1.0.0",
+        "requestId": "request:1",
+        "correlationId": "correlation:1",
+        "traceparent": "00-11111111111111111111111111111111-2222222222222222-01",
+        "deadlineAtMs": 110000,
+        "commandId": "command:memory.read:ask",
+        "idempotencyKey": "command:memory.read:ask"
+      },
+      "nowMs": 100000,
+      "authorizationState": {
+        "envelopeRef": "envelope:parent",
+        "scopeRef": "scope:1",
+        "epoch": 7,
+        "state": "active",
+        "policyRef": "policy:7",
+        "validUntilMs": 120000,
+        "version": 0,
+        "sourceReceiptRef": "auth-source:7"
+      },
+      "policy": {
+        "policyRef": "policy:7",
+        "epoch": 7,
+        "scopeRef": "scope:1",
+        "denyActions": [],
+        "allowActions": [],
+        "askActions": [
+          "memory.read"
+        ],
+        "resourceLimitsRef": "limits:1",
+        "expiresAtMs": 120000
+      },
+      "request": {
+        "action": {
+          "kind": "memory.read",
+          "payload": {
+            "source": {
+              "spaceId": "memory:1",
+              "spaceVersion": 7,
+              "queryRef": {
+                "id": "artifact:synthetic",
+                "digest": "sha256:b3cc0475bb78a5026098858e9889acf666d31062d513d303314eca31d36e72f2",
+                "bytes": 9
+              },
+              "indexVersion": "idx:7",
+              "algorithmVersion": "rank:1",
+              "epoch": 7,
+              "required": true
+            },
+            "limit": 16
+          }
+        },
+        "binding": {
+          "runId": "run:parent",
+          "agentId": "agent:1",
+          "envelopeRef": "envelope:parent",
+          "policyEpoch": 7,
+          "kind": "memory.read",
+          "actionDigest": "sha256:cad29ab329eb5666aece34ad07f2b888191cb5ff556de4b7174d55f840d83d56",
+          "targetDigest": "sha256:cff3872ebc0822d0aa7e6b0ec9a762bda87f25ab26cd4319394c16a56b585e09",
+          "resourceScopeRef": "resource:1"
+        },
+        "approvalRef": null
+      },
+      "expected": {
+        "pdpKind": "ask",
+        "consumerResult": "ACTION_APPROVAL_REQUIRED",
+        "newEffects": 0,
+        "approvalWaits": 0
+      },
+      "changedPayloadMustInvalidatePermit": true
+    },
+    {
+      "id": "memory.read-deny",
+      "meta": {
+        "protocolVersion": "1.0.0",
+        "requestId": "request:1",
+        "correlationId": "correlation:1",
+        "traceparent": "00-11111111111111111111111111111111-2222222222222222-01",
+        "deadlineAtMs": 110000,
+        "commandId": "command:memory.read:deny",
+        "idempotencyKey": "command:memory.read:deny"
+      },
+      "nowMs": 100000,
+      "authorizationState": {
+        "envelopeRef": "envelope:parent",
+        "scopeRef": "scope:1",
+        "epoch": 7,
+        "state": "active",
+        "policyRef": "policy:7",
+        "validUntilMs": 120000,
+        "version": 0,
+        "sourceReceiptRef": "auth-source:7"
+      },
+      "policy": {
+        "policyRef": "policy:7",
+        "epoch": 7,
+        "scopeRef": "scope:1",
+        "denyActions": [
+          "memory.read"
+        ],
+        "allowActions": [],
+        "askActions": [],
+        "resourceLimitsRef": "limits:1",
+        "expiresAtMs": 120000
+      },
+      "request": {
+        "action": {
+          "kind": "memory.read",
+          "payload": {
+            "source": {
+              "spaceId": "memory:1",
+              "spaceVersion": 7,
+              "queryRef": {
+                "id": "artifact:synthetic",
+                "digest": "sha256:b3cc0475bb78a5026098858e9889acf666d31062d513d303314eca31d36e72f2",
+                "bytes": 9
+              },
+              "indexVersion": "idx:7",
+              "algorithmVersion": "rank:1",
+              "epoch": 7,
+              "required": true
+            },
+            "limit": 16
+          }
+        },
+        "binding": {
+          "runId": "run:parent",
+          "agentId": "agent:1",
+          "envelopeRef": "envelope:parent",
+          "policyEpoch": 7,
+          "kind": "memory.read",
+          "actionDigest": "sha256:cad29ab329eb5666aece34ad07f2b888191cb5ff556de4b7174d55f840d83d56",
+          "targetDigest": "sha256:cff3872ebc0822d0aa7e6b0ec9a762bda87f25ab26cd4319394c16a56b585e09",
+          "resourceScopeRef": "resource:1"
+        },
+        "approvalRef": null
+      },
+      "expected": {
+        "pdpKind": "deny",
+        "consumerResult": "ACCESS_DENIED",
+        "newEffects": 0,
+        "approvalWaits": 0
+      },
+      "changedPayloadMustInvalidatePermit": true
+    },
+    {
+      "id": "memory.write-allow",
+      "meta": {
+        "protocolVersion": "1.0.0",
+        "requestId": "request:1",
+        "correlationId": "correlation:1",
+        "traceparent": "00-11111111111111111111111111111111-2222222222222222-01",
+        "deadlineAtMs": 110000,
+        "commandId": "command:memory.write:allow",
+        "idempotencyKey": "command:memory.write:allow"
+      },
+      "nowMs": 100000,
+      "authorizationState": {
+        "envelopeRef": "envelope:parent",
+        "scopeRef": "scope:1",
+        "epoch": 7,
+        "state": "active",
+        "policyRef": "policy:7",
+        "validUntilMs": 120000,
+        "version": 0,
+        "sourceReceiptRef": "auth-source:7"
+      },
+      "policy": {
+        "policyRef": "policy:7",
+        "epoch": 7,
+        "scopeRef": "scope:1",
+        "denyActions": [],
+        "allowActions": [
+          "memory.write"
+        ],
+        "askActions": [],
+        "resourceLimitsRef": "limits:1",
+        "expiresAtMs": 120000
+      },
+      "request": {
+        "action": {
+          "kind": "memory.write",
+          "payload": {
+            "spaceId": "memory:1",
+            "candidateId": "candidate:1",
+            "expectedVersion": 7,
+            "entry": {
+              "entryId": "entry:1",
+              "version": 1,
+              "contentRef": {
+                "id": "artifact:synthetic",
+                "digest": "sha256:b3cc0475bb78a5026098858e9889acf666d31062d513d303314eca31d36e72f2",
+                "bytes": 9
+              },
+              "sourceRef": "transcript:1",
+              "sensitivity": "scoped",
+              "supersedes": null
+            }
+          }
+        },
+        "binding": {
+          "runId": "run:parent",
+          "agentId": "agent:1",
+          "envelopeRef": "envelope:parent",
+          "policyEpoch": 7,
+          "kind": "memory.write",
+          "actionDigest": "sha256:962ca9d190eda5f3063c4534ad28b9170da15c10593dedbdfba010ee884078a1",
+          "targetDigest": "sha256:7384575702ef7728469c1d9527f8921026a9c3092cd5ca85c3b4e7e1dc0f2c19",
+          "resourceScopeRef": "resource:1"
+        },
+        "approvalRef": null
+      },
+      "expected": {
+        "pdpKind": "allow",
+        "consumerResult": "execute_once",
+        "newEffects": 1,
+        "approvalWaits": 0
+      },
+      "changedPayloadMustInvalidatePermit": true
+    },
+    {
+      "id": "memory.write-ask",
+      "meta": {
+        "protocolVersion": "1.0.0",
+        "requestId": "request:1",
+        "correlationId": "correlation:1",
+        "traceparent": "00-11111111111111111111111111111111-2222222222222222-01",
+        "deadlineAtMs": 110000,
+        "commandId": "command:memory.write:ask",
+        "idempotencyKey": "command:memory.write:ask"
+      },
+      "nowMs": 100000,
+      "authorizationState": {
+        "envelopeRef": "envelope:parent",
+        "scopeRef": "scope:1",
+        "epoch": 7,
+        "state": "active",
+        "policyRef": "policy:7",
+        "validUntilMs": 120000,
+        "version": 0,
+        "sourceReceiptRef": "auth-source:7"
+      },
+      "policy": {
+        "policyRef": "policy:7",
+        "epoch": 7,
+        "scopeRef": "scope:1",
+        "denyActions": [],
+        "allowActions": [],
+        "askActions": [
+          "memory.write"
+        ],
+        "resourceLimitsRef": "limits:1",
+        "expiresAtMs": 120000
+      },
+      "request": {
+        "action": {
+          "kind": "memory.write",
+          "payload": {
+            "spaceId": "memory:1",
+            "candidateId": "candidate:1",
+            "expectedVersion": 7,
+            "entry": {
+              "entryId": "entry:1",
+              "version": 1,
+              "contentRef": {
+                "id": "artifact:synthetic",
+                "digest": "sha256:b3cc0475bb78a5026098858e9889acf666d31062d513d303314eca31d36e72f2",
+                "bytes": 9
+              },
+              "sourceRef": "transcript:1",
+              "sensitivity": "scoped",
+              "supersedes": null
+            }
+          }
+        },
+        "binding": {
+          "runId": "run:parent",
+          "agentId": "agent:1",
+          "envelopeRef": "envelope:parent",
+          "policyEpoch": 7,
+          "kind": "memory.write",
+          "actionDigest": "sha256:962ca9d190eda5f3063c4534ad28b9170da15c10593dedbdfba010ee884078a1",
+          "targetDigest": "sha256:7384575702ef7728469c1d9527f8921026a9c3092cd5ca85c3b4e7e1dc0f2c19",
+          "resourceScopeRef": "resource:1"
+        },
+        "approvalRef": null
+      },
+      "expected": {
+        "pdpKind": "ask",
+        "consumerResult": "ACTION_APPROVAL_REQUIRED",
+        "newEffects": 0,
+        "approvalWaits": 0
+      },
+      "changedPayloadMustInvalidatePermit": true
+    },
+    {
+      "id": "memory.write-deny",
+      "meta": {
+        "protocolVersion": "1.0.0",
+        "requestId": "request:1",
+        "correlationId": "correlation:1",
+        "traceparent": "00-11111111111111111111111111111111-2222222222222222-01",
+        "deadlineAtMs": 110000,
+        "commandId": "command:memory.write:deny",
+        "idempotencyKey": "command:memory.write:deny"
+      },
+      "nowMs": 100000,
+      "authorizationState": {
+        "envelopeRef": "envelope:parent",
+        "scopeRef": "scope:1",
+        "epoch": 7,
+        "state": "active",
+        "policyRef": "policy:7",
+        "validUntilMs": 120000,
+        "version": 0,
+        "sourceReceiptRef": "auth-source:7"
+      },
+      "policy": {
+        "policyRef": "policy:7",
+        "epoch": 7,
+        "scopeRef": "scope:1",
+        "denyActions": [
+          "memory.write"
+        ],
+        "allowActions": [],
+        "askActions": [],
+        "resourceLimitsRef": "limits:1",
+        "expiresAtMs": 120000
+      },
+      "request": {
+        "action": {
+          "kind": "memory.write",
+          "payload": {
+            "spaceId": "memory:1",
+            "candidateId": "candidate:1",
+            "expectedVersion": 7,
+            "entry": {
+              "entryId": "entry:1",
+              "version": 1,
+              "contentRef": {
+                "id": "artifact:synthetic",
+                "digest": "sha256:b3cc0475bb78a5026098858e9889acf666d31062d513d303314eca31d36e72f2",
+                "bytes": 9
+              },
+              "sourceRef": "transcript:1",
+              "sensitivity": "scoped",
+              "supersedes": null
+            }
+          }
+        },
+        "binding": {
+          "runId": "run:parent",
+          "agentId": "agent:1",
+          "envelopeRef": "envelope:parent",
+          "policyEpoch": 7,
+          "kind": "memory.write",
+          "actionDigest": "sha256:962ca9d190eda5f3063c4534ad28b9170da15c10593dedbdfba010ee884078a1",
+          "targetDigest": "sha256:7384575702ef7728469c1d9527f8921026a9c3092cd5ca85c3b4e7e1dc0f2c19",
+          "resourceScopeRef": "resource:1"
+        },
+        "approvalRef": null
+      },
+      "expected": {
+        "pdpKind": "deny",
+        "consumerResult": "ACCESS_DENIED",
+        "newEffects": 0,
+        "approvalWaits": 0
+      },
+      "changedPayloadMustInvalidatePermit": true
+    }
+  ],
+  "expectedRule": "Explicit deny > scope constraints > ask > explicit allow > deny; consumer non-tool ask fails closed. No real provider calls."
+}

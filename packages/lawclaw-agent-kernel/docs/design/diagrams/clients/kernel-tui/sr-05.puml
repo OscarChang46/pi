@@ -1,0 +1,21 @@
+@startuml
+skinparam defaultFontName Hiragino Sans GB
+start
+:查询当前审批，默认返回焦点;
+if (明确决定且无其他pending?) then (是)
+ :保存决定命令，调用服务;
+else (否)
+ :不产生决定;
+ stop
+endif
+if (冲突/过期/撤销?) then (是)
+ :刷新，等待用户新决定，不自动重批;
+ stop
+endif
+if (结果未知?) then (是)
+ :查询原命令，复用有限查询规则;
+endif
+:旧回执只清pending，不覆盖更高版本面板;
+:决定不是执行成功；继续观察Run;
+stop
+@enduml

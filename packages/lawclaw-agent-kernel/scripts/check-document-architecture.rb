@@ -28,6 +28,8 @@ layers.each do |layer|
   layer.fetch("components").each { |id, path| register.call(id, path) }
 end
 
+manifest.fetch("sr_documents", {}).each { |id, path| register.call(id, path) }
+
 manifest.fetch("document_sets").each_value do |set|
   root = project_root.join(set.fetch("root"))
   discovered = Dir.glob(root.join("**/*.md")).sort

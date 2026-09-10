@@ -27,7 +27,7 @@ application → control → cognitive → AgentAdapter → Pi
                            执行结果 → control → 下一轮 cognitive
 ```
 
-跨职责调用经 contracts 中的 Port；application 和 CLI 扩展负责装配。AgentSystem 管理 Session 档案并协调独立 RunRegistry；AgentRuntime 不持有 Session 或 Run 目录。Session 只保存 Run ID，查询状态使用 `kernel.getRun(runId)`。
+跨职责调用经 contracts 中的 Port；application 和 CLI 扩展负责装配。AgentSystem 管理 Session 档案并协调独立 RunRegistry；AgentRuntime 不持有 Session 或 Run 目录。Session 只保存当前 Run 绑定，查询状态使用 `kernel.getRun(runId)`。
 
 详细映射和待实现装配点见 [框架边界映射](docs/runtime/framework-boundaries.md)。
 
@@ -78,6 +78,7 @@ npm run pi:smoke
 import {
 	createAgentKernel,
 	createRequestContext,
+	createRootSessionCommand,
 	createRunCommand,
 	loadRuntimeSettings,
 	resolveConfiguredPath,
@@ -86,15 +87,21 @@ import {
 const settings = loadRuntimeSettings();
 const workspace = resolveConfiguredPath(settings, settings.config.runtime.workspaceRoot);
 const kernel = await createAgentKernel(workspace, settings);
-const result = await kernel.run(
-	createRequestContext(settings),
-	createRunCommand(workspace, settings),
-	new AbortController().signal,
+const requestContext = createRequestContext(settings);
+const ensured = kernel.ensure(
+	requestContext,
+	createRootSessionCommand({
+		logicalKey: `logical-session:${crypto.randomUUID()}`,
+		agentDefinitionRef: kernel.agentId,
+		contextPolicyRef: settings.config.prompts.agentSystemPromptId,
+	}),
 );
+const command = createRunCommand({ sessionId: ensured.anchor.sessionId, workspaceRoot: workspace }, settings);
+const result = await kernel.run(requestContext, command, new AbortController().signal);
 console.log(result.status, result.output);
 ```
 
-服务接入时由可信主机提供 RequestContext；本地 `createRequestContext` 不是认证服务。运行返回规范事件、候选输出及最后一个 ContextFrame；事件尚未持久化，不应宣称具有重放或崩溃恢复能力。
+服务接入时由可信主机提供 RequestContext、稳定 logicalKey、Agent 定义和 Context 策略引用；本地 `createRequestContext` 不是认证服务。Session ID 只由显式 `ensure` 产生，调用方不能预先指定。完整新链路应通过 `RootSessionPreparationCoordinator` 在候选成功后调用 ensure；上例仍是旧 ContextFrame Run 纵切，不代表新 AssemblyCandidate 的保存/采纳已经接通。运行事件尚未持久化，不应宣称具有重放或崩溃恢复能力。
 
 ## 配置与设计
 

@@ -3,7 +3,6 @@ export type {
 	AgentObjectModelConfig,
 	CliChildProcessConfig,
 	CliConfig,
-	ContextEngineConfig,
 	DelegationEngineConfig,
 	FauxScenarioConfig,
 	KernelRuntimeConfig,

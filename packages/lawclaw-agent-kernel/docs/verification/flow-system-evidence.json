@@ -1,0 +1,303 @@
+{
+  "recordedAt": "2026-09-07T13:38:08.075Z",
+  "image": "sha256:0a411aeef2b47e921613354b088e016385d9dc9ce95e8676f649537a564c88fb",
+  "model": {
+    "providerId": "deepseek",
+    "modelId": "deepseek-v4-flash"
+  },
+  "compiledBundles": {
+    "flow-server.mjs": "e46cce453c7dc78da8d18952a8b531dbf61be351ff000fa9e62e2238ace9ed13",
+    "flow-system-test.mjs": "4daced96a031f6438161909fa42e5fe781c6bf03191545894c7fa3e41f944ae1",
+    "flow-crash-worker.mjs": "fdbb01466f68d23f4a9d1c849f2439dcab89d5a827c98c2899ccdb41a10cb8f6",
+    "flow-system-admin.mjs": "e624b63d5948310f0163ebf1dec9673585f2397297d1975acf82d544d2783305"
+  },
+  "live": {
+    "startedAt": "2026-09-07T13:34:55.684Z",
+    "finishedAt": "2026-09-07T13:35:01.153Z",
+    "passed": true,
+    "cases": [
+      {
+        "name": "answer",
+        "runId": "live-answer-45d34e97-1bd1-49f9-9639-9f532f768fac",
+        "passed": true,
+        "position": "Completed",
+        "system": {
+          "runId": "live-answer-45d34e97-1bd1-49f9-9639-9f532f768fac",
+          "revision": 5,
+          "state": "Terminate",
+          "epoch": 2,
+          "reason": "COMPLETED",
+          "result": {
+            "position": {
+              "kind": "Completed",
+              "outputRef": {
+                "bytes": 14,
+                "digest": "sha256:f3b83b0bb3cde397b95ea6975a11288175aff21c017addb4a03fcd061d402801",
+                "id": "art:f3b83b0bb3cde397b95ea6975a11288175aff21c017addb4a03fcd061d402801"
+              }
+            }
+          }
+        },
+        "systemEvents": [
+          {
+            "sequence": 1,
+            "kind": "Run_Admitted"
+          },
+          {
+            "sequence": 2,
+            "kind": "State_Changed"
+          },
+          {
+            "sequence": 3,
+            "kind": "Activity_Started"
+          },
+          {
+            "sequence": 4,
+            "kind": "Activity_Completed"
+          },
+          {
+            "sequence": 5,
+            "kind": "State_Changed"
+          }
+        ]
+      },
+      {
+        "name": "read",
+        "runId": "live-read-318e6d03-9259-4237-97d0-34016551a1e4",
+        "passed": true,
+        "position": "Completed",
+        "system": {
+          "runId": "live-read-318e6d03-9259-4237-97d0-34016551a1e4",
+          "revision": 11,
+          "state": "Terminate",
+          "epoch": 2,
+          "reason": "COMPLETED",
+          "result": {
+            "position": {
+              "kind": "Completed",
+              "outputRef": {
+                "bytes": 131,
+                "digest": "sha256:460e6e19f74b05864bfa440324d29cae46a86d031805fa1c43366a7098cc45bb",
+                "id": "art:460e6e19f74b05864bfa440324d29cae46a86d031805fa1c43366a7098cc45bb"
+              }
+            }
+          }
+        },
+        "systemEvents": [
+          {
+            "sequence": 1,
+            "kind": "Run_Admitted"
+          },
+          {
+            "sequence": 2,
+            "kind": "State_Changed"
+          },
+          {
+            "sequence": 3,
+            "kind": "Activity_Started"
+          },
+          {
+            "sequence": 4,
+            "kind": "Activity_Completed"
+          },
+          {
+            "sequence": 5,
+            "kind": "Activity_Started"
+          },
+          {
+            "sequence": 6,
+            "kind": "Activity_Completed"
+          },
+          {
+            "sequence": 7,
+            "kind": "Activity_Started"
+          },
+          {
+            "sequence": 8,
+            "kind": "Activity_Completed"
+          },
+          {
+            "sequence": 9,
+            "kind": "Activity_Started"
+          },
+          {
+            "sequence": 10,
+            "kind": "Activity_Completed"
+          },
+          {
+            "sequence": 11,
+            "kind": "State_Changed"
+          }
+        ]
+      },
+      {
+        "name": "deadline",
+        "runId": "live-deadline-cdd1e841-d8c5-412a-bd36-8cb7ad427be8",
+        "passed": true,
+        "position": "Cancelled",
+        "system": {
+          "runId": "live-deadline-cdd1e841-d8c5-412a-bd36-8cb7ad427be8",
+          "revision": 5,
+          "state": "Terminate",
+          "epoch": 2,
+          "reason": "COMPLETED",
+          "result": {
+            "position": {
+              "kind": "Cancelled",
+              "reason": "deadline"
+            }
+          }
+        },
+        "systemEvents": [
+          {
+            "sequence": 1,
+            "kind": "Run_Admitted"
+          },
+          {
+            "sequence": 2,
+            "kind": "State_Changed"
+          },
+          {
+            "sequence": 3,
+            "kind": "Activity_Started"
+          },
+          {
+            "sequence": 4,
+            "kind": "Activity_Completed"
+          },
+          {
+            "sequence": 5,
+            "kind": "State_Changed"
+          }
+        ]
+      },
+      {
+        "name": "child",
+        "runId": "live-child-149df418-f091-4e55-b45e-61f7d1e2cb9e",
+        "passed": true,
+        "position": "Completed",
+        "system": {
+          "runId": "live-child-149df418-f091-4e55-b45e-61f7d1e2cb9e",
+          "revision": 9,
+          "state": "Terminate",
+          "epoch": 2,
+          "reason": "COMPLETED",
+          "result": {
+            "position": {
+              "kind": "Completed",
+              "outputRef": {
+                "bytes": 16,
+                "digest": "sha256:b1f863aa438312d2b69f12417f3905642102b67ca15f86b29d7d621658f147b3",
+                "id": "art:b1f863aa438312d2b69f12417f3905642102b67ca15f86b29d7d621658f147b3"
+              }
+            }
+          }
+        },
+        "systemEvents": [
+          {
+            "sequence": 1,
+            "kind": "Run_Admitted"
+          },
+          {
+            "sequence": 2,
+            "kind": "State_Changed"
+          },
+          {
+            "sequence": 3,
+            "kind": "Activity_Started"
+          },
+          {
+            "sequence": 4,
+            "kind": "Activity_Completed"
+          },
+          {
+            "sequence": 5,
+            "kind": "Activity_Started"
+          },
+          {
+            "sequence": 6,
+            "kind": "Activity_Completed"
+          },
+          {
+            "sequence": 7,
+            "kind": "Activity_Started"
+          },
+          {
+            "sequence": 8,
+            "kind": "Activity_Completed"
+          },
+          {
+            "sequence": 9,
+            "kind": "State_Changed"
+          }
+        ]
+      },
+      {
+        "name": "cancel",
+        "runId": "live-cancel-2352d608-b93a-4d7f-b1cc-ebc5d9a6e8c9",
+        "passed": true,
+        "position": "Cancelled"
+      }
+    ]
+  },
+  "recovery": {
+    "startedAt": "2026-09-07T13:36:26.185Z",
+    "finishedAt": "2026-09-07T13:37:04.200Z",
+    "passed": true,
+    "cases": [
+      {
+        "name": "completed-after-sigkill",
+        "passed": true,
+        "runId": "live-read-318e6d03-9259-4237-97d0-34016551a1e4",
+        "version": 6
+      },
+      {
+        "name": "inflight-after-sigkill",
+        "passed": true,
+        "runId": "live-crash-dd6c8724-29be-403c-a73c-6c770dc2a060",
+        "beforeAttempt": "b7eac8c5-8885-4b13-a01d-252131971a78",
+        "afterAttempt": "877d413b-aa80-48ae-bdb1-76b021a7e59e",
+        "commands": [
+          {
+            "commandId": "cmd:fcd2d2c5c0d33e1253afa3d2a838cbe0deff5299628c87a4df70a1f0737ebb45",
+            "kind": "InvokeModel",
+            "status": "UNKNOWN",
+            "effect": "UNKNOWN"
+          },
+          {
+            "commandId": "cmd:e5033b9ba738c1d4d1f6e17a0ebfcfe7fcda455f2faff2a394cb7c20fc3e387e",
+            "kind": "RequestReconciliation",
+            "status": "SUCCEEDED",
+            "effect": "NONE"
+          }
+        ],
+        "system": {
+          "runId": "live-crash-dd6c8724-29be-403c-a73c-6c770dc2a060",
+          "revision": 180,
+          "state": "Yield",
+          "epoch": 177,
+          "reason": "ACTIVITY_RESULT_UNKNOWN",
+          "result": null
+        },
+        "position": {
+          "kind": "Suspended",
+          "reason": {
+            "kind": "model_unknown",
+            "modelCommandId": "cmd:fcd2d2c5c0d33e1253afa3d2a838cbe0deff5299628c87a4df70a1f0737ebb45",
+            "incidentRef": "inc:5d3d6cdee41947d58477ac3d4d65cfacc1d0b913b4c81d80725bf7900eab13ce"
+          }
+        }
+      }
+    ]
+  },
+  "offline": {
+    "flowCases": 40,
+    "lastAffectedCases": 16,
+    "systemCasesInContainer": 10
+  },
+  "limitations": [
+    "local SQLite profile",
+    "unknown external effects require authoritative reconciliation",
+    "no cross-system physical exactly-once guarantee"
+  ]
+}

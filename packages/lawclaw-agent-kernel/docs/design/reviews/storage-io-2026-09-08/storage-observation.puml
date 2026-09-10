@@ -1,0 +1,38 @@
+@startuml
+title 外部存储观测：现有边界内的候选模块
+skinparam defaultFontName Hiragino Sans GB
+skinparam shadowing false
+skinparam componentStyle rectangle
+left to right direction
+rectangle "领域调用方\nFlowEngine / RunRegistry\nSession / Context / Memory" as Owners
+package "Infrastructure Adapter 内部" {
+  component "LogicalOperationRecorder\n固定操作描述器 / 有效增量" as Logical
+  component "AdapterAttemptRecorder\n尝试字节 / 行数 / 耗时" as Attempt
+  database "既有数据库 / Artifact 后端" as Store
+  component "BackendStatsCollector\n能力 / 口径 / 新鲜度" as Collector
+}
+package "Operations 既有组件内部" {
+  component "BoundedMetricAccumulator\n内存 Counter / Histogram" as Metrics
+  component "TelemetryPipeline\n有界 Trace 队列 / Exporter" as Pipeline
+  component "AmplificationWindowEvaluator\n匹配口径 / 比率 / unknown" as Window
+}
+cloud "外部推理服务\n仅输出其支持的 KV 指标" as Provider
+rectangle "只读看板 / 告警" as View
+Owners --> Logical : Repository / FlowJournal / Artifact Port
+Logical --> Attempt : 原有调用与结果
+Attempt --> Store : SQL / SDK
+Logical ..> Metrics : U / S / logical duration
+Attempt ..> Metrics : A / Rfetch / attempts
+Collector ..> Store : 受限实例统计
+Collector ..> Metrics : 可用的引擎与资源量
+Provider ..> Metrics : provider metrics adapter
+Metrics --> Window : 内存快照
+Logical ..> Pipeline : 脱敏 Span
+Window --> View : 比率 / 覆盖率 / 容量
+Pipeline --> View : 采样 Trace
+note bottom of View
+只读输出，不反向推进领域状态。
+设备成本按实际共享资源池统计。
+安全审计沿用独立耐久路径。
+end note
+@enduml

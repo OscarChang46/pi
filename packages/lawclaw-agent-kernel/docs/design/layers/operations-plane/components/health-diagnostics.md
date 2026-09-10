@@ -16,7 +16,7 @@ supersedes: [docs/design/operations-infrastructure-minimum-design.md]
 
 ## 职责
 
-聚合 Kernel、SQLite、队列、RuntimePool、PDP、Sandbox 和时钟探针，输出只读 liveness、readiness、degraded 状态及有界诊断包。
+聚合 Kernel、SQLite、队列、Activity执行宿主、PDP、Sandbox 和时钟探针，输出只读 liveness、readiness、degraded 状态及有界诊断包。
 
 ## 状态与算法
 

@@ -1,0 +1,39 @@
+@startuml
+!include ../../theme.puml
+title E2：PEP 恢复（S4 / S5）
+start
+:FE/执行所有者按原command查询ToolCall;
+if (查询未知?) then (是)
+ :保留挂起/Incident；禁止新执行;
+ stop
+endif
+if (确认未受理?) then (是)
+ :只重投同命令；L3唯一键防迟到竞争;
+ stop
+endif
+if (RECEIVED?) then (是)
+ :查询或重投原consume，审计补同事件;
+ :Receipt确认后转AUTHORIZED;
+endif
+if (AUTHORIZED?) then (是)
+ :以当前claim重新authorizeStart;
+ if (Permit及资格仍有效?) then (是)
+  :按E1竞争STARTED；仅胜者执行;
+ else (否)
+  :明确阻断；不补签等效Permit;
+ endif
+ stop
+endif
+if (STARTED / UNKNOWN?) then (是)
+ :只查原Provider执行凭证;
+ if (可信证据确认效果/结果?) then (是)
+  :持久ReconciliationRecord及通知，
+不重复调用Provider;
+ else (否)
+  :保持UNKNOWN + Incident;
+ endif
+else (终态)
+ :回传原结果；Run终态仅保留LateFact;
+endif
+stop
+@enduml

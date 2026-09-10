@@ -1,3 +1,9 @@
+import { decodeCandidate } from "../contracts/control/context-engine/candidate-codec.ts";
+import type {
+	ModelObservationIdentity,
+	ModelObservationPort,
+} from "../contracts/control/run-registry/model-observation.ts";
+import type { AgentRunStore } from "../contracts/control/run-registry/run-storage.ts";
 import type { FlowArtifactStore } from "../contracts/flow-artifacts.ts";
 import type { FlowCommandHandler } from "../contracts/flow-dispatch.ts";
 import type { ActionProposal, AdvanceInput, EngineCommand, ModelOutput } from "../contracts/flow-engine.ts";
@@ -16,24 +22,40 @@ export function createFlowModelHandler(
 	model: AgentAdapter,
 	artifacts: FlowArtifactStore,
 	requestContext: () => RequestContext,
-	descriptors: readonly ToolDescriptor[],
+	store: AgentRunStore,
+	observation?: ModelObservationPort,
 ): FlowCommandHandler<"InvokeModel"> {
 	return async (input, command, signal) => {
-		const request = artifacts.get(command.payload.promptRef) as AgentTurnRequest;
-		const assistant = await collectAssistant(
-			model,
-			requestContext(),
-			request,
-			signal,
-			input.run.budget.maxOutputBytes,
-		);
+		const binding = store.adoptedContext(command);
+		if (
+			binding.bindings.sessionId !== input.run.bindings.sessionId ||
+			binding.bindings.executionEnvelopeRef !== command.executionEnvelopeRef
+		)
+			throw new Error("FLOW_CONTEXT_BINDING_MISMATCH");
+		const candidate = decodeCandidate(artifacts.get(command.payload.promptRef), binding);
+		if (
+			flowId("ctx-input", artifacts.get(binding.basisRef)) !== candidate.inputDigest ||
+			binding.inputBytes !== candidate.tokenAccounting.inputBytes
+		)
+			throw new Error("FLOW_CONTEXT_BINDING_MISMATCH");
+		const request: AgentTurnRequest = {
+			sessionId: binding.bindings.sessionId,
+			payload: candidate.payload,
+			formatVersion: candidate.formatVersion,
+			modelAdapterVersion: candidate.modelAdapterVersion,
+		};
+		const assistant = await collectAssistant(model, requestContext(), request, signal, {
+			maxOutputBytes: input.run.budget.maxOutputBytes,
+			identity: { runId: input.run.runId, attemptId: input.run.attemptId, commandId: command.commandId },
+			observation,
+		});
 		return {
 			source: "model",
 			payload: {
 				kind: "ModelCompleted",
 				modelCommandId: command.commandId,
 				assistantTurnRef: artifacts.put(assistant),
-				output: normalizeOutput({ input, command, assistant, artifacts, descriptors }),
+				output: normalizeOutput({ input, command, assistant, artifacts, descriptors: candidate.payload.tools }),
 			},
 		};
 	};
@@ -44,19 +66,32 @@ async function collectAssistant(
 	context: RequestContext,
 	request: AgentTurnRequest,
 	signal: AbortSignal,
-	maxOutputBytes: number,
+	options: {
+		readonly maxOutputBytes: number;
+		readonly identity: ModelObservationIdentity;
+		readonly observation: ModelObservationPort | undefined;
+	},
 ): Promise<KernelAssistantMessage> {
 	let assistant: KernelAssistantMessage | undefined;
 	let outputBytes = 0;
-	for await (const candidate of model.executeTurn(context, request, signal)) {
-		if (candidate.type === "text_delta") {
-			outputBytes += Buffer.byteLength(candidate.text);
-			if (outputBytes > maxOutputBytes) throw new Error("FLOW_MODEL_OUTPUT_LIMIT");
+	let offset = 0;
+	options.observation?.publish({ ...options.identity, kind: "start" });
+	try {
+		for await (const candidate of model.executeTurn(context, request, signal)) {
+			signal.throwIfAborted();
+			if (candidate.type === "text_delta") {
+				outputBytes += Buffer.byteLength(candidate.text);
+				if (outputBytes > options.maxOutputBytes) throw new Error("FLOW_MODEL_OUTPUT_LIMIT");
+				options.observation?.publish({ ...options.identity, kind: "delta", offset, text: candidate.text });
+				offset += Array.from(candidate.text).length;
+			}
+			if (candidate.type === "turn_completed") assistant = candidate.message;
 		}
-		if (candidate.type === "turn_completed") assistant = candidate.message;
+		if (!assistant) throw new Error("FLOW_MODEL_INCOMPLETE");
+		return assistant;
+	} finally {
+		options.observation?.publish({ ...options.identity, kind: "end" });
 	}
-	if (!assistant) throw new Error("FLOW_MODEL_INCOMPLETE");
-	return assistant;
 }
 
 interface ModelOutputContext {

@@ -1,0 +1,63 @@
+{
+  "scope": "directory organization only; no renewed semantic or runtime approval",
+  "migrations": [
+    {
+      "oldPath": "docs/design/layers/security-plane/components/permission-decision-engine.md",
+      "newPath": "docs/design/layers/security-plane/components/permission-decision-engine/README.md",
+      "beforeSha256": "20e64e08053c99bfccbf6ea6999e1859c82242fde79b8441991de6bc489b6c64",
+      "afterSha256": "15b5139aeff206b4df9c7fe155a7a492d46336b0a17f18fcbbf79aede1a2727a",
+      "contentCheck": "identical except relative Markdown links"
+    },
+    {
+      "oldPath": "docs/design/layers/security-plane/components/pep-enforcement.md",
+      "newPath": "docs/design/layers/security-plane/components/pep-enforcement/README.md",
+      "beforeSha256": "b6b7dc8d58d0981adea6644d52b523ce6eb6f293118ba117fbd7ff26acba81e3",
+      "afterSha256": "b7f1a8b5e5774627309e4f9af9b6813fb05e75bb3b9e030d8e5ab9e9899d46d1",
+      "contentCheck": "identical except relative Markdown links"
+    },
+    {
+      "oldPath": "docs/design/contracts/security-decision-contract.md",
+      "newPath": "docs/design/layers/security-plane/contracts/security-decision-contract.md",
+      "beforeSha256": "db93d82753ece782e6482a70c79bb037f46830720ab8051e8ed512d9c80f993a",
+      "afterSha256": "13ccd00378ff01373a2935ab79316f859ae0444a605e2912831d298ea9799587",
+      "contentCheck": "identical except relative Markdown links"
+    },
+    {
+      "oldPath": "docs/governance/reviews/pep-pdp-design-2026-09-08.md",
+      "newPath": "docs/design/layers/security-plane/reviews/pep-pdp-design-2026-09-08.md",
+      "beforeSha256": "eff2ec512b97d40714dd32d19894bac554f936e77aec6684b1e0bc123afc278a",
+      "afterSha256": "ed50a737766a0c4fc0de1fb21c1cd4bdea12fa53e60f7c2c3fb910e30fd69b3e",
+      "contentCheck": "identical except relative Markdown links"
+    },
+    {
+      "oldPath": "docs/governance/reviews/pep-pdp-design-evidence-2026-09-08.json",
+      "newPath": "docs/design/layers/security-plane/reviews/pep-pdp-design-evidence-2026-09-08.json",
+      "beforeSha256": "85f3b749aa4fb064015c9073e1d9e0596312a09a2f3ed8ed74f5abe57d57d3aa",
+      "afterSha256": "85f3b749aa4fb064015c9073e1d9e0596312a09a2f3ed8ed74f5abe57d57d3aa",
+      "contentCheck": "byte-identical historical evidence"
+    }
+  ],
+  "updatedMarkdownReferences": [
+    "docs/design/layers/security-plane/README.md",
+    "docs/design/layers/security-plane/components/pep-enforcement/README.md",
+    "docs/design/layers/security-plane/components/permission-decision-engine/README.md",
+    "docs/design/contracts/bnd-sec-001.md",
+    "docs/design/contracts/component-development-contracts-v1.md",
+    "docs/design/layers/security-plane/contracts/security-decision-contract.md",
+    "docs/design/contracts/README.md",
+    "docs/design/reference/domain-object-catalog.md",
+    "docs/design/reviews/components-2026-09-07/scope.md",
+    "docs/design/reviews/components-2026-09-07/operations-review.md",
+    "docs/governance/archive/runtime-before-cleanup-2026-09-08/design-drafts/2026-09-06/security-approval-permits.md",
+    "docs/governance/changes/ACR-2026-0014-pep-pdp-detail.md",
+    "docs/design/layers/security-plane/reviews/pep-pdp-design-2026-09-08.md"
+  ],
+  "verification": {
+    "movedFiles": 5,
+    "contentHashes": "passed",
+    "localLinksAndAnchorsChecked": 40,
+    "documentArchitecture": "三级文档架构检查通过：7 个层、34 个组件、85 份受治理文档。",
+    "diffCheckExitCode": 0,
+    "scope": "directory migration only; historical semantic/visual evidence not renewed"
+  }
+}

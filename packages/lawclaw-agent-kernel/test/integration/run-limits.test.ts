@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { createRunCommand } from "../../src/application/composition-root.ts";
+import { createInMemoryContextDependencies } from "../../src/application/context-assembly-composition.ts";
 import { AgentRuntime } from "../../src/cognitive/agent-runtime.ts";
 import { loadRuntimeSettings } from "../../src/config/index.ts";
 import type { AgentExecutionBudget, RuntimeEventCandidate } from "../../src/contracts/index.ts";
 import type { ToolCoordinatorPort } from "../../src/contracts/tool-runtime.ts";
-import { ContextEngine } from "../../src/control/context-engine.ts";
 import { createReadOnlyPermissionCeiling } from "../../src/control/permission-scope.ts";
 import { RunFlow } from "../../src/control/run-flow.ts";
 import { assertEventSequence, deferred, scriptedModel } from "../support/harness.ts";
@@ -13,7 +13,7 @@ import { testContext, testTimePort } from "../support/test-context.ts";
 
 const settings = loadRuntimeSettings();
 function harness(turns: readonly (readonly RuntimeEventCandidate[])[], budget: Partial<AgentExecutionBudget> = {}) {
-	const base = createRunCommand("/workspace", settings);
+	const base = createRunCommand({ sessionId: "session:limits", workspaceRoot: "/workspace" }, settings);
 	const command = {
 		...base,
 		contextItems: [],
@@ -49,7 +49,7 @@ function harness(turns: readonly (readonly RuntimeEventCandidate[])[], budget: P
 	const model = scriptedModel(turns);
 	const flow = new RunFlow(
 		new AgentRuntime(model.adapter),
-		new ContextEngine(settings.config.kernel.context),
+		createInMemoryContextDependencies(),
 		tools,
 		{
 			async delegate() {
@@ -66,7 +66,6 @@ const toolTurn: RuntimeEventCandidate = {
 	type: "turn_completed",
 	message: {
 		role: "assistant",
-		runtimeMessageRef: "private:test",
 		stopReason: "tool_use",
 		content: [{ type: "tool_call", toolCallId: "call:1", toolName: "test_read", arguments: {} }],
 	},

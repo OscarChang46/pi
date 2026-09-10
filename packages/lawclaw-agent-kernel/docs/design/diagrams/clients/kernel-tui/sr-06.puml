@@ -1,0 +1,19 @@
+@startuml
+skinparam defaultFontName Hiragino Sans GB
+start
+:记录inputTurn与getExpandedText;
+:Pi Editor处理补全/粘贴/按键;
+if (真正触发onSubmit?) then (是)
+ :同步记录原文，登记用例;
+ :handleInput返回后受保护setText恢复原文;
+else (编辑变化)
+ :更新草稿并增加用户revision;
+endif
+:先分派控制命令；窄屏只拦普通提交;
+ :正文按content/next/back单页读取;
+ :Ctrl+K仅编辑;
+:accepted只清匹配revision的草稿;
+:整段清洗文本后使用pi-tui绘制;
+:finally清timer/监听并恢复终端;
+stop
+@enduml

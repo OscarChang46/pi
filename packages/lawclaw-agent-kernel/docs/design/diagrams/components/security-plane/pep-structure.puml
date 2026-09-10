@@ -1,0 +1,49 @@
+@startuml
+!include ../../theme.puml
+title PEP：复用协议，各执行点保有事实
+skinparam linetype polyline
+package "L1 业务执行宿主" {
+ class L1ProposalFreezer
+ class DecisionOutcomeHandlers
+}
+interface PermissionDecisionPort
+interface PermitValidationPort
+package "L3 ToolCallRuntime" {
+ class ResolvedActionVerifier
+ class PermitClient
+ class ExecutionStarter {
+   startOnce(grant, expectedVersion)
+ }
+ class ReconciliationReader
+ class ToolCall {
+   phase
+   version
+   receiptRef
+   startGrantRef
+ }
+}
+interface ToolProviderPort
+interface SandboxPort
+class MemoryExecutionPEP
+class ChildAdmissionPEP
+L1ProposalFreezer --> DecisionOutcomeHandlers
+DecisionOutcomeHandlers --> PermissionDecisionPort : decide / inspect
+DecisionOutcomeHandlers --> ResolvedActionVerifier : 已提交 DispatchTool
+ResolvedActionVerifier --> PermitClient
+PermitClient --> PermitValidationPort : consume / authorizeStart
+ExecutionStarter --> PermitClient : 取得当前 Grant
+ExecutionStarter --> ToolCall : STARTED CAS
+ExecutionStarter --> ToolProviderPort : 仅胜者
+ExecutionStarter --> SandboxPort : 固定执行路径
+ReconciliationReader --> ToolCall : 原命令结果
+MemoryExecutionPEP --> PermitValidationPort
+ChildAdmissionPEP --> PermitValidationPort
+note bottom of ChildAdmissionPEP
+ FE 拥有关联、取消、受理与恢复
+ 跨 Flow DTO 仍待 SR-04
+end note
+note bottom of PermitClient
+ 不依赖 PDP；不做第二次裁决
+ 不缓存旧成功作为新执行权
+end note
+@enduml

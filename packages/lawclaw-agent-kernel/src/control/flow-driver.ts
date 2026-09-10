@@ -17,7 +17,7 @@ export interface FlowDriverDependencies extends FlowDispatchDependencies {
 	/** 纯状态机。 */
 	readonly engine: ReActFlowPolicy;
 	/** 基于已提交转录重建上下文。 */
-	readonly prepareContext: (input: AdvanceInput) => AdvanceInput;
+	readonly prepareContext: (input: AdvanceInput, signal: AbortSignal) => AdvanceInput | Promise<AdvanceInput>;
 }
 
 const LEASE_DURATION_MS = 30000;
@@ -77,12 +77,13 @@ export class FlowDriver {
 		}
 	}
 	async #step(agentRunId: string, lease: FlowExecutionLease, signal: AbortSignal): Promise<boolean> {
+		if (signal.aborted) return false;
 		const { store, time } = this.#dependencies;
 		const input = store.load(agentRunId);
 		if (!input) return false;
 		if (input.priorReceipt === null) {
-			await this.#advance(input, lease.claim);
-			return true;
+			await this.#advance(input, lease, signal);
+			return !signal.aborted;
 		}
 		if (
 			[
@@ -127,19 +128,46 @@ export class FlowDriver {
 			this.#accept(current, outcome, record.command.commandId, lease.claim);
 		return true;
 	}
-	async #advance(current: AdvanceInput, claim: ExecutionClaim): Promise<void> {
+	async #advance(current: AdvanceInput, lease: FlowExecutionLease, signal: AbortSignal): Promise<void> {
 		const { store, engine, time, prepareContext } = this.#dependencies;
 		let input = { ...current, operation: { ...current.operation, nowMs: time.now().epochMilliseconds } };
 		if (
 			input.run.position.kind === REACT_FLOW_STATE.READY &&
 			!input.run.cancellationRequested &&
 			input.operation.nowMs < input.operation.deadlineAtMs
+		) {
+			const remaining = Math.max(
+				1,
+				Math.min(input.operation.deadlineAtMs, input.run.deadlineAtMs) - input.operation.nowMs,
+			);
+			const preparationSignal = AbortSignal.any([signal, AbortSignal.timeout(remaining)]);
+			try {
+				input = await prepareContext(input, preparationSignal);
+			} catch (error) {
+				if (signal.aborted) return;
+				if (!preparationSignal.aborted) throw error;
+				input = { ...input, context: null, contextFailure: "unavailable" };
+			}
+			if (preparationSignal.aborted) input = { ...input, context: null, contextFailure: "unavailable" };
+		}
+		if (signal.aborted) return;
+		const latest = store.load(current.run.runId);
+		if (
+			!latest ||
+			latest.run.version !== current.run.version ||
+			latest.run.attemptId !== current.run.attemptId ||
+			latest.run.cancelEpoch !== current.run.cancelEpoch ||
+			latest.event.eventId !== current.event.eventId ||
+			latest.session.sessionId !== current.session.sessionId ||
+			latest.session.version !== current.session.version ||
+			latest.session.historyHeadRef !== current.session.historyHeadRef
 		)
-			input = prepareContext(input);
+			throw new Error("FLOW_CONTEXT_PREPARATION_CONFLICT");
+		input = { ...input, operation: { ...input.operation, nowMs: time.now().epochMilliseconds } };
 		const result = engine.advance(input);
 		if (result.kind !== "advance")
 			throw new Error(result.kind === "reject" ? result.error.code : "FLOW_UNEXPECTED_DUPLICATE");
-		const commit = await store.commit({ input, decision: result.decision, claim });
+		const commit = await store.commit({ input, decision: result.decision, claim: lease.claim });
 		if (commit.kind !== "committed") throw new Error("FLOW_COMMIT_CONFLICT");
 	}
 	#accept(input: AdvanceInput, outcome: FlowCommandOutcome, causationId: string, claim: ExecutionClaim): void {

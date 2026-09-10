@@ -1,0 +1,37 @@
+@startuml
+!include ../../theme.puml
+title D3：决策并发、丢响应与审计恢复（S3 / S4）
+start
+:原可信调用方按同scope / command查询;
+if (权威存储不可确认?) then (是)
+ :unavailable / UNKNOWN；不创建新命令;
+ stop
+endif
+if (已清理的墓碑?) then (是)
+ :GONE；旧ID不可重用;
+ stop
+endif
+if (记录存在?) then (否)
+ :以原command重新进入D1；
+提交唯一键消除与迟到请求的竞争;
+ stop
+endif
+if (同键语义摘要不同?) then (是)
+ :IDEMPOTENCY_CONFLICT;
+ stop
+endif
+if (audit_pending?) then (是)
+ :补同auditEventId并查询AuditReceipt;
+ if (确认found?) then (否)
+  :保持pending；依赖动作0;
+  stop
+ endif
+ :CAS审计已确认;
+endif
+:返回原Decision；不重复签Permit;
+if (需继续实际执行?) then (是)
+ :E1重新检查当前Permit / claim / epoch；
+历史Allow不是当前资格;
+endif
+stop
+@enduml

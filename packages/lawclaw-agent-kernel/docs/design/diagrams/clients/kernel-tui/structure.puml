@@ -1,0 +1,38 @@
+@startuml
+skinparam defaultFontName Hiragino Sans GB
+skinparam classAttributeIconSize 0
+class TuiApplication {
+ submit()
+ cancel()
+ openSession()
+ dispose()
+}
+class PiTuiViews
+class EditorAdapter
+class PendingStore
+interface KernelClient
+interface HostLauncherPort
+package "pi-tui 界面库" {
+ class Editor
+ class TuiMainScreen
+}
+package "KernelHost 宿主边界" {
+ class HttpEndpoint
+ class ProtocolFacade
+ class AgentSystemGateway
+ class ConversationPreparationService
+}
+TuiApplication *-- PiTuiViews
+PiTuiViews *-- EditorAdapter
+EditorAdapter ..> Editor : 使用库
+PiTuiViews ..> TuiMainScreen : 使用库
+EditorAdapter --> TuiApplication : 输入回调
+TuiApplication --> KernelClient : 用例请求
+TuiApplication --> HostLauncherPort : resolve
+TuiApplication --> PendingStore : 保存/读取一条未决命令
+KernelClient --> HttpEndpoint : HTTP/SSE
+HttpEndpoint --> ConversationPreparationService : 对话意图
+ConversationPreparationService --> ProtocolFacade : 已准备引用
+HttpEndpoint --> ProtocolFacade : 查询/取消
+ProtocolFacade --> AgentSystemGateway
+@enduml

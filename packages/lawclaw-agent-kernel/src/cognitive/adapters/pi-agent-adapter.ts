@@ -1,29 +1,24 @@
-import { createHash, randomUUID } from "node:crypto";
-import {
-	type Api,
-	type AssistantMessage,
-	type AssistantMessageEventStream,
-	type Context,
-	type Message,
-	type Model,
-	type SimpleStreamOptions,
-	type Tool,
-	Type,
+import { createHash } from "node:crypto";
+import type {
+	Api,
+	AssistantMessage,
+	AssistantMessageEventStream,
+	Context,
+	Model,
+	SimpleStreamOptions,
 } from "@earendil-works/pi-ai";
-import type { AdapterMessageStore } from "../../contracts/flow-artifacts.ts";
+import type { ContextPayload } from "../../contracts/control/context-engine/assembly-candidate.ts";
 import {
 	type AgentAdapter,
 	type AgentTurnRequest,
 	type JsonValue,
 	type KernelAssistantMessage,
 	KernelError,
-	type KernelMessage,
 	type KernelTextBlock,
 	type KernelToolCallBlock,
 	type RequestContext,
 	type RuntimeEventCandidate,
 	type TimePort,
-	type ToolDescriptor,
 } from "../../contracts/index.ts";
 import { assertRequestContext } from "../../contracts/request-context-guard.ts";
 
@@ -48,38 +43,8 @@ function normalizeArguments(value: unknown): Readonly<Record<string, JsonValue>>
 	return value as Readonly<Record<string, JsonValue>>;
 }
 
-/** 校验持久化边界恢复出的 Pi 助手消息具备当前运行时所需字段。 */
-function isAssistantMessage(value: unknown): value is AssistantMessage {
-	return (
-		typeof value === "object" &&
-		value !== null &&
-		"role" in value &&
-		value.role === "assistant" &&
-		"content" in value &&
-		Array.isArray(value.content) &&
-		"api" in value &&
-		typeof value.api === "string" &&
-		"provider" in value &&
-		typeof value.provider === "string" &&
-		"model" in value &&
-		typeof value.model === "string" &&
-		"stopReason" in value &&
-		typeof value.stopReason === "string" &&
-		"usage" in value &&
-		"timestamp" in value &&
-		typeof value.timestamp === "number"
-	);
-}
-
-/**
- * Pi 的 embedded-loop Adapter。
- *
- * 设计选择：使用 Pi AI 的单轮流式能力，不使用 Pi Agent 自带循环；这样 Kernel 仍拥有
- * Context、Tool、Delegation 和终止决策。Pi 原生 Message 缓存在 Adapter 内，只通过
- * 不可解释的 runtimeMessageRef 与规范化消息关联，绝不越过 AgentAdapter 边界。
- */
+/** 单轮 Pi 模型执行；估算与派发使用同一规范载荷转换，无原生消息恢复旁路。 */
 export class PiAgentAdapter implements AgentAdapter {
-	readonly #nativeMessages = new Map<string, { readonly tenantId: string; readonly message: AssistantMessage }>();
 	readonly #model: Model<Api>;
 	readonly #stream: (
 		model: Model<Api>,
@@ -87,30 +52,27 @@ export class PiAgentAdapter implements AgentAdapter {
 		options?: SimpleStreamOptions,
 	) => AssistantMessageEventStream;
 	readonly #options: {
-		/** Pi 私有消息引用的缓存条目上限，达到上限后淘汰最旧引用。 */
-		readonly maxPrivateMessages: number;
 		/** 单轮模型调用允许的底层重试次数，不用于工具副作用重试。 */
 		readonly maxRetries: number;
 	};
 	readonly #timePort: TimePort;
-	readonly #messageStore: AdapterMessageStore | undefined;
+	readonly #toModelInput: (payload: ContextPayload) => Context;
 
-	/** 创建单模型 Adapter；私有消息容量和底层重试均由装配配置注入。 */
+	/** 创建单模型 Adapter；转换器与底层重试由组合根注入。 */
 	public constructor(
 		model: Model<Api>,
 		stream: (model: Model<Api>, context: Context, options?: SimpleStreamOptions) => AssistantMessageEventStream,
 		options: {
-			readonly maxPrivateMessages: number;
 			readonly maxRetries: number;
 		},
 		timePort: TimePort,
-		messageStore?: AdapterMessageStore,
+		toModelInput: (payload: ContextPayload) => Context,
 	) {
 		this.#model = model;
 		this.#stream = stream;
 		this.#options = options;
 		this.#timePort = timePort;
-		this.#messageStore = messageStore;
+		this.#toModelInput = toModelInput;
 	}
 
 	/** 执行一个 Pi 模型 Turn，流式输出规范化候选事件；不在 Adapter 内执行工具。 */
@@ -122,14 +84,12 @@ export class PiAgentAdapter implements AgentAdapter {
 		assertRequestContext(context, this.#timePort);
 		let piContext: Context;
 		try {
-			piContext = {
-				systemPrompt: request.frame.systemPrompt,
-				messages: request.frame.messages.map((message) => this.#toPiMessage(message, context.tenant.tenantId)),
-				tools: request.tools.map((tool) => this.#toPiTool(tool)),
-			};
+			if (request.formatVersion !== "ctx-input-1" || request.modelAdapterVersion !== "pi-context-1")
+				throw new KernelError("ADAPTER_PROTOCOL_ERROR", "不支持的上下文格式或转换版本。");
+			piContext = this.#toModelInput(request.payload);
 		} catch (error) {
 			if (error instanceof KernelError) throw error;
-			throw new KernelError("ADAPTER_PROTOCOL_ERROR", "规范化 ContextFrame 无法映射到 Pi。", false);
+			throw new KernelError("ADAPTER_PROTOCOL_ERROR", "规范化候选无法映射到 Pi。", false);
 		}
 
 		const stream = this.#stream(this.#model, piContext, {
@@ -147,7 +107,7 @@ export class PiAgentAdapter implements AgentAdapter {
 			} else if (event.type === "done") {
 				yield {
 					type: "turn_completed",
-					message: this.#normalizeAssistant(event.message, context.tenant.tenantId),
+					message: this.#normalizeAssistant(event.message),
 				};
 			} else if (event.type === "error") {
 				yield {
@@ -159,18 +119,7 @@ export class PiAgentAdapter implements AgentAdapter {
 		}
 	}
 
-	#normalizeAssistant(message: AssistantMessage, tenantId: string): KernelAssistantMessage {
-		const runtimeMessageRef = randomUUID();
-		this.#messageStore?.put(tenantId, runtimeMessageRef, {
-			modelId: this.#model.id,
-			provider: this.#model.provider,
-			message,
-		});
-		if (this.#nativeMessages.size >= this.#options.maxPrivateMessages) {
-			const oldest = this.#nativeMessages.keys().next().value;
-			if (oldest !== undefined) this.#nativeMessages.delete(oldest);
-		}
-		this.#nativeMessages.set(runtimeMessageRef, { tenantId, message });
+	#normalizeAssistant(message: AssistantMessage): KernelAssistantMessage {
 		const content: Array<KernelTextBlock | KernelToolCallBlock> = [];
 		for (const block of message.content) {
 			if (block.type === "text") {
@@ -186,57 +135,8 @@ export class PiAgentAdapter implements AgentAdapter {
 		}
 		return {
 			role: "assistant",
-			runtimeMessageRef,
 			stopReason: normalizeStopReason(message.stopReason),
 			content,
-		};
-	}
-
-	#toPiMessage(message: KernelMessage, tenantId: string): Message {
-		if (message.role === "user") {
-			return { role: "user", content: message.text, timestamp: this.#timePort.now().epochMilliseconds };
-		}
-		if (message.role === "tool") {
-			return {
-				role: "toolResult",
-				toolCallId: message.toolCallId,
-				toolName: message.toolName,
-				content: [{ type: "text", text: message.text }],
-				details: {},
-				isError: message.isError,
-				timestamp: this.#timePort.now().epochMilliseconds,
-			};
-		}
-		let native = this.#nativeMessages.get(message.runtimeMessageRef);
-		if (!native && this.#messageStore) {
-			const stored = this.#messageStore.get(tenantId, message.runtimeMessageRef);
-			if (
-				typeof stored === "object" &&
-				stored !== null &&
-				"modelId" in stored &&
-				stored.modelId === this.#model.id &&
-				"provider" in stored &&
-				stored.provider === this.#model.provider &&
-				"message" in stored
-			) {
-				const restored = stored.message;
-				if (isAssistantMessage(restored)) native = { tenantId, message: restored };
-			}
-		}
-		if (!native) {
-			throw new KernelError("ADAPTER_PROTOCOL_ERROR", "Pi 私有消息引用已失效；当前内存会话无法跨进程恢复。", false);
-		}
-		if (native.tenantId !== tenantId) {
-			throw new KernelError("TENANT_SCOPE_VIOLATION", "Pi 私有消息引用与调用租户不匹配。", false);
-		}
-		return native.message;
-	}
-
-	#toPiTool(descriptor: ToolDescriptor): Tool {
-		return {
-			name: descriptor.name,
-			description: descriptor.description,
-			parameters: Type.Unsafe<Record<string, unknown>>(descriptor.inputSchema),
 		};
 	}
 }

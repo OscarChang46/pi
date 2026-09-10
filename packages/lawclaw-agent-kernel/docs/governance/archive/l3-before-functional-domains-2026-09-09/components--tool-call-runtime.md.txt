@@ -1,0 +1,353 @@
+---
+doc_id: L3-CMP-002
+level: component
+layer: L3 Tool Runtime
+component: ToolCallRuntime
+status: candidate
+baseline: AKB-2026-09-03-09
+authoritative_for: ToolCall 聚合生命周期、执行协调与结果归一化
+parent: L3-DES-001
+interfaces: [ToolRuntimePort, ToolProviderPort, SandboxPort]
+diagrams: []
+supersedes: ["[归档工具调用子系统设计](../../../../governance/archive/design-v3-pre-layering/tool-call-subsystem-design.md) 中 ToolCall 生命周期部分"]
+---
+
+# ToolCallRuntime 组件设计
+
+## 职责
+
+ToolCallRuntime 接受 L1 提交的已授权工具动作，创建或恢复 ToolCall，调用 Guard 强制 Permit，依据冻结路由选择 L4 执行能力，并持久化规范结果。它不裁决权限、不实现 Provider 或 Sandbox，也不决定业务补偿。
+
+## 状态与不变量
+
+ToolCall 独立记录调用标识、Run/Attempt 引用、ActionDigest、目录与路由版本、Permit 引用、执行状态、尝试摘要和结果/故障引用。合法生命周期覆盖待执行、执行中、成功、失败、取消和结果未知；终态不可因重复消息回退。
+
+Guard 成功前不得触发任何 Provider/Sandbox 副作用。实际参数、目标或路由与 Permit 绑定不一致时必须中止并返回 L1 重新判定。
+
+## 执行算法
+
+先以幂等键获取或创建 ToolCall，再解析冻结路由并调用 Guard；消费成功后将同一动作提交单一 L4 路径。执行结果先耐久记录再通知 L1。大输出写入 ArtifactStorage，只在事件中传播有界摘要与引用。
+
+## 重试、取消与恢复
+
+首版所有工具自动执行重试0，与CD-1一致。超时或通道中断时先查询原Provider/执行状态；不可确认则进入结果未知，禁止自动重放。取消阻止新执行，但已发生的外部副作用不以取消回执推定撤销。
+
+## 契约边界
+
+ToolCall DTO、状态枚举、幂等键格式、超时与错误码由 contracts 定义，本文只规定语义。
+
+## 开发设计：L3-CMP-002 / CD-1（2026-09-07）
+
+候选开发设计，不代表实现或批准。分类：**独立组件**。字段与操作唯一维护于[CD-1契约](../../../contracts/component-development-contracts-v1.md#tool-call-runtime)；早期概要中的签名待定、可选重试等简写按CD-1明确行为解释。分类依据见[必要性审查](../../../reviews/components-2026-09-07/scope.md)。
+
+### 1. 问题与取舍
+
+具体失效/验证轨迹：同command两个worker：RECEIVED1、STARTED胜者1、Provider执行1。需要下面的职责划分与明确提交/恢复点；协作者可用纯函数实现，不要求每个职责一个类、进程或公共Port。
+
+### 2. 内部职责、依赖与生命周期
+
+ToolCallRuntime：唯一ToolCall聚合；CommandAcceptor：耐久去重；ExecutionGuard：安全端口调用；ExecutionStarter：STARTED CAS与唯一执行；ResultRecorder：Artifact及结果通知。
+
+本节细化既有Port允许的调用方向。跨组件只交换不可变值、稳定引用或Port，不传共享可变Run/Session。机制依然归Infrastructure，不因合并开发任务而搬入领域层。
+
+### 3. 数据与操作
+
+[数据与操作明细](../../../contracts/component-development-contracts-v1.md#tool-call-runtime)给出字段、判别值和调用边界。写操作组合CD-1命令元数据，查询组合请求与可信作用域；Ref不构成访问授权。无状态对象仅为输入输出，不因此新建Repository。
+
+### 4. 正常流程与分支
+
+command只允许DispatchTool，先以commandId/完整payload摘要耐久受理RECEIVED，再解冻结目录与实际参数，Guard消费Permit并记录AUTHORIZED。authorizeStart成功后一个本地CAS把AUTHORIZED→STARTED并记录grant，只有胜者调用一个L4路径。结果Artifact先发布，再事务写结果/effect/通知outbox，L1 T1 ACK后标已交付。跨Permit与Tool事务的每个阶段均可查询，不以大事务包裹Provider调用。
+
+先验证来源、Scope、大小、契约与幂等前置，再执行本节算法。明确区分纯计算结果、耐久受理回执和外部执行结果；外部操作只在必要状态提交后派发。
+
+### 5. 并发、幂等与恢复
+
+STARTED之后崩溃即便可能未发出也不自动重复执行，查询原Provider凭证；查不到可信结果为UNKNOWN并写Incident。RECEIVED/AUTHORIZED恢复先复核claim/取消/Permit当前有效性，不重新签发等效Permit。终态不能回退，取消未启动可cancelled，已启动仅请求停止并记录事实。首版所有工具自动执行重试0。
+
+无法证明未执行时返回UNKNOWN，不返回absent或success。模型/工具首版自动执行重试0，查询有界重试与重新执行分开。并发验收同时核对状态版本、提交顺序和真实执行次数。
+
+### 6. 安全
+
+必须验实际目标、摘要、目录和资源范围；L4只收内部不可伪造执行计划，不接受外部裸请求。UNKNOWN不得以只读标签自动重试，安全审计缺失不得STARTED。
+
+普通遥测不含Prompt、Memory正文、工具参数、内容摘要、Secret、Permit或物理路径。必要安全审计走独立耐久Journal；普通遥测失败不回滚事实。拒绝路径同时保证未授权读取数和新副作用数为0。
+
+### 7. 配置、容量与运维
+
+单Run串行工具，整体并发≤4；默认60秒；结果≤256KiB，元数据64KiB；Tool记录使用共享10GiB配额，异常即时告警。
+
+以上为设计目标，不是测量结果。配置启动校验、冻结configVersion，不能热更新放宽既有Run。指标使用CD-1封闭component/phase/result/code集合；共同告警、容量总账与保留期见CD-1。
+
+诊断顺序：核对版本 → 查询本次身份与阶段 → 查询权威回执或投影来源 → 区分拒绝/未受理/已受理/UNKNOWN → 按本节恢复。禁止直接改数据库状态或放宽权限解除挂起。
+
+### 8. SFMEA、故障注入与验收
+
+局部表是契约验收矩阵，不对正常用例机械计算风险分数。具体失效原因、系统影响、严重度依据、控制措施与跨组件测试见[统一SFMEA](../../../reviews/components-2026-09-07/acceptance-matrix.md)。O/D无运行证据不估数值；全部具名风险均是强制实现验收项，不依赖RPN阈值。
+
+| 场景/需求 | 输入、故障注入与精确预期 | 局部追踪 | 测试 |
+|---|---|---|---|
+| L3-CMP-002-SC-01/REQ-01 | 同command两个worker：RECEIVED1、STARTED胜者1、Provider执行1 | L3-CMP-002-FM-01 | L3-CMP-002-TC-01 |
+| L3-CMP-002-SC-02/REQ-02 | Permit消费后过期：恢复不STARTED | L3-CMP-002-FM-02 | L3-CMP-002-TC-02 |
+| L3-CMP-002-SC-03/REQ-03 | STARTED后Provider前kill：UNKNOWN且自动执行0 | L3-CMP-002-FM-03 | L3-CMP-002-TC-03 |
+| L3-CMP-002-SC-04/REQ-04 | Provider执行成功丢响应：UNKNOWN查询后回收原结果，不二次执行 | L3-CMP-002-FM-04 | L3-CMP-002-TC-04 |
+| L3-CMP-002-SC-05/REQ-05 | result发布后记录失败：重试只写结果、Provider不重调 | L3-CMP-002-FM-05 | L3-CMP-002-TC-05 |
+| L3-CMP-002-SC-06/REQ-06 | 取消后结果迟到：保留真实effect，不把已生效改未执行 | L3-CMP-002-FM-06 | L3-CMP-002-TC-06 |
+
+六例均做契约/集成验证；纯算法使用冻结输入，涉及崩溃的用例加真实进程终止与SQLite/Artifact恢复，不能只重建内存实例。Faux Provider记录实际生效次数，测试不使用真实密钥或付费模型。用ManualClock和双屏障精确控制取消、到期和CAS竞态，不以sleep碰撞概率。
+
+每例保存合成输入、契约/config/代码版本、屏障释放顺序、调用轨迹、期望/实际状态与数量、错误码、资源清理和泄漏扫描。必须分别注入未生效失败、已生效丢响应；预期不能由被测实现生成。
+
+另覆盖合法成功、每个声明状态迁移与未声明状态×操作拒绝；限额逐个测L-1/L/L+1，两Scope交错和取消清理。性能按最大合法输入运行10,000次，记录Node/OS/CPU/内存和P99；异步组件按统一SFMEA的固定Faux负载测得C后，以0.8C到达速率持续30分钟，资源不超硬界限。独立实现验收报告必须区分替身、真实本地和真实外部证据。
+
+### 9. 开发拆分与完成定义
+
+顺序：契约验证 → 纯规则/状态机 → Repository或机制Adapter → 幂等/恢复 → 安全强制 → 具名故障和容量验收。实现分类为内部职责的随所属组件交付，不另建服务；条件启用项只有档案满足才启用。
+
+文档就绪要求：五角色无未关闭P0/P1、字段和操作无未定义引用、恢复无开发者自由猜测分支、SFMEA映射验收、配置有硬界限。实现就绪另需代码、测试与持久性证据和架构所有者批准。
+
+## 开发设计：L3-CMP-003 / CD-1（2026-09-07）
+
+候选开发设计，不代表实现或批准。分类：**内部职责**。字段与操作唯一维护于[CD-1契约](../../../contracts/component-development-contracts-v1.md#tool-execution-guard)；早期概要中的签名待定、可选重试等简写按CD-1明确行为解释。分类依据见[必要性审查](../../../reviews/components-2026-09-07/scope.md)。
+
+### 1. 问题与取舍
+
+具体失效/验证轨迹：实际参数一字节变化：DIGEST_MISMATCH，consume调用0。需要下面的职责划分与明确提交/恢复点；协作者可用纯函数实现，不要求每个职责一个类、进程或公共Port。
+
+### 2. 内部职责、依赖与生命周期
+
+ToolExecutionGuard：实际动作与Permit强制；ResolvedActionHasher：冻结内容复算；PermitClient：consume/authorizeStart调用。不读取或运行策略规则。
+
+本节细化既有Port允许的调用方向。跨组件只交换不可变值、稳定引用或Port，不传共享可变Run/Session。机制依然归Infrastructure，不因合并开发任务而搬入领域层。
+
+### 3. 数据与操作
+
+[数据与操作明细](../../../contracts/component-development-contracts-v1.md#tool-execution-guard)给出字段、判别值和调用边界。写操作组合CD-1命令元数据，查询组合请求与可信作用域；Ref不构成访问授权。无状态对象仅为输入输出，不因此新建Repository。
+
+### 4. 正常流程与分支
+
+先读取已冻结描述与参数并核对Artifact摘要/大小，形成FE actionDigest，核对执行资源/路由未变；调用安全consume。结果只把ToolCall推进AUTHORIZED；实际STARTED前再次authorizeStart验证当前条件。返回grant交Runtime做CAS，Guard本身不调用L4。
+
+先验证来源、Scope、大小、契约与幂等前置，再执行本节算法。明确区分纯计算结果、耐久受理回执和外部执行结果；外部操作只在必要状态提交后派发。
+
+### 5. 并发、幂等与恢复
+
+任一请求响应未知查同command安全回执，不缓存旧success为新的执行权。服务失败、时钟异常、Permit过期/撤销/消费给另一命令均拒绝；已STARTED只能查询事实。
+
+无法证明未执行时返回UNKNOWN，不返回absent或success。模型/工具首版自动执行重试0，查询有界重试与重新执行分开。并发验收同时核对状态版本、提交顺序和真实执行次数。
+
+### 6. 安全
+
+Guard作为L3最终安全边界没有Allow/Ask/Deny分支；禁止从错误中返回默认授权。日志只code/phase，不输出Permit、动作摘要或参数。
+
+普通遥测不含Prompt、Memory正文、工具参数、内容摘要、Secret、Permit或物理路径。必要安全审计走独立耐久Journal；普通遥测失败不回滚事实。拒绝路径同时保证未授权读取数和新副作用数为0。
+
+### 7. 配置、容量与运维
+
+安全调用2秒截止且服从Run；输入64KiB引用、参数Artifact≤64KiB；零自动Provider重试；拒绝任意1次旁路即时告警。
+
+以上为设计目标，不是测量结果。配置启动校验、冻结configVersion，不能热更新放宽既有Run。指标使用CD-1封闭component/phase/result/code集合；共同告警、容量总账与保留期见CD-1。
+
+诊断顺序：核对版本 → 查询本次身份与阶段 → 查询权威回执或投影来源 → 区分拒绝/未受理/已受理/UNKNOWN → 按本节恢复。禁止直接改数据库状态或放宽权限解除挂起。
+
+### 8. SFMEA、故障注入与验收
+
+局部表是契约验收矩阵，不对正常用例机械计算风险分数。具体失效原因、系统影响、严重度依据、控制措施与跨组件测试见[统一SFMEA](../../../reviews/components-2026-09-07/acceptance-matrix.md)。O/D无运行证据不估数值；全部具名风险均是强制实现验收项，不依赖RPN阈值。
+
+| 场景/需求 | 输入、故障注入与精确预期 | 局部追踪 | 测试 |
+|---|---|---|---|
+| L3-CMP-003-SC-01/REQ-01 | 实际参数一字节变化：DIGEST_MISMATCH，consume调用0 | L3-CMP-003-FM-01 | L3-CMP-003-TC-01 |
+| L3-CMP-003-SC-02/REQ-02 | 目录route变化：BINDING_MISMATCH且L4=0 | L3-CMP-003-FM-02 | L3-CMP-003-TC-02 |
+| L3-CMP-003-SC-03/REQ-03 | consume成功但authorizeStart不可用：STARTED=0 | L3-CMP-003-FM-03 | L3-CMP-003-TC-03 |
+| L3-CMP-003-SC-04/REQ-04 | 双Worker同command：可查同receipt但只一个Runtime CAS启动 | L3-CMP-003-FM-04 | L3-CMP-003-TC-04 |
+| L3-CMP-003-SC-05/REQ-05 | 旧fence：STALE_CLAIM | L3-CMP-003-FM-05 | L3-CMP-003-TC-05 |
+| L3-CMP-003-SC-06/REQ-06 | 日志注入Permit字符串：泄漏检测为0 | L3-CMP-003-FM-06 | L3-CMP-003-TC-06 |
+
+六例均做契约/集成验证；纯算法使用冻结输入，涉及崩溃的用例加真实进程终止与SQLite/Artifact恢复，不能只重建内存实例。Faux Provider记录实际生效次数，测试不使用真实密钥或付费模型。用ManualClock和双屏障精确控制取消、到期和CAS竞态，不以sleep碰撞概率。
+
+每例保存合成输入、契约/config/代码版本、屏障释放顺序、调用轨迹、期望/实际状态与数量、错误码、资源清理和泄漏扫描。必须分别注入未生效失败、已生效丢响应；预期不能由被测实现生成。
+
+另覆盖合法成功、每个声明状态迁移与未声明状态×操作拒绝；限额逐个测L-1/L/L+1，两Scope交错和取消清理。性能按最大合法输入运行10,000次，记录Node/OS/CPU/内存和P99；异步组件按统一SFMEA的固定Faux负载测得C后，以0.8C到达速率持续30分钟，资源不超硬界限。独立实现验收报告必须区分替身、真实本地和真实外部证据。
+
+### 9. 开发拆分与完成定义
+
+顺序：契约验证 → 纯规则/状态机 → Repository或机制Adapter → 幂等/恢复 → 安全强制 → 具名故障和容量验收。实现分类为内部职责的随所属组件交付，不另建服务；条件启用项只有档案满足才启用。
+
+文档就绪要求：五角色无未关闭P0/P1、字段和操作无未定义引用、恢复无开发者自由猜测分支、SFMEA映射验收、配置有硬界限。实现就绪另需代码、测试与持久性证据和架构所有者批准。
+
+### R1评审修订适用项
+
+本组件适用CD-1授权、UNKNOWN与必要审计完成点；不实现Child调度或资源分配组件。
+
+## L3-DD-1 执行协调详细设计
+
+2026-09-08候选细化。公共DTO仍在CD-1，新增私有记录与确认点见[详细契约](../../../contracts/l3-tool-runtime-detail.md)。本节不把ToolCall阶段当作FE系统状态。问题示例：Provider已写文件但响应丢失，调用方只能获得unknown；不能以重试把同一写入执行两次。
+
+### 内部类关系与装配
+
+Composition Root创建Runtime并注入Catalog、Security、Calls、Artifact、L4两类执行Port、通知Port和Clock。每次调用的临时解析值与取消信号私有；Calls拥有耐久事实，内存Map仅去重正在等待的Promise，不承担正确性。Guard定义详见其独立组件文档，沿用上文CD-1六例。
+
+```plantuml
+@startuml
+skinparam defaultFontName Hiragino Sans GB
+title L3工具调用内部结构
+class ToolCallRuntime {
+ dispatch()
+ inspect()
+ cancel()
+ reconcile()
+}
+class ToolTransitionTable
+class ToolExecutionGuard
+class ResultRecorder
+interface ToolCallStore
+interface ToolCatalogPort
+interface PermitValidationPort
+interface ToolProviderPort
+interface SandboxPort
+interface ArtifactPort
+interface ToolNotificationPort
+ToolCallRuntime --> ToolTransitionTable : 纯迁移决定
+ToolCallRuntime *-- ToolExecutionGuard : 内部职责
+ToolCallRuntime *-- ResultRecorder : 内部职责
+ToolCallRuntime --> ToolCallStore : accept / start CAS
+ToolCallRuntime --> ToolCatalogPort : resolveFrozen
+ToolExecutionGuard --> PermitValidationPort : consume / authorizeStart
+ToolCallRuntime --> ToolProviderPort : 仅CAS胜者execute
+ToolCallRuntime --> SandboxPort : 仅CAS胜者execute
+ResultRecorder --> ToolCallStore : 结果与outbox事务
+ResultRecorder --> ArtifactPort : 有界结果发布
+ToolCallRuntime --> ToolNotificationPort : 重投原事实
+note bottom of ToolExecutionGuard
+不调用L4、不持有独立状态库
+end note
+@enduml
+```
+
+### 状态表与核心算法
+
+定义静态`TransitionDefinition`：`{from,event,guard,reduce}`；reduce仅产生下一快照和I/O意图，由Runtime完成Port调用与CAS。注册表按phase/event唯一索引，启动校验重复键、未知状态、缺失动作、非法终态出口；拒绝未定义组合。输入合法性直接守卫，不为简单二值检查建插件。I/O结果重新作为事件进入表，不在中央dispatch中逐工具名分支。
+
+| 当前阶段 | 事件与守卫 | 原子动作及目标 |
+|---|---|---|
+| 不存在 | accept，身份/目录/限额有效 | 唯一插入received，返回accepted |
+| received | permitConfirmed，绑定及审计确认 | 保存receiptRef，authorized |
+| received/authorized | reject，确定未派发 | 保存错误、effect=none与通知，failed |
+| received/authorized | cancel或deadline，尚无started | 保存取消/截止事实，cancelled或failed，effect=none |
+| authorized | startGranted，当前claim/绑定/版本有效且未取消、未超时 | start CAS保存grant及固定operationKey，started；仅确认胜者持有本地派发资格 |
+| started | resultKnown，原操作证据，effect非unknown | Artifact确认后记录succeeded或failed及通知 |
+| started | resultUnknown/恢复无法证明结果 | 保存Incident和通知，unknown |
+| started | cancel/deadline | 置cancelRequested、发有界停止请求，阶段不变；截止后的无结果进入unknown |
+| succeeded/failed/cancelled | duplicate | 返回原事实，不增版本、不派发 |
+| unknown | reconcile，可信且身份一致 | 只追加ReconciliationRecord；历史phase不变，有效结果投影更新 |
+
+优先级：认证/结构/身份→同键异载荷拒绝→已受理重复查询→当前阶段合法性→取消→deadline→正常迁移。STARTED后结果事实不被取消优先级抹掉。短暂依赖失败不当成未生效事实；保留received/authorized供受控恢复检查。任何phase查询均不生成新的执行资格。
+
+### S3 主成功、幂等与并发
+
+L1提交已授权DispatchTool；前置条件是固定目录、参数Artifact和Permit，业务意图已耐久记录。身份与命令结构检查后先查同键回执，已存在则核对摘要并返回原状态，不依赖当前路由仍在线。首次调用解析与验参数后Calls.accept，再用唯一插入处理查询后的竞争；同键重投不驱动第二条执行链。原受理者及受控恢复路径均通过同一状态表，双worker只能一个start CAS胜者。
+
+```plantuml
+@startuml
+skinparam defaultFontName Hiragino Sans GB
+title S3 受理到结果
+start
+:Runtime校验身份和命令，先查同键回执;
+:首次调用才解析固定目录和参数;
+:Calls.accept原command及摘要;
+if (首次受理?) then (是)
+ :Guard.consume并确认必要审计;
+ if (有效?) then (是)
+  :Calls保存authorized;
+  :Guard.authorizeStart检查当前授权;
+  if (grant有效且start CAS提交确认胜出?) then (是)
+   :Runtime按固定kind调用一个L4.execute;
+   if (取得可信结果及effect?) then (是)
+    :Recorder发布有界Artifact;
+    :Calls事务保存结果和通知;
+    :通知L1；持久ACK后记交付;
+   else (否)
+    :走S6原操作核对;
+   endif
+  else (否)
+   :不执行；读取原阶段或保留拒绝原因;
+  endif
+ else (否)
+  :确定拒绝记录failed；未知确认保留原阶段;
+ endif
+else (否)
+ :同载荷返回原状态；异载荷冲突;
+endif
+stop
+@enduml
+```
+
+### S5 取消、截止与迟到事实
+
+调用者L1通过原commandId取消，Runtime先提交取消标志再回复；取消与start同一ToolCall版本竞争。开始前取消获胜返回stopped且L4调用0；开始获胜仅requested。L4停止确认与业务副作用证据分开保存，不从退出码或AbortError推断未生效。
+
+```plantuml
+@startuml
+skinparam defaultFontName Hiragino Sans GB
+title S5 取消和截止
+start
+:Runtime加载原ToolCall并CAS取消标志;
+if (终态或unknown?) then (是)
+ :返回已有事实；unknown仅允许核对;
+else (否)
+ if (尚未started且取消CAS胜出?) then (是)
+  :记录cancelled或deadline失败，effect=none;
+  :通知L1；L4调用0;
+ else (否)
+  :按原operationKey请求L4停止;
+  if (取得可信终结证据?) then (是)
+   :记录实际结果与effect，包括迟到成功;
+  else (否)
+   :deadline后unknown和Incident;
+  endif
+ endif
+endif
+stop
+@enduml
+```
+
+### S6 重启、提交不明与核对
+
+恢复入口由宿主维护/FE现有恢复协调触发，L3不新建Run调度循环。每页扫描≤256条，按原command查询；尚未started只能重新校验当前资格，已started只能查询原执行。查询最多按CD-1三次100/200/400ms且服从诊断截止，禁止无限轮询占用执行槽。
+
+```plantuml
+@startuml
+skinparam defaultFontName Hiragino Sans GB
+title S6 恢复与结果核对
+start
+:受控恢复读取耐久ToolCall;
+if (received或authorized?) then (是)
+ :查询原安全回执，复核当前claim、取消及有效期;
+ :有效则按S3继续原调用；拒绝则未执行失败;
+else (否)
+ if (已有已知结果?) then (是)
+  :只补发原通知，不调Provider;
+ else (否)
+  :L4.inspect原operationKey和routeRef;
+  if (可信证据完整?) then (是)
+   :已unknown则追加核对记录，否则记录结果;
+   :结果与通知同事务；L1处理原Activity核对;
+  else (否)
+   :保存unknown及Incident；告警，禁止重发;
+  endif
+ endif
+endif
+stop
+@enduml
+```
+
+结果Artifact已发布但Calls.record失败时，只重试同一结果提交，不重调L4；进程重启后若既无结果绑定也无可信Provider凭据，仍unknown，不能猜测孤立Artifact属于该调用。通知ACK丢失重投同notificationId，L1按原命令和事实版本去重；L1终态只归档晚到事实。
+
+### 扩展与开发映射
+
+新增Provider：只增加L4 Adapter、RouteBinding及契约测试，Runtime的phase/event表不变。新增结果种类须在证据归一化层与封闭类型中显式定义；表装配校验检查遗漏，禁止把未知Provider异常默认映射success/none。增加第三条执行路径才修改ExecutionKind及静态executor表，不修改权限规则。
+
+候选文件映射：`src/tools/`下catalog-router、tool-call-runtime、tool-call-transitions、tool-execution-guard、tool-result-recorder；私有存储Port按仓库contracts边界装配，具体SQLite适配在Infrastructure。文件名为开发建议，未创建源码。顺序是纯目录/迁移规则→存储故障验证→Security/L4接入→公共Activity联调，不以新增类数作为完成指标。
+
+新增L3-DD-TC-03双连接同命令屏障：accepted一个事实、started一次、L4 execute一次；TC-04 STARTED提交回执丢失：自动派发0且保持待核对；TC-05 effect=unknown且业务failed：查询unknown；TC-06两种取消顺序分别验证0次执行和保留迟到applied；TC-07 L3成功但FE未Completed：reconcile后回放结果，新增L4调用0；TC-08新Provider无需修改Runtime中央分派。原CD-1 Runtime/Guard共12例继续覆盖。
+
+所有新增项为验收设计，尚无本轮执行证据。使用ManualClock、Fake安全端、Faux Provider独立生效账本、真实SQLite双连接及SIGKILL；分别验证行为和注册表结构。性能与配额沿用CD-1，不虚构测试通过率。

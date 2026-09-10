@@ -1,37 +1,78 @@
 @startuml
 !include ../theme.puml
-title 启动 AgentRun：接受、调度与执行（V3）
-
-actor "业务编排" as Caller
-participant "KernelHost" as Host
-participant "AgentSystemGateway" as Gateway
-participant "AgentRegistry" as Registry
+title Session 单活约束下的 Root Run 受理、执行与释放
+actor "本机调用者" as Caller
+participant "AgentSystemGateway" as Entry
+participant "SessionManager" as SM
+database "SessionRepository" as SessionDB
+queue "SM Outbox / Inbox" as Bus
 participant "RunRegistry" as Runs
-participant "RunScheduler" as Scheduler
-participant "AgentRuntimePool" as Pool
-participant "AgentRuntime" as Runtime
-participant "AgentAdapter" as Adapter
-participant "Event Journal" as Journal
-participant "AgentEventPublisherPort" as Publisher
+participant "RunScheduler / ReActFlowHost" as Business
+participant "FlowEngine" as Engine
+participant "ActivityInterceptor" as Magic
+database "追加系统日志" as Journal
+participant "ReAct Driver / Handler" as Driver
+participant "模型 / 经PDP与PEP的工具" as External
 
-Caller -> Host : submit(command, externalContext)
-Host -> Host : 编译 AgentExecutionEnvelopeRef
-Host -> Gateway : RunCommandPort.submit(command, envelopeRef)
-Gateway -> Registry : resolve(definitionVersion, capabilityRequest)
-Registry --> Gateway : RouteSnapshot
-Gateway -> Runs : accept(trigger, route, budget, envelopeRef)
-Runs -> Journal : 持久化 RunAccepted
-Journal --> Runs : committed
-Runs -> Publisher : publish(committed RunAccepted)
-Runs --> Gateway : runId
-Runs -> Scheduler : enqueue(runId)
-Scheduler -> Pool : dispatch(runId, runtimeLease, envelopeRef)
-Pool -> Runtime : execute(attempt, lease)
-Runtime -> Adapter : AgentAdapterPort.executeTurn(contextFrame)
-Adapter --> Runtime : 规范化 AgentEvent 流
-Runtime -> Runs : RunExecutionPort.appendStep / complete
-Runs -> Journal : 先持久化事件与状态
-Journal --> Runs : committed
-Runs -> Publisher : 提交后发布 AgentEvent
-Publisher --> Caller : event stream / subscription
+Caller -> Entry : startRun(sessionId, runId, goal, commandId)
+Entry -> SM : reserveRun(session@expectedVersion, runId, payloadDigest)
+SM -> SessionDB : TX CAS: activeRunBinding=null\nwrite RESERVED + bindingVersion + receipt + AdmitRun outbox
+alt Session 已被另一 Run 占用
+  SessionDB --> SM : SESSION_RUN_ACTIVE
+  SM --> Entry : 明确拒绝；不排队
+  Entry --> Caller : Run未创建
+else 唯一占槽成功
+  SessionDB --> SM : RunBindingReceipt(RESERVED)
+  SM --> Entry : 耐久受理中
+  Bus -> Runs : admit(original commandId, runId, SessionRunBindingRef)
+  alt Run 受理成功
+    Runs --> Bus : RunAdmitted(admissionReceiptRef,bindingVersion)
+    Bus -> SM : acceptAdmission
+    SM -> SessionDB : TX CAS RESERVED -> ACTIVE
+  else 受理效果未知
+    Bus -> SM : admission UNKNOWN
+    SM -> SessionDB : TX CAS -> SUBMIT_UNKNOWN
+    SM -> Runs : query original commandId/runId only
+  else 明确拒绝且旧提交不可能迟到
+    Runs --> Bus : RunRejected
+    Bus -> SM : clear RESERVED binding
+  end
+end
+
+Runs -> Business : 已受理 Run 可调度
+Business -> Engine : run(固定版本, 初始输入, callback)
+Engine -> Journal : admit; CAS Ready -> Running
+Engine -> Business : callback(context)
+Business -> Driver : drive(runId)
+Driver -> Magic : context.activity(稳定命令身份)
+Magic -> Journal : 校验epoch / 查询历史
+alt Completed已存在
+  Journal --> Magic : 历史结果
+else 从未登记
+  Magic -> Journal : 唯一INSERT Started并COMMIT
+  Journal --> Magic : 首次执行资格确认
+  Magic -> External : 执行已注册Handler
+  External --> Magic : 结果
+  Magic -> Journal : INSERT Completed并COMMIT
+else 只有Started
+  Magic --> Engine : FlowYield / 禁止重发
+  Engine -> Journal : 追加Yield
+end
+opt 已取得Completed结果
+  Magic --> Driver : 已提交结果
+  Driver -> Runs : T2提交业务快照与事件
+  Business --> Engine : 不透明业务结果
+  Engine -> Journal : 校验代次及无未完成Activity / 追加Terminate
+  Runs -> Runs : 提交Run终态
+  Runs --> Bus : RunTerminal(runId,bindingVersion,receiptRef)
+  Bus -> SM : acceptTerminal
+  SM -> SessionDB : TX CAS ACTIVE -> RELEASING\nwrite finalization outbox
+  SM -> SessionDB : 最终Session Delta/清理确认\nclear activeRunBinding
+end
+Caller -> Entry : 查询Run结果 / Session当前绑定
+
+note over SM,SessionDB
+  同一Session非空绑定最多一个。
+  UNKNOWN不释放；旧bindingVersion终态不能清除新绑定。
+end note
 @enduml

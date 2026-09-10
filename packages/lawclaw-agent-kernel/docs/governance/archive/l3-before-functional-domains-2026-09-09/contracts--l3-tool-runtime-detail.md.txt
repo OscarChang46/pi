@@ -1,0 +1,100 @@
+---
+doc_id: L3-CON-001
+level: contract
+layer: cross-layer
+component: null
+status: candidate
+baseline: AKB-2026-09-03-09
+authoritative_for: L3-DD-1内部存储与执行计划补充契约
+parent: L3-DES-001
+interfaces: [BND-L13-001, BND-L34-001, PermitValidationPort]
+diagrams: []
+supersedes: []
+---
+
+# L3-DD-1：工具运行详细契约
+
+状态：候选；不修改已发布源码接口。BND-L13/L34拥有方向，公共字段、错误与安全消费继续唯一引用[CD-1](component-development-contracts-v1.md)，动作摘要沿用[FE-CON-1](flow-engine-contract-v1.md)。本文件只定义原文缺失的L3内部字段、操作语义及FE Activity关联。以下结构为字段规格，不是已落库DDL；不生成另一套Run状态或Permit服务。
+
+## 1. 类型与身份
+
+Ref、Digest、Artifact、Count、Millis、CommandMeta、TrustedScope、Effect、ActionProposal、ExecutionClaim、SecurityBinding、StartGrant及Error原样引用公共契约。所有字段必填，可空字段显式null；整数为安全整数、毫秒为UTC，未知字段拒绝，集合数量在解码时先限额。逻辑scopeKey只由ScopedRepository注入，不接受客户端JSON身份。
+
+| 内部类型 | 字段与约束 |
+|---|---|
+| CatalogEntry | `{descriptorRef:Ref, descriptor:CD-1.ToolDescriptor}`；descriptorRef由发布端分配，稳定绑定唯一toolId/version，不能将裸工具名当版本引用 |
+| CatalogIndex | `{catalogRef:Ref, entries:CatalogEntry[]}`；与对应CD-1 CatalogSnapshot同事务发布，entries顺序按toolId UTF-16升序再version数值升序；不得增加公开描述字段 |
+| VisibleCatalog | `{viewRef:Ref,catalogRef:Ref,scopeRef:Ref,authorityEpoch:Count,items:PublicTool[]}`；PublicTool=`{descriptorRef,toolId,version,schemaRef,descriptionRef,risk}`，字段类型来自CatalogEntry；不含routeRef/resourceScopeRef/endpoint/Secret |
+| RouteBinding | `{routeRef:Ref,version:Count,kind:provider或sandbox,adapterBindingRef:Ref,resourceScopeRef:Ref,querySupported:boolean,cancelSupported:boolean}`；配置装配产生，只读，旧版本不得原地替换；活性状态独立查询 |
+| CallExecutionRecord | `{commandId:Ref,payloadDigest:Digest,catalogRef:Ref,descriptorRef:Ref,routeVersion:Count,operationKey:Ref,executorRef:Ref,deadlineAtMs:Millis,cancelRequested:boolean,error:Error或null,notificationId:Ref或null,ackRef:Ref或null}`；作为CD-1 ToolCall的一对一私有扩展，同scope/commandId主键；executorRef在STARTED时冻结 |
+| ExecutionPlan | `{commandId:Ref,operationKey:Ref,descriptorRef:Ref,argumentsRef:Artifact,route:RouteBinding,grantRef:Ref,deadlineAtMs:Millis,maxResultBytes:Count}`；仅受信装配通道传L4；引用与参数均经过Guard核验；不透明grantRef不是对外Bearer令牌 |
+| ExecutionEvidence | `{commandId:Ref,operationKey:Ref,routeRef:Ref,sourceReceiptRef:Ref,outcome:success或failed,effect:Effect,resultRef:Artifact或null,error:Error或null}`；success必须有resultRef且error=null，failed必须有error；effect允许unknown，不能从业务错误推断none |
+
+toolCallId=commandId沿用CD-1；模型自身call ID只留在参数/结果转录中，不作为执行去重键。operationKey=commandId，经scope隔离的L4 Adapter传递；外部要求特定长度时由Adapter耐久映射，禁止截断后碰撞。目录版本/参数/Permit/路由固定后不能在同command下改变。
+
+幂等摘要复用H与FE-C14N-1：`H({method:"L3.dispatch",command})`，command为原DispatchTool完整命令；排除传输元数据与当前claim。claim是每次执行资格校验输入，接管不改变原命令身份。Descriptor/Artifact摘要必须先复算原规范字节，再复算FE actionDigest；不能把新route或解析后的可变对象替代原引用。编码器固定向量复用[现有向量文件](../layers/l1-control/components/flow-engine/history/react-contract-v1.examples.json)，本轮未执行该向量测试。新增Catalog摘要使用CD-1定义的snapshot，不另发明安全摘要算法。
+
+## 2. 操作确认点
+
+公共dispatch/inspect/cancel及Guard consume/authorizeStart签名仍在CD-1。内部操作不暴露为网络RPC：
+
+| 操作 | 输入 → 输出 | 确认与失败 |
+|---|---|---|
+| Catalog.project | scopeRef、catalogRef、当前可信授权epoch → VisibleCatalog | 有权读取后求目录与scope允许资源交集；返回视图前确认引用保留；可见性不构成执行授权 |
+| Catalog.resolveFrozen | catalogRef、descriptorRef → CatalogEntry与RouteBinding | 精确命中，检查路由活性；缺失NOT_FOUND/GONE，失效ROUTE_UNAVAILABLE；不选最新版本 |
+| Calls.accept | 原command、payloadDigest、冻结解析结果 → ToolCall | 唯一插入received及调用扩展，version=0；同键同载荷返回原回执，异载荷IDEMPOTENCY_CONFLICT |
+| Calls.start | commandId、expectedVersion、当前claim、StartGrant及安全私有绑定读取能力 → winner/observed | 本地事务核对phase=authorized、版本、取消标志、deadline、当前claim和grant绑定，写started及operationKey；提交确认的胜者才获得本地一次派发资格 |
+| Calls.record | commandId、expectedVersion、ExecutionEvidence → 新版本或重复回执 | 校验原操作身份；结果Artifact已发布；ToolCall结果、必要审计意图、通知outbox同事务；异结果冲突不覆盖 |
+| Calls.reconcile | CD-1 ReconciliationRecord → 原记录或新增回执 | 受控维护身份验证证据来源与scope；unknown历史保持，核对记录和通知同事务；矛盾证据拒绝 |
+| L4.execute | ExecutionPlan → ExecutionEvidence | 按单一路径执行一次；失败后也不自行重试；尚未返回operation handle时仍能以operationKey定位或返回unknown |
+| L4.inspect | operationKey、routeRef → pending或evidence或unknown | 没有查询能力、查询不可用、查无记录均不得证明未执行；只有可信明确未生效证据才能effect=none |
+| L4.cancel | operationKey、routeRef → CD-1 CancelExecutionResult | unsupported映射unknown；requested仅受理；stopped需要停止证据，不代表副作用撤销 |
+
+CD-1 visible返回的内部CatalogSnapshot必须通过PublicTool投影后交给L2；不能直接序列化内部descriptor。Ref读取仍经作用域与当前授权验证。上述L4方法是候选端口语义，具体Provider/Sandbox传输DTO仍由L4适配，不向模型暴露。
+
+安全错误均retryable=false；依赖查询仅按CD-1有界重试。受理前依赖失败返回错误且执行0；受理后依赖暂不可用保留原阶段，可由受控恢复继续验证。确定授权拒绝/参数错误记录failed、effect=none；STARTED之后没有可信效果证据记录unknown，不能把超时包装成已知失败。
+
+## 3. 数据、事务与保留
+
+| 逻辑存储 | 唯一键、索引 | 写入者/读取者与原子范围 |
+|---|---|---|
+| CatalogSnapshot/CatalogIndex/Head | scope+catalogRef；head的scope唯一；条目catalogRef+descriptorRef唯一，同toolId/version不可有异内容 | Catalog发布事务写三者，head用expectedVersion CAS；Guard/Router只读冻结版本 |
+| CatalogPin | scope+catalogRef+ownerKind+ownerRef，ownerKind为run/permit/call | 生命周期持有者经存储Port幂等持有/释放；发布、受理在返回引用前确认pin，GC与新增pin互斥 |
+| ToolCall及CallExecutionRecord | scope+commandId主键；scope+runId+phase索引；scope+phase+deadlineAtMs用于扫描 | Runtime唯一写入口；accept/start/record各自短事务；ToolCall版本每次有效变更+1，重复不增 |
+| ReconciliationRecord | scope+commandId+resolutionId；同command只接受一致的已验证结论 | Runtime受信核对入口写；原unknown历史不改写；查询产生有效结果投影 |
+| ToolNotification | scope+notificationId；commandId+事实版本唯一；未ACK索引 | record/reconcile同事务写；L1持久确认后仅置ackRef；发送成功不代表采纳 |
+| Tombstone | scope+commandId唯一 | 清理后保留不可复用标识，inspect返回gone；无记录且确认未清理才absent |
+
+首版本地安全存储必须能按CD-1原子读取当前执行资格；L3不得直接修改Run、Permit或FE系统日志。事务不跨外部Provider，不以锁覆盖执行60秒。STARTED提交回执不明时查询状态但**不能由查询started重新取得派发资格**；即使该进程猜测提交成功也只能核对，防止恢复重复执行。
+
+所有未完成调用、open incident及关联Artifact/路由快照保持pin。完成且通知持久确认后至少保留30天，并等待其他活跃引用释放；配额不足拒绝新工作，不删未知调用。Artifact发布后记录失败产生暂存孤儿，由引用GC的安全宽限期处理；记录引用未确认前不释放持有。GC机制属于Infrastructure，本轮只规定所需原子保留语义。
+
+## 4. 结果、通知与取消
+
+执行是否生效与执行是否成功是不同字段。工具返回业务错误可能已经写了文件；只有L4可信证据才能填写none/applied，无法证明使用unknown。effect=unknown统一进入ToolCall unknown；保留已知错误和部分Artifact供核对，不误报安全失败。
+
+输出先按L4帧与总字节限额限制；L3再次校验Artifact大小/摘要/类型，事件仅携带引用。超过256KiB不能靠“转Artifact”绕过首版结果总量上限；记录OUTPUT_LIMIT，若副作用不明仍unknown。大于事件64KiB但不超过结果限额的输出使用Artifact。异常原文不进入公共Error。
+
+取消先耐久设置cancelRequested：received/authorized且未STARTED的CAS胜者记录cancelled、effect=none；STARTED胜者先提交则只请求L4停止并保留started事实，最终由证据记录结果或unknown。迟到成功不得改写为cancelled。L1已终态只接收晚到事实，不重新唤醒业务。
+
+## 5. 复用FE公共Activity
+
+L1业务适配以稳定Activity key、name=`tool.execute`、version及冻结command作为输入，经公共Activity调用L3.dispatch；不得在L3再建FE或调度器。Activity Started表示回调调用资格，ToolCall started表示进入L4资格，二者不等价。accepted不是Activity最终业务结果；适配须查询至已知结果才返回，unknown按公共FlowYield路径等待核对，不伪造成功。
+
+| 部分成功窗口 | 正确恢复 |
+|---|---|
+| Activity Started存在，L3尚无记录 | FE保持Yield；没有L3记录也不能据此自动重调Activity；维护者核对或终止原意图 |
+| L3 received/authorized、Activity尚无Completed | 受控恢复只推进原ToolCall的执行资格检查；Permit失效则记录失败，不能换Permit；FE由原身份核对结果 |
+| L3 succeeded，Activity Completed缺失 | 查询L3的权威结果与凭据，经FE现有reconcile补Completed；L4新增执行0 |
+| L3 unknown | L3核对原operationKey；未获证据保持unknown与FE Yield；可信证据同时供L1恢复原Activity |
+| FE已终态，结果迟到 | 保存工具事实/Incident；不修改FE终态，不依赖尚未实现的reconcileTerminal完成业务推进 |
+
+现有CD-1的ToolObserved/T1/T2属于ReAct适配协议，不应映射为通用FE的状态枚举。当前FE epoch与CD-1 ExecutionClaim的正式桥接、取消权威读取的存储装配仍需L1/Security联合冻结；这属于实现接通门槛，不能让L3通过读取旧缓存绕开。纯目录/迁移算法可按本候选开发设计评审，集成就绪不能提前宣称。
+
+## 6. 扩展、升级与配置
+
+RouteBinding.kind首版封闭为provider/sandbox；新增某远程Provider只注册新的L4 adapterBinding与不可变路由、描述，不改Runtime中央分派。新增第三种执行语义需更新联合类型、路由处理表及装配穷尽检查，经契约评审，不能通过自由字符串反射执行。
+
+配置沿用CD-1：工具60秒且服从Run；安全调用2秒；参数64KiB、结果256KiB、目录256工具/投影1MiB、缓存16份/16MiB；首版执行重试0。配额在受理前预留，缓存按scope/catalog/authorityEpoch区分，时钟异常禁止新启动。数值均为设计上限与目标，未测量。
+
+首次持久化版本为l3-store-1；未知版本拒绝写入。部署先排空可结束调用、保留未知记录，备份数据库与Artifact引用，再升级适配器及契约；活动调用绑定原路由版本。当前旧Grant无一次性消费事实，不能迁移成“Permit已消费”；旧实例排空并保留历史，新调用显式使用新档案。回滚必须使用可读取新记录的版本，否则停止新受理并只诊断，禁止还原旧备份后再次执行原命令。

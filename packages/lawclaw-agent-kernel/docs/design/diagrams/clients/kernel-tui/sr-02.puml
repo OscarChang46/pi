@@ -1,0 +1,36 @@
+@startuml
+skinparam defaultFontName Hiragino Sans GB
+start
+:取得Editor原正文与revision;
+if (已有pending或Session不空闲?) then (是)
+ :保留草稿，不提交;
+ stop
+endif
+:保存唯一pending;
+if (写入失败?) then (是)
+ :保留正文，零请求;
+ stop
+endif
+:submit调用Host意图入口;
+if (preparing或结果未知?) then (是)
+ :查原command，每2秒最多30次;
+ :未解决保留pending，禁止新写;
+ stop
+endif
+if (明确拒绝?) then (是)
+ :保存书签并清pending，保留草稿;
+ stop
+endif
+:accepted记录Run，仅清匹配revision草稿;
+:书签清理失败保留pending，阻止新写;
+if (用户明确/cancel且无pending?) then (是)
+ :保存取消命令后发送；查询权威终态;
+endif
+:Run终态后查Session同步;
+if (historyReady且无活动Run?) then (是)
+ :允许追问;
+else (否)
+ :保持等待，不使用旧anchor;
+endif
+stop
+@enduml

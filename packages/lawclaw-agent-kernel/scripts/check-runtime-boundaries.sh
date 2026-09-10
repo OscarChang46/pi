@@ -108,3 +108,14 @@ echo "运行时依赖与职责边界检查通过。"
 
 node "${SCRIPT_DIR}/check-source-boundaries.mjs"
 node "${SCRIPT_DIR}/check-flow-state-constants.mjs"
+
+if [[ -e "${PROJECT_ROOT}/src/control/context-engine.ts" ]] || \
+   rg -n '\b(ContextAssemblyRequest|ContextFrame|appendTurn|runtimeMessageRef|SqliteAdapterMessages|lastFrame|maxPrivateMessages)\b' "${PROJECT_ROOT}/src" --glob '*.ts'; then
+  echo "错误：运行代码重新引入旧 CE 或旧模型输入旁路。" >&2
+  exit 1
+fi
+if ! rg -q 'createInMemoryContextDependencies\(' "${PROJECT_ROOT}/src/application/composition-root.ts" || \
+   ! rg -q 'createContextEngineFactory\(' "${PROJECT_ROOT}/src/application/flow-composition.ts"; then
+	 echo "错误：两个运行组合根必须装配统一的新 CE。" >&2
+  exit 1
+fi

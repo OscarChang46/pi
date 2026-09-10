@@ -40,7 +40,8 @@ for (const file of sourceFiles) {
    }
    if (area === "contracts" && targetArea !== "contracts") failures.push(`${relative}: 契约反向依赖实现`);
   } else {
-   if (specifier.startsWith("@earendil-works/pi-") && !(area === "pi-cli" || (area === "cognitive" && adapter))) failures.push(`${relative}: Pi 原生类型或能力越界`);
+   const contextAdapter = relative.startsWith(`infrastructure${path.sep}adapters${path.sep}pi-context${path.sep}`);
+   if (specifier.startsWith("@earendil-works/pi-") && !(area === "pi-cli" || (area === "cognitive" && adapter) || contextAdapter)) failures.push(`${relative}: Pi 原生类型或能力越界`);
    if (core.has(area) && !adapter && /^(?:node:(?:fs|path|child_process|net|http|https|worker_threads)|bun:|express|fastify|yaml|.*sqlite)/u.test(specifier)) failures.push(`${relative}: 核心直接依赖机制 ${specifier}`);
   }
  }

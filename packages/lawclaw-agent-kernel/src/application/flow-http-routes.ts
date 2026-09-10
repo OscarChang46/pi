@@ -1,6 +1,5 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { flowDigest } from "../contracts/flow-value.ts";
-import type { AgentTurnRequest } from "../contracts/index.ts";
+import { decodeCandidate } from "../contracts/control/context-engine/candidate-codec.ts";
 import { REACT_FLOW_STATE } from "../contracts/react-flow-values.ts";
 import { FLOW_SCHEDULER_LIMITS, type FlowScheduler } from "../control/flow-scheduler.ts";
 import { flowRunIdForAgentRun } from "../control/react-flow-host.ts";
@@ -42,10 +41,12 @@ export class FlowHttpRoutes {
 		const service = this.#service;
 		if (this.#scheduler.status.stopping) return sendFlowResponse(response, 503, { code: "FLOW_STOPPING" });
 		const body = await readBody(request);
-		const { runId: agentRunId, goal } = body;
+		const { runId: agentRunId, goal, sessionKey } = body;
 		const duration = body.timeoutMs ?? service.maxDurationMs;
 		if (
-			Object.keys(body).some((key) => !["runId", "goal", "timeoutMs"].includes(key)) ||
+			Object.keys(body).some((key) => !["runId", "goal", "timeoutMs", "sessionKey"].includes(key)) ||
+			(sessionKey !== undefined &&
+				(typeof sessionKey !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(sessionKey))) ||
 			typeof agentRunId !== "string" ||
 			!/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(agentRunId) ||
 			typeof goal !== "string" ||
@@ -61,17 +62,26 @@ export class FlowHttpRoutes {
 		const prior = service.store.initial(agentRunId);
 		if (!prior && service.store.listRunIds(FLOW_SCHEDULER_LIMITS.maxRuns).length >= FLOW_SCHEDULER_LIMITS.maxRuns)
 			return sendFlowResponse(response, 503, { code: "FLOW_CAPACITY_EXCEEDED" });
-		const input = service.frames.initial({ runId: agentRunId, goal: goal, nowMs: now, deadlineAtMs: now + duration });
 		if (prior) {
-			const oldFrame = service.artifacts.get(prior.context!.promptRef) as AgentTurnRequest;
-			const newFrame = service.artifacts.get(input.context!.promptRef) as AgentTurnRequest;
+			if (!prior.context) throw new Error("FLOW_INITIAL_CONTEXT_MISSING");
+			const oldCandidate = decodeCandidate(service.artifacts.get(prior.context.promptRef), prior.context);
 			if (
-				flowDigest(oldFrame.frame.messages) !== flowDigest(newFrame.frame.messages) ||
+				oldCandidate.payload.task !== goal ||
+				service.sessions.snapshot(prior.session.sessionId).intent.logicalKey !== (sessionKey ?? agentRunId) ||
 				prior.run.deadlineAtMs - prior.operation.nowMs !== duration ||
 				prior.run.bindings.configVersion !== service.configVersion
 			)
 				return sendFlowResponse(response, 409, { code: "FLOW_ADMISSION_CONFLICT" });
-		} else service.store.admit(input);
+		} else {
+			const input = await service.frames.initial({
+				runId: agentRunId,
+				...(sessionKey === undefined ? {} : { sessionKey }),
+				goal,
+				nowMs: now,
+				deadlineAtMs: now + duration,
+			});
+			service.sessions.admit(input);
+		}
 		this.#scheduler.schedule(agentRunId);
 		sendFlowResponse(response, 202, { runId: agentRunId, statusUrl: `/runs/${agentRunId}` });
 	}

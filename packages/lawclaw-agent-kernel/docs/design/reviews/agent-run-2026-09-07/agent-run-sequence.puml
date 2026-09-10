@@ -1,0 +1,67 @@
+@startuml
+!include ../../diagrams/theme.puml
+title AgentRun：一次用户输入内的多轮 Model-Tool Loop（评审提案）
+hide footbox
+skinparam defaultFontSize 12
+skinparam sequenceMessageFontSize 11
+skinparam sequenceParticipantFontSize 12
+
+participant "用户轮次用例" as Gateway
+participant SessionManager as Session
+participant RunRegistry as Run
+participant "Flow / Scheduler" as Flow
+participant ContextEngine as Context
+participant "L2 Runtime\n+ Pi/Python Adapter" as Runtime
+participant "L1 PEP / PDP" as Security
+participant "LawClaw\nToolRuntimePort" as Tool
+participant "L4 Provider / Sandbox" as Provider
+
+Gateway -> Gateway : 用户输入 + sessionId + 幂等键
+Gateway -> Session : 读取 SessionSnapshot@expectedVersion
+Session --> Gateway : 冻结快照
+Gateway -> Run : submitUserTurn(...)
+Run --> Gateway : RunAcceptedReceipt
+
+Flow -> Run : 创建 Attempt / claim
+
+loop 直到最终答复、失败、取消或挂起
+  Flow -> Context : Session 快照 + Run 转录
+  Context --> Flow : ContextFrame
+  Flow -> Run : 先提交 InvokeModel(commandId)
+  Flow -> Runtime : executeTurn(Frame, ToolDescriptor[])
+  Runtime -> Runtime : 单次模型 Turn；归一化私有类型
+  Runtime --> Flow : 规范化 ModelCompleted
+  Flow -> Run : 提交助手消息与候选
+
+  alt 最终文本，无工具候选
+    Flow -> Run : 提交 COMPLETED + outputRef
+  else 存在工具候选
+    loop 按原始顺序串行处理每个候选
+      Flow -> Security : RequestPermission(ActionProposal)
+      Security --> Flow : Allow + Permit / Ask / Deny
+      alt Allow
+        Flow -> Run : 先提交 DispatchTool(commandId, permitRef)
+        Flow -> Tool : execute(AuthorizedToolRequest)
+        Tool -> Provider : Guard 复核并消费 Permit 后执行
+        Provider --> Tool : 规范化 ToolResult
+        Tool --> Flow : ToolObserved
+        Flow -> Run : 提交工具结果与 effect
+      else Ask
+        Flow -> Run : SUSPENDED.approval
+      else Deny
+        Flow -> Run : FAILED；Provider 调用为 0
+      end
+    end
+  end
+end
+
+Gateway -> Run : 查询/订阅终态
+Run --> Gateway : outputRef / failure / cancellation
+Gateway -> Session : 按 transcriptReceipt 追加完整本轮 Delta
+Session --> Gateway : Session version + 1 / CAS conflict
+
+note over Runtime,Provider
+  Adapter 只映射模型工具描述与候选。
+  不允许 Adapter 直接调用 Provider。
+end note
+@enduml

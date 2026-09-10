@@ -23,7 +23,7 @@ supersedes: [docs/design/operations-infrastructure-minimum-design.md]
 | L1 ↔ L2 | 进程内 Runtime | stdio JSONL Pi Runtime 子进程 |
 | PEP ↔ PDP | 进程内 | 同左 |
 | L1 ↔ L3 | 进程内 | 可选 UDS，但非首版要求 |
-| L3 ↔ L4 | 同进程只读 Adapter 或一次性子进程 JSONL | 可选本地容器 |
+| L3 ↔ L4 | L34-SPEC-1.0.0 P1受信Port或P2同机受信supervisor JSONL 1.0 | supervisor调用本地隔离机制；工作负载独立管道，不直接写控制帧 |
 | Memory | 进程内 Port + SQLite/Artifact | 同左 |
 | Operations | 本地日志、Trace、指标快照、SQLite 审计 | 可选 OTLP Exporter |
 

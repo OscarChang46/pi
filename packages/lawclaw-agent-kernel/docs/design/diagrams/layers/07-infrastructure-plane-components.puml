@@ -7,7 +7,6 @@ rectangle "Kernel / L4 Port 调用方" as KERNEL LC_EXTERNAL
 package "Infrastructure Plane" LC_INFRASTRUCTURE {
   component "StateStorage" as STATE
   component "ArtifactStorage" as ARTIFACT
-  component "ExecutionCapacity" as CAPACITY
   component "Process / Container" as PROCESS
   component "Transport" as TRANSPORT
   component "ModelEgress" as EGRESS
@@ -17,7 +16,6 @@ package "Infrastructure Plane" LC_INFRASTRUCTURE {
 
 KERNEL --> STATE : Repository Ports
 KERNEL --> ARTIFACT : ArtifactPort
-KERNEL --> CAPACITY : ExecutionCapacityPort
 KERNEL --> PROCESS : Process / Container Ports
 KERNEL --> TRANSPORT : TransportPort
 KERNEL --> EGRESS : ModelEgressPort

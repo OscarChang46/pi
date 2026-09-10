@@ -1,0 +1,25 @@
+{
+  "scope": "L34 specification documentation; no runtime acceptance",
+  "documentArchitecture": {
+    "command": "bash packages/lawclaw-agent-kernel/scripts/check-document-architecture.sh",
+    "exitCode": 0,
+    "layers": 7,
+    "components": 35,
+    "governedDocuments": 129
+  },
+  "whitespace": {"command": "git diff --check", "exitCode": 0},
+  "plantuml": {
+    "version": "1.2026.7",
+    "changedFigures": 7,
+    "syntaxPassed": 7,
+    "sourceSynchronization": "passed; embedded source plus rendered boundary overview",
+    "visualInspection": "7 complete figures inspected; no clipping; overview spacing adjusted",
+    "runtimeEvidence": false
+  },
+  "fixtureReplay": {
+    "source": "../archive/l34-validation-script-2026-09-09.txt",
+    "dependency": "jsonschema==4.23.0 in isolated /tmp/l34-schema-deps",
+    "command": "python3 packages/lawclaw-agent-kernel/docs/governance/archive/l34-validation-script-2026-09-09.txt",
+    "note": "Temporary independent checks for published fixtures; not a production parser or complete protocol test suite"
+  }
+}

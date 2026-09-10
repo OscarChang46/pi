@@ -1,0 +1,57 @@
+from pathlib import Path
+import sys,json,hashlib,copy,time,codecs,importlib.metadata
+sys.path.insert(0,'/tmp/l34-schema-deps')
+from jsonschema import Draft202012Validator
+R=Path('/Users/oscar/jurismind/code/pi-lawclaw/packages/lawclaw-agent-kernel/docs')
+started=time.monotonic();schema=json.loads((R/'design/contracts/l34/protocol.schema.json').read_text());vectors=json.loads((R/'design/contracts/l34/vectors.json').read_text())
+Draft202012Validator.check_schema(schema)
+results=[]
+for v in vectors['schemaVectors']:
+ selected=dict(schema,**{'$ref':'#/$defs/'+v['definition']})
+ actual=Draft202012Validator(selected).is_valid(v['value'])
+ assert actual==v['valid'],v['id']
+ results.append(dict(id=v['id'],passed=True))
+for v in vectors['canonicalVectors']:
+ actual=json.dumps(v['value'],ensure_ascii=False,sort_keys=True,separators=(',',':'))
+ assert actual==v['utf8'] and 'sha256:'+hashlib.sha256(actual.encode()).hexdigest()==v['digest'],v['id']
+ results.append(dict(id=v['id'],passed=True))
+samples={v['id'][6:]:v['value'] for v in vectors['schemaVectors'] if v['id'].startswith('valid-')}
+def check_semantic(f):
+ if f['sessionId']!='s1' or f['seq']!=2:return 'close'
+ if f['type']=='execute':
+  p=f['body']['plan']
+  if p['scopeRef']!='s1':return 'SCOPE_MISMATCH'
+  if p['operationKey']!=p['commandId']:return 'BINDING_MISMATCH'
+ if f['type']=='inspect' and not 1800000000000<f['body']['deadlineAtMs']<=1800000002000:return 'DEADLINE_EXCEEDED'
+ return 'valid'
+for v in vectors['semanticVectors']:
+ f=copy.deepcopy(samples[v['base']]);obj=f
+ for k in v['change'][:-1]:obj=obj[k]
+ obj[v['change'][-1]]=v['value']
+ assert Draft202012Validator(schema).is_valid(f),v['id']
+ assert check_semantic(f)==v['expected'],v['id']
+ results.append(dict(id=v['id'],passed=True))
+def pairs(items):
+ d={}
+ for k,v in items:
+  if k in d:raise ValueError('duplicate')
+  d[k]=v
+ return d
+def integer(s):
+ if s=='-0':raise ValueError('negative zero')
+ return int(s)
+for v in vectors['wireVectors']:
+ if v['id']=='split-utf8':
+  decoder=codecs.getincrementaldecoder('utf-8')('strict')
+  value=''.join(decoder.decode(bytes.fromhex(h)) for h in v['hexChunks'])+decoder.decode(b'',final=True)
+  assert value=='{"x":"中"}\n'
+  assert not Draft202012Validator(schema).is_valid(json.loads(value))
+ elif v['id']=='missing-lf':assert not v['line'].endswith('\n')
+ else:
+  try:json.loads(v['line'],object_pairs_hook=pairs,parse_int=integer)
+  except ValueError:pass
+  else:raise AssertionError(v['id'])
+ results.append(dict(id=v['id'],passed=True))
+report=dict(scope='Documentation artifacts only; temporary independent fixture checks, not runtime implementation tests',schemaDraft='2020-12',validator='jsonschema '+importlib.metadata.version('jsonschema'),schemaValid=True,counts={'schema':len(vectors['schemaVectors']),'semanticFixture':len(vectors['semanticVectors']),'canonical':len(vectors['canonicalVectors']),'framingFixture':len(vectors['wireVectors']),'total':len(results),'passed':len(results),'failed':0},durationSeconds=round(time.monotonic()-started,3),results=results)
+(R/'governance/reviews/l34-protocol-validation-2026-09-09.json').write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n')
+print(json.dumps({k:v for k,v in report.items() if k!='results'},ensure_ascii=False))

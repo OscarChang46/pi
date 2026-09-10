@@ -1,3 +1,4 @@
+import type { AssemblyCandidate, ContextPayload } from "./control/context-engine/assembly-candidate.ts";
 import type { SandboxHandle } from "./tool-security.ts";
 
 /**
@@ -145,7 +146,7 @@ export interface ContextItem {
 	readonly content: string;
 	/** 数值越大优先级越高。 */
 	readonly priority: number;
-	/** 必选项无法放入预算时必须失败，不能静默删除。 */
+	/** 必选项超 Token 软目标仍保留；超过字节硬限制必须失败。 */
 	readonly required: boolean;
 	/** 数据安全分级。 */
 	readonly classification: DataClassification;
@@ -179,12 +180,10 @@ export interface KernelToolCallBlock {
 	readonly arguments: Readonly<Record<string, JsonValue>>;
 }
 
-/** Kernel 规范化的助手消息；runtimeMessageRef 只是 Adapter 私有对象的不可解释引用。 */
+/** Kernel 规范化助手消息；只保存实际交付内容，不保留原生消息旁路。 */
 export interface KernelAssistantMessage {
 	/** 消息角色判别字段；固定为助手消息。 */
 	readonly role: "assistant";
-	/** Adapter 私有原生消息的租户隔离引用；调用方不得解释或持久化其内部结构。 */
-	readonly runtimeMessageRef: string;
 	/** 归一化后的候选文本和工具调用，按 Runtime 原始顺序排列。 */
 	readonly content: readonly (KernelTextBlock | KernelToolCallBlock)[];
 	/** 本轮停止原因；只有 Kernel 可以据此决定继续、完成或失败。 */
@@ -207,48 +206,6 @@ export interface KernelToolResultMessage {
 
 /** 一轮模型调用可见的规范化消息联合类型。 */
 export type KernelMessage = KernelUserMessage | KernelAssistantMessage | KernelToolResultMessage;
-
-/** 上下文裁剪的可解释轨迹；不得记录被裁剪正文。 */
-export interface ContextReductionTrace {
-	/** 因预算未被选入本次 Frame 的上下文项标识；不包含正文。 */
-	readonly droppedItemIds: readonly string[];
-	/** 被选入本次 Frame 的上下文项标识。 */
-	readonly selectedItemIds: readonly string[];
-	/** 触发本次选择或裁剪的稳定原因码。 */
-	readonly reasonCodes: readonly ("LOW_PRIORITY" | "BUDGET_FIT")[];
-	/** 选择前的保守 Token 估算值。 */
-	readonly estimatedTokensBefore: number;
-	/** 选择后的保守 Token 估算值。 */
-	readonly estimatedTokensAfter: number;
-}
-
-/** 一次 Runtime turn 的不可变规范化输入；Pi Message 只能由 Adapter 临时映射。 */
-export interface ContextFrame {
-	/** 每次组装产生的不可变 Frame 标识。 */
-	readonly frameId: string;
-	/** Kernel 冻结的系统约束；Adapter 不得改写。 */
-	readonly systemPrompt: string;
-	/** 交给单次 Runtime turn 的规范化消息快照。 */
-	readonly messages: readonly KernelMessage[];
-	/** 当前 Frame 的保守 Token 估算，用于预算保护而非计费。 */
-	readonly estimatedTokens: number;
-	/** 本次上下文选择的可审计轨迹。 */
-	readonly reductionTrace: ContextReductionTrace;
-}
-
-/** 创建首轮上下文的请求；必要项超出预算时返回稳定错误，不允许静默截断。 */
-export interface ContextAssemblyRequest {
-	/** 本次 Run 的系统级约束，优先于普通上下文项。 */
-	readonly systemPrompt: string;
-	/** 当前技术执行目标；不是业务 WorkflowStep。 */
-	readonly goal: string;
-	/** 可供 ContextEngine 选择的规范化上下文项。 */
-	readonly items: readonly ContextItem[];
-	/** 模型输入上下文的最大 Token 预算。 */
-	readonly maxInputTokens: number;
-	/** 为模型输出预留、不得被输入占用的 Token 数。 */
-	readonly outputReserveTokens: number;
-}
 
 /** 与具体 Schema 库无关的 JSON Schema 子集。 */
 export interface JsonObjectSchema {
@@ -412,10 +369,12 @@ export interface DelegationProviderPort {
 export interface AgentTurnRequest {
 	/** Kernel 维护的逻辑 Session 标识；Adapter 只能做私有映射。 */
 	readonly sessionId: string;
-	/** 本轮不可变的规范化上下文快照。 */
-	readonly frame: ContextFrame;
-	/** 本轮允许暴露给 Runtime 的工具描述快照。 */
-	readonly tools: readonly ToolDescriptor[];
+	/** 候选中的唯一模型正文，工具只从 payload.tools 读取。 */
+	readonly payload: ContextPayload;
+	/** 规范载荷版本。 */
+	readonly formatVersion: string;
+	/** 冻结模型转换版本。 */
+	readonly modelAdapterVersion: string;
 }
 
 /** 具体 Runtime 输出的规范化候选事件；Kernel 决定是否记录和如何推进状态。 */
@@ -454,7 +413,7 @@ export interface AgentAdapter {
 	 * 执行一个且仅一个 Runtime turn，并流式返回规范化候选事件。
 	 *
 	 * @param context Adapter 必须执行隔离和链路传播的租户、运维上下文。
-	 * @param request Kernel 冻结的 Session、ContextFrame 和工具描述。
+	 * @param request Kernel 冻结的 Session、候选载荷和转换版本。
 	 * @param signal Run 的取消或截止时间信号，必须传递给底层 Runtime。
 	 * @returns 文本增量以及唯一的完成或失败候选事件流。
 	 * @throws KernelError 当输入无法映射或底层协议违反边界契约时抛出。
@@ -519,7 +478,7 @@ export interface AgentRunResult {
 	/** 按严格递增序号排列的内存技术事件。 */
 	readonly events: readonly AgentEvent[];
 	/** Run 结束前最后一次完整的规范化上下文快照。 */
-	readonly lastFrame: ContextFrame;
+	readonly lastCandidate: AssemblyCandidate | null;
 }
 
 /** Agent Kernel 的规范化技术事件；seq 在单 Run 内严格递增。 */

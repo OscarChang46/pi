@@ -1,37 +1,37 @@
 @startuml
 !include ../theme.puml
-title 取消、Worker 故障与结构化恢复（V3）
-
-actor "外部调用方" as Caller
-participant "AgentSystemGateway" as Gateway
-participant "RunRegistry" as Runs
-participant "RunScheduler" as Scheduler
-participant "SubagentCoordinator" as Subagent
-participant "AgentRuntimePool" as Pool
-participant "AgentRuntime" as Runtime
-participant "CheckpointPort" as Checkpoint
-
-Caller -> Gateway : cancel(runId, reason, envelopeRef)
-Gateway -> Runs : RunCommandPort.cancel(runId, reason)
-Runs -> Scheduler : revokeLease(runId)
-Scheduler -> Subagent : cancelChildren(scopeId)
-Subagent --> Scheduler : children terminal / transferred
-Scheduler -> Pool : interrupt(runId, fenceToken)
-Pool -> Runtime : abort current step
-Runtime --> Runs : canceled(attemptId)
-Runs --> Gateway : AgentRunCanceled
-Gateway --> Caller : canceled
-
-== Worker 崩溃 ==
-Pool -> Scheduler : runtimeLost(runtimeId)
-Scheduler -> Runs : markAttemptInterrupted(leaseId)
-Runs -> Checkpoint : inspectSafeCheckpoint(runId)
-alt 可安全恢复且无未知副作用
-  Checkpoint --> Runs : checkpointRef
-  Runs -> Scheduler : enqueueRecovery(runId, checkpointRef)
-  Scheduler -> Pool : dispatch new Attempt + new Lease
-else 不满足安全条件
-  Checkpoint --> Runs : unsafe(reason)
-  Runs --> Gateway : AgentRunFailed(recoveryUnsafe)
+title 系统执行取消、故障与显式恢复
+actor "受信维护方" as Ops
+participant "FlowEngine" as Engine
+database "追加系统日志" as Journal
+participant "业务程序" as Business
+participant "外部权威服务" as External
+== 显式系统终止 ==
+Ops -> Engine : terminate(runId, reason)
+Engine -> Journal : CAS追加Terminate
+note right of Journal
+旧回调被Running/epoch检查拒绝
+已发出的外部动作不能撤回
+end note
+== 宿主崩溃 ==
+Ops -> Ops : 确认原宿主进程结束
+Ops -> Engine : recover(runId)
+Engine -> Journal : CAS Running -> Yield
+Ops -> Engine : run(相同版本与输入)
+Engine -> Journal : Yield -> Ready -> 新Running代次
+Engine -> Business : 从入口或业务检查点继续
+Business -> Journal : Activity查询
+alt Completed存在
+  Journal --> Business : 回放结果，零次外部执行
+else 只有Started
+  Business --> Engine : 未知结果挂起
+  Engine -> Journal : 追加Yield
+  Ops -> External : 只读查询权威结果
+  alt 凭据和结果已核验
+    Ops -> Journal : reconcile追加Completed及证据引用
+    Ops -> Engine : 显式恢复并回放
+  else 仍然未知
+    Ops -> Ops : 保持Yield，禁止重发
+  end
 end
 @enduml

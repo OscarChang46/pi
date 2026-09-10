@@ -1,3 +1,17 @@
+---
+doc_id: VER-FRAMEWORK
+level: verification
+layer: Cross-cutting
+component: Verification
+status: implemented
+baseline: AKB-2026-09-03-09
+authoritative_for: 验证框架执行与隔离
+parent: VER-INDEX-001
+interfaces: []
+diagrams: []
+supersedes: []
+---
+
 # 验证框架首期
 
 本框架验证现有实现，不批准候选架构，不补建未实现产品模块。UT 为单元测试，DT 为组件白盒测试，Contract 为接口验收，Integration 为子系统集成，System 为现有入口验收。全部自动执行。

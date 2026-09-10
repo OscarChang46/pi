@@ -15,7 +15,6 @@ test("[AK-FE-025] HTTP鉴权与同Run同内容幂等，不同内容拒绝且不�
 				type: "turn_completed",
 				message: {
 					role: "assistant",
-					runtimeMessageRef: "answer",
 					stopReason: "stop",
 					content: [{ type: "text", text: "OK" }],
 				},
@@ -30,6 +29,14 @@ test("[AK-FE-025] HTTP鉴权与同Run同内容幂等，不同内容拒绝且不�
 		modelOverride: model.adapter,
 	});
 	const token = "test-token-with-more-than-thirty-two-characters";
+	const initial = service.frames.initial.bind(service.frames);
+	service.frames.initial = async (request, signal) => {
+		assert.ok(
+			!Object.hasOwn(request, "sessionKey") || typeof request.sessionKey === "string",
+			"HTTP 边界不得传入显式 undefined 的 sessionKey",
+		);
+		return initial(request, signal);
+	};
 	const http = createFlowHttpServer(service, token);
 	const socketPath = join(directory, "http.sock");
 	await new Promise<void>((resolve) => http.server.listen(socketPath, resolve));
@@ -59,6 +66,20 @@ test("[AK-FE-025] HTTP鉴权与同Run同内容幂等，不同内容拒绝且不�
 	assert.equal((await fetch(`${base}/runs/http-run`)).status, 401);
 	const headers = { authorization: `Bearer ${token}`, "content-type": "application/json" };
 	const payload = { runId: "http-run", goal: "hello", timeoutMs: 15000 };
+	for (const invalid of [null, 42, "", {}, []]) {
+		assert.equal(
+			(
+				await fetch(`${base}/runs`, {
+					method: "POST",
+					headers,
+					body: JSON.stringify({ ...payload, sessionKey: invalid }),
+				})
+			).status,
+			400,
+		);
+		assert.equal(service.store.initial(payload.runId), null);
+		assert.equal(model.calls(), 0);
+	}
 	assert.equal((await fetch(`${base}/runs`, { method: "POST", headers, body: JSON.stringify(payload) })).status, 202);
 	assert.equal((await fetch(`${base}/runs`, { method: "POST", headers, body: JSON.stringify(payload) })).status, 202);
 	assert.equal(

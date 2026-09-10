@@ -22,8 +22,8 @@ mapfile_compat() {
 }
 
 mapfile_compat diagram_files find "${DIAGRAM_DIR}" -mindepth 2 -type f -name '[0-9][0-9]-*.puml' -not -path '*/rendered/*' -print
-if [[ "${#diagram_files[@]}" -ne 19 ]]; then
-  echo "错误：应有 19 张编号 PlantUML，实际为 ${#diagram_files[@]} 张。" >&2
+if [[ "${#diagram_files[@]}" -ne 20 ]]; then
+  echo "错误：应有 20 张编号 PlantUML，实际为 ${#diagram_files[@]} 张。" >&2
   exit 1
 fi
 
@@ -40,4 +40,4 @@ for source_file in "${diagram_files[@]}"; do
     -charset UTF-8 -tsvg -o "/workspace/rendered/${source_dir}" "${source_name}"
 done
 
-echo "已使用 ${PLANTUML_IMAGE} 生成 19 张 SVG：${OUTPUT_DIR}"
+echo "已使用 ${PLANTUML_IMAGE} 生成 20 张 SVG：${OUTPUT_DIR}"
