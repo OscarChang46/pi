@@ -103,7 +103,9 @@
         {"id": "AK-SESSION-015", "level": "integration", "file": "test/integration/durable-session-admission.test.ts"},
         {"id": "AK-SESSION-016", "level": "integration", "file": "test/integration/durable-session-admission.test.ts"},
         {"id": "AK-SESSION-017", "level": "integration", "file": "test/integration/durable-session-admission.test.ts"},
-        {"id": "AK-SESSION-018", "level": "integration", "file": "test/integration/durable-session-admission.test.ts"}
+        {"id": "AK-SESSION-018", "level": "integration", "file": "test/integration/durable-session-admission.test.ts"},
+        {"id": "AK-SESSION-019", "level": "integration", "file": "test/integration/durable-session-admission.test.ts"},
+        {"id": "AK-SESSION-020", "level": "integration", "file": "test/integration/durable-session-admission.test.ts"}
       ]
     },
     {
