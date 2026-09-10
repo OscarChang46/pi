@@ -277,6 +277,9 @@ export class DurableSessionManager implements SessionQueryPort, SessionCommandPo
 		if (!initial?.context) throw new Error("FLOW_INITIAL_CONTEXT_MISSING");
 		const candidate = decodeCandidate(this.#artifacts.get(initial.context.promptRef), initial.context);
 		const history = projectFlowHistory(this.#runs, this.#artifacts, runId);
-		return { ...history, records: completedRunHistory(this.#artifacts, runId, candidate.payload.task, history.records) };
+		return {
+			...history,
+			records: completedRunHistory(this.#artifacts, runId, candidate.payload.task, history.records),
+		};
 	}
 }

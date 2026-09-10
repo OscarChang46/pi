@@ -22,20 +22,37 @@ function answer(text: string) {
 
 test("[AK-SESSION-019] 历史写入后回执插入失败原子回滚，恢复不重复追加", async (t) => {
 	const directory = await temporaryWorkspace(t);
-	const service = await createFlowService({ dataDirectory: directory, modelsPath: "unused", providerId: "test", modelId: "test", modelOverride: scriptedModel([answer("confirmed")]).adapter });
+	const service = await createFlowService({
+		dataDirectory: directory,
+		modelsPath: "unused",
+		providerId: "test",
+		modelId: "test",
+		modelOverride: scriptedModel([answer("confirmed")]).adapter,
+	});
 	t.after(() => service.close());
 	const scope = createRequestContext().tenant.tenantId;
 	const repository = new SqliteSessionRepository(join(directory, "sessions.sqlite"), scope);
 	t.after(() => repository.close());
 	const sessions = new DurableSessionManager(repository, service.store, service.artifacts, scope);
 	const now = service.time.now().epochMilliseconds;
-	const input = await service.frames.initial({ runId: "receipt-gap", goal: "question", nowMs: now, deadlineAtMs: now + 15000 });
+	const input = await service.frames.initial({
+		runId: "receipt-gap",
+		goal: "question",
+		nowMs: now,
+		deadlineAtMs: now + 15000,
+	});
 	service.sessions.admit(input);
 	t.mock.method(service.sessions, "finalize", () => {});
 	await service.driver.drive(input.run.runId);
 	const record = repository.record.bind(repository);
 	let failOnce = true;
-	t.mock.method(repository, "record", (...args: Parameters<typeof record>) => { if (failOnce) { failOnce = false; throw new Error("receipt insert failed"); } return record(...args); });
+	t.mock.method(repository, "record", (...args: Parameters<typeof record>) => {
+		if (failOnce) {
+			failOnce = false;
+			throw new Error("receipt insert failed");
+		}
+		return record(...args);
+	});
 	assert.throws(() => sessions.finalize(input.run.runId), /receipt insert failed/);
 	assert.equal(sessions.snapshot(input.session.sessionId).anchor.version, 0);
 	assert.equal(sessions.snapshot(input.session.sessionId).records.length, 0);
@@ -49,21 +66,40 @@ test("[AK-SESSION-019] 历史写入后回执插入失败原子回滚，恢复不
 });
 
 test("[AK-SESSION-020] Run 失败确认后释放且后续轮次使用原已采纳历史", async (t) => {
-	const model = scriptedModel([answer("next")]);
-	const service = await createFlowService({ dataDirectory: await temporaryWorkspace(t), modelsPath: "unused", providerId: "test", modelId: "test", modelOverride: model.adapter });
+	const model = scriptedModel([answer("exceeds output budget"), answer("next")]);
+	const service = await createFlowService({
+		dataDirectory: await temporaryWorkspace(t),
+		modelsPath: "unused",
+		providerId: "test",
+		modelId: "test",
+		modelOverride: model.adapter,
+	});
 	t.after(() => service.close());
 	const now = service.time.now().epochMilliseconds;
-	const input = await service.frames.initial({ runId: "expired", sessionKey: "conversation", goal: "expired task", nowMs: now - 1000, deadlineAtMs: now - 1 });
-	service.sessions.admit(input);
+	const input = await service.frames.initial({
+		runId: "output-limit",
+		sessionKey: "conversation",
+		goal: "failed task",
+		nowMs: now,
+		deadlineAtMs: now + 15000,
+	});
+	service.sessions.admit({ ...input, run: { ...input.run, budget: { ...input.run.budget, maxOutputBytes: 1 } } });
 	await service.driver.drive(input.run.runId);
 	assert.equal(service.store.load(input.run.runId)?.run.position.kind, "Failed");
 	assert.equal(service.sessions.snapshot(input.session.sessionId).active, null);
 	assert.equal(service.sessions.snapshot(input.session.sessionId).anchor.version, 0);
-	assert.equal(model.calls(), 0);
-	const next = await service.frames.initial({ runId: "after-failure", sessionKey: "conversation", goal: "next task", nowMs: now, deadlineAtMs: now + 15000 });
-	service.sessions.admit(next); await service.driver.drive(next.run.runId);
 	assert.equal(model.calls(), 1);
-	assert.equal(model.requests[0].payload.messages.filter((message) => message.role === "user").length, 0);
+	const next = await service.frames.initial({
+		runId: "after-failure",
+		sessionKey: "conversation",
+		goal: "next task",
+		nowMs: now,
+		deadlineAtMs: now + 15000,
+	});
+	service.sessions.admit(next);
+	await service.driver.drive(next.run.runId);
+	assert.equal(model.calls(), 2);
+	assert.equal(model.requests[1].payload.messages.filter((message) => message.role === "user").length, 0);
 	assert.equal(service.sessions.snapshot(input.session.sessionId).anchor.version, 1);
 });
 

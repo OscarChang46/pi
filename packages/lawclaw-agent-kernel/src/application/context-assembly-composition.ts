@@ -41,10 +41,7 @@ export function createContextAssembler(
 export function createContextEngineFactory(artifacts: ContextArtifactReader): ContextEngineFactory {
 	return {
 		create(sources) {
-			return createContextAssembler(
-				{ artifacts, reader: new FrozenHistoryReader(sources) },
-				"causal-budget",
-			);
+			return createContextAssembler({ artifacts, reader: new FrozenHistoryReader(sources) }, "causal-budget");
 		},
 	};
 }
